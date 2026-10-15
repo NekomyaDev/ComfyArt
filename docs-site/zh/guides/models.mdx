@@ -1,0 +1,63 @@
+---
+title: "模型"
+description: "ComfyArt 每个功能需要哪些模型文件，放在哪里。"
+---
+
+每个画布操作都会通过 ComfyUI 的 `/prompt` 跑 `workflows/` 里的一份 API 工作流（或代码里拼的一小段图）。只需要装你用得到的功能对应的模型。生成器里的模型选择会显示哪些图像和视频模型已经装好。
+
+下面的目录都相对于 `ComfyUI/models/`。
+
+## 图像生成与编辑
+
+默认图像模型。生成、快捷编辑、编辑文字、扩展、局部重绘、风格迁移、评论修改和增强细节放大都靠它。
+
+| 文件 | 目录 |
+|---|---|
+| `qwen_image_2.1_int8_convrot.safetensors` | `diffusion_models` |
+| `qwen3vl_8b_int8_convrot.safetensors` | `text_encoders` |
+| `qwen_image_2.1_vae_bf16.safetensors` | `vae` |
+
+### 其他图像模型（可选）
+
+| 模型 | 文件 |
+|---|---|
+| Z-Image Turbo | `z_image_turbo_bf16`（`diffusion_models`）、`qwen_3_4b`（`text_encoders`）、`ae`（`vae`） |
+| Flux.2 Klein 9B | `flux-2-klein-9b-nvfp4`（`diffusion_models`）、`qwen_3_8b_fp8mixed`（`text_encoders`）、`flux2-vae`（`vae`） |
+| Qwen Image 2512 | `qwen_image_2512_fp8_e4m3fn`（`diffusion_models`）、`qwen_2.5_vl_7b_fp8_scaled`（`text_encoders`）、`qwen_image_vae`（`vae`） |
+| Ideogram 4 | `ideogram4_fp8_scaled` 和 `ideogram4_unconditional_fp8_scaled`（`diffusion_models`）、`qwen3vl_8b_fp8_scaled`（`text_encoders`）、`flux2-vae`（`vae`） |
+
+<Note>
+Qwen Image 2512 用 **ComfyArt Precise UNET Loader** 节点加载。ComfyUI 的 `--fast fp8_matrix_mult` 会把这类没有缩放系数的 fp8 模型跑成噪点，这个加载器会对它加载的模型跳过那条路径。Ideogram 4 需要结构化的描述，默认 [Agent](/zh/guides/agent) 会帮你写好。
+</Note>
+
+## 图像工具
+
+| 功能 | 文件 | 目录 |
+|---|---|---|
+| 放大、视频放大 | `4x-UltraSharp.pth` | `upscale_models` |
+| 去背景 | `birefnet.safetensors` | `background_removal` |
+| 橡皮、移动对象、图层拆分的背景补全 | `big-lama.pt`，需要 [comfyui-inpaint-nodes](https://github.com/Acly/comfyui-inpaint-nodes) | `inpaint` |
+| 智能选择（局部重绘、移动对象、自定义拆分） | `sam3.1_multiplex_fp16.safetensors` | `checkpoints` |
+| 多角度 | `qwen_image_edit_2511_fp8mixed`（`diffusion_models`）、`qwen-image-edit-2511-multiple-angles-lora` 和 `Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16`（`loras`）、`qwen_2.5_vl_7b_fp8_scaled`（`text_encoders`）、`qwen_image_vae`（`vae`） | |
+| 图层拆分 | `qwen_image_layered_bf16`（`diffusion_models`）、`qwen_image_layered_vae`（`vae`）、`qwen_2.5_vl_7b_fp8_scaled`（`text_encoders`） | |
+
+## 视频
+
+动态图片、视频生成和视频延长都用 MiniMax H3：
+
+| 文件 | 目录 |
+|---|---|
+| `minimax_h3_fl2va_pruned_int8_convrot.safetensors` | `diffusion_models` |
+| `minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors` | `loras` |
+| `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` |
+| `minimax_h3_video_vae_fp16.safetensors`、`minimax_h3_audio_vae_fp32.safetensors` | `vae` |
+
+视频裁剪和视频编辑器只用核心节点。
+
+## 语音与文字识别
+
+`text_encoders` 里的 `gemma4_e4b_it_fp8_scaled.safetensors` 负责语音输入，也默认负责编辑文字和提取文字的文字识别。文字识别也可以改用 Agent，见 [Agent](/zh/guides/agent) 页的设置部分。
+
+## 参考模式
+
+线稿、深度、姿态等结构类参考模式用 [comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) 的预处理器。MLSD、HED、法线和分割会在第一次使用时下载各自的权重。用 Qwen Image 2512 时，结构模式还会用到 `controlnet` 里的 `Qwen-Image-2512-Fun-Controlnet-Union-2602.safetensors`。

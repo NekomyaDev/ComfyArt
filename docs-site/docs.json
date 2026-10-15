@@ -1,0 +1,118 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "almond",
+  "name": "ComfyArt",
+  "colors": {
+    "primary": "#3B82F6",
+    "light": "#93C5FD",
+    "dark": "#2563EB"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo.svg",
+    "dark": "/logo-dark.svg"
+  },
+  "appearance": {
+    "default": "system"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/jtydhr88/ComfyArt"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Install",
+      "href": "/guides/getting-started"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/jtydhr88/ComfyArt"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude"
+    ]
+  },
+  "navigation": {
+    "languages": [
+      {
+        "language": "en",
+        "tabs": [
+          {
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "Get started",
+                "pages": [
+                  "index",
+                  "guides/getting-started",
+                  "guides/models"
+                ]
+              },
+              {
+                "group": "Create",
+                "pages": [
+                  "guides/canvas",
+                  "guides/generate",
+                  "guides/image-tools",
+                  "guides/video"
+                ]
+              },
+              {
+                "group": "Assets and Agent",
+                "pages": [
+                  "guides/assets",
+                  "guides/agent",
+                  "guides/mcp"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "language": "zh",
+        "tabs": [
+          {
+            "tab": "指南",
+            "groups": [
+              {
+                "group": "开始使用",
+                "pages": [
+                  "zh/index",
+                  "zh/guides/getting-started",
+                  "zh/guides/models"
+                ]
+              },
+              {
+                "group": "创作",
+                "pages": [
+                  "zh/guides/canvas",
+                  "zh/guides/generate",
+                  "zh/guides/image-tools",
+                  "zh/guides/video"
+                ]
+              },
+              {
+                "group": "资产与 Agent",
+                "pages": [
+                  "zh/guides/assets",
+                  "zh/guides/agent",
+                  "zh/guides/mcp"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

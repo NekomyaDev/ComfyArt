@@ -1,0 +1,173 @@
+import { useEffect, useRef, useState } from 'react'
+import { atom, useValue, type Editor, type TLImageShape } from 'tldraw'
+
+import { sendToAgent } from '../agent'
+import { botEnabledAtom, branchFrom, chatIdAtom, chatsAtom, deleteChat, messagesAtom, openChat, providersAtom, stopTurn, type BotMessage } from '../bot'
+import { errorText } from '../jobs'
+import { libraryAtom } from '../library'
+import { loadSkills } from '../skills'
+import { botSettingsOpenAtom } from './AgentPicker'
+import { AssistantBlocks, textOf, UserMessage } from './ChatMessage'
+import { Composer } from './Composer'
+import { Icons } from './icons'
+import { NoticeCenter } from './NoticeCenter'
+import { Popover } from './Popover'
+import { ProjectHeader } from './ProjectHeader'
+import { detailsAtom } from './TaskDetails'
+import { t } from '../i18n'
+
+const DOCK_KEY = 'comfyart.dock'
+
+export type ChatView = 'open' | 'max' | 'closed'
+export const chatViewAtom = atom<ChatView>('chat view', 'open')
+
+export const dockAtom = atom<'left' | 'right'>('chat dock', (() => {
+  try { return localStorage.getItem(DOCK_KEY) === 'right' ? 'right' : 'left' } catch { return 'left' }
+})())
+
+function setDock(side: 'left' | 'right') {
+  dockAtom.set(side)
+  try { localStorage.setItem(DOCK_KEY, side) } catch { }
+}
+
+function History({ onError }: { onError: (msg: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const chats = useValue(chatsAtom)
+  const current = useValue(chatIdAtom)
+  const providers = useValue(providersAtom)
+  const shown = chats.filter((c) => c.title.toLowerCase().includes(q.toLowerCase()))
+  const fail = (e: unknown) => onError(errorText(e))
+  return (
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      trigger={({ open: o, toggle }) => (
+        <button type="button" className="ca-bar__btn ca-split__chev" title={t('agentPanel.chatHistory')} data-open={o || undefined} onClick={toggle}>
+          <span className="ca-icon">{Icons.chevron}</span>
+        </button>
+      )}
+    >
+      <div className="ca-menu ca-history">
+        <div className="ca-gen__title">{t('agentPanel.chatHistory')}</div>
+        <label className="ca-bg__hex">
+          <span className="ca-icon">{Icons.search}</span>
+          <input value={q} placeholder={t('agentPanel.enterASearchTerm')} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
+        </label>
+        {shown.length === 0 && <div className="ca-menu__empty">{t('agentPanel.noChatsYet')}</div>}
+        {shown.map((c) => (
+          <div key={c.id} className="ca-menu__item ca-history__item" data-on={c.id === current || undefined} onClick={() => { void openChat(c.id).catch(fail); setOpen(false) }}>
+            <span className="ca-menu__grow">{c.title || t('agentPanel.newChat')}</span>
+            <span className="ca-menu__key">{c.busy ? t('agentPanel.inProgress') : providers.find((p) => p.id === c.provider)?.label ?? c.provider}</span>
+            <button type="button" className="ca-history__del" title={t('common.delete')} onClick={(e) => { e.stopPropagation(); void deleteChat(c.id).catch(fail) }}>{Icons.trash}</button>
+          </div>
+        ))}
+      </div>
+    </Popover>
+  )
+}
+
+function imagesOf(editor: Editor, m: BotMessage): TLImageShape[] {
+  return m.blocks.flatMap((b) => {
+    const shape = b.type === 'image' && b.shape ? editor.getShape(b.shape as TLImageShape['id']) : undefined
+    return shape?.type === 'image' ? [shape as TLImageShape] : []
+  })
+}
+
+async function resend(editor: Editor, m: BotMessage) {
+  const skillName = m.blocks.find((b) => b.type === 'skill')?.name
+  const skill = skillName ? (await loadSkills()).find((s) => s.name === skillName) ?? null : null
+  const kits = libraryAtom.get().filter((k) => m.blocks.some((b) => b.type === 'kit' && b.name === k.name))
+  await sendToAgent(editor, textOf(m), imagesOf(editor, m), skill, kits)
+}
+
+export function AgentPanel({ editor, projectId, max, onMax, onCollapse, onError }: {
+  editor: Editor
+  projectId: string
+  max: boolean
+  onMax: () => void
+  onCollapse: () => void
+  onError: (msg: string) => void
+}) {
+  const messages = useValue(messagesAtom)
+  const chat = useValue('current chat', () => chatsAtom.get().find((c) => c.id === chatIdAtom.get()) ?? null, [])
+  const providers = useValue(providersAtom)
+  const enabled = useValue(botEnabledAtom)
+  const dock = useValue(dockAtom)
+  const list = useRef<HTMLDivElement>(null)
+  const busy = !!chat?.busy
+  const canBranch = providers.find((p) => p.id === chat?.provider)?.branch ?? false
+  const fail = (e: unknown) => onError(errorText(e))
+
+  useEffect(() => {
+    list.current?.scrollTo({ top: list.current.scrollHeight })
+  }, [messages])
+
+  const lastUser = messages.map((m) => m.role).lastIndexOf('user')
+
+  return (
+    <aside className="ca-agent" data-max={max || undefined}>
+      <ProjectHeader editor={editor} projectId={projectId}>
+        <div className="ca-split">
+          <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('agentPanel.createChat')} onClick={() => void openChat(null)}>
+            <span className="ca-icon">{Icons.page}</span>
+          </button>
+          <History onError={onError} />
+        </div>
+        <NoticeCenter editor={editor} />
+        <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={max ? t('agentPanel.restoreChat') : t('agentPanel.maximizeChat')} data-on={max || undefined} onClick={onMax}>
+          <span className="ca-icon">{Icons.expandPanel}</span>
+        </button>
+        {!max && (
+          <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={dock === 'left' ? t('agentPanel.moveChatToRight') : t('agentPanel.moveChatToLeft')} onClick={() => setDock(dock === 'left' ? 'right' : 'left')}>
+            <span className="ca-icon">{dock === 'left' ? Icons.panelRight : Icons.panel}</span>
+          </button>
+        )}
+        <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('agentPanel.collapseChat')} onClick={onCollapse}>
+          <span className="ca-icon">{dock === 'left' ? Icons.panel : Icons.panelRight}</span>
+        </button>
+      </ProjectHeader>
+      <div ref={list} className="ca-chat">
+        {enabled === false && (
+          <div className="ca-chat__empty">
+            <span className="ca-chat__hello">{Icons.agent}</span>
+            <div>{t('agentPanel.agentIsNotEnabledYet')}</div>
+            <div className="ca-chat__hint">{t('agentPanel.enableMcpAndAgentIn')}</div>
+            <button type="button" className="ca-panel__primary" onClick={() => botSettingsOpenAtom.set(true)}>{t('agentPanel.openAgentSettings')}</button>
+          </div>
+        )}
+        {enabled !== false && messages.length === 0 && (
+          <div className="ca-chat__empty">
+            <span className="ca-chat__hello">{Icons.agent}</span>
+            <div>{t('agentPanel.describeWhatYouWantTo')}</div>
+            <div className="ca-chat__hint">{t('agentPanel.selectImagesOnTheCanvas')}</div>
+          </div>
+        )}
+        {messages.map((m, i) => (m.role === 'user'
+          ? <UserMessage key={m.id} editor={editor} m={m} onBranch={canBranch && !busy ? () => void branchFrom(m.id).catch(fail) : undefined} />
+          : (
+            <div key={m.id} className="ca-chat__bot">
+              <AssistantBlocks editor={editor} m={m} />
+              {m.status === 'streaming' && (
+                <div className="ca-chat__thinking">
+                  <span>{m.blocks.length ? t('agentPanel.working') : t('agentPanel.thinking')}</span>
+                  <button type="button" className="ca-panel__chip" onClick={() => void stopTurn().catch(fail)}>{t('agentPanel.stop')}</button>
+                </div>
+              )}
+              {m.status === 'aborted' && <div className="ca-chat__hint">{t('agentPanel.stopped')}</div>}
+              {m.status !== 'streaming' && (
+                <div className="ca-chat__acts ca-chat__acts--bot">
+                  {!busy && i === messages.length - 1 && lastUser === i - 1 && (
+                    <button type="button" className="ca-history__del" title={t('common.regenerate')} onClick={() => void resend(editor, messages[i - 1]).catch(fail)}>{Icons.replace}</button>
+                  )}
+                  <button type="button" className="ca-history__del" title={t('common.copy')} onClick={() => void navigator.clipboard.writeText(textOf(m))}>{Icons.page}</button>
+                  <button type="button" className="ca-history__del" title={t('agentPanel.taskDetails')} onClick={() => detailsAtom.set(m.id)}>{Icons.files}</button>
+                </div>
+              )}
+            </div>
+          )))}
+      </div>
+      <Composer editor={editor} busy={busy} onError={onError} />
+    </aside>
+  )
+}

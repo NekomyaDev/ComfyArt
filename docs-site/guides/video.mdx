@@ -1,0 +1,29 @@
+---
+title: "Video"
+description: "Animate images, generate and extend clips, edit and upscale video."
+---
+
+All video generation uses MiniMax H3 (see [Models](/guides/models#video)). Editing and upscaling run on core ComfyUI nodes.
+
+## Animate an image
+
+Select an image and click **Animate Image**. Describe the motion, or leave the prompt empty for a gentle default motion.
+
+- **Loop** is on by default: the first frame is reused as the last frame, so the clip plays seamlessly.
+- The result is an animated image that keeps the original ratio.
+
+## Generate a video
+
+Switch the bottom generator to video. You can start from text only, give a first frame, and optionally a last frame. Pick a ratio (16:9, 9:16, 1:1, 4:3, 3:4, 21:9), a duration of 5 or 10 seconds and a camera motion preset.
+
+**Storyboard** splits one idea into up to 6 scenes (30 seconds in total) with consistent characters and style, and generates them in order. With the Agent enabled, smart storyboard writes the scenes for you.
+
+## Edit a video
+
+Select a video for its toolbar:
+
+- **Trim** and **Extend** (continue the clip from its last frame with a new prompt).
+- **Video editor**: split, trim, transitions, subtitles, volume and speed, then export as a new clip or replace the original.
+- **Upscale** to 1080p, 2K or 4K. Audio and frame rate are kept.
+
+The preview lightbox has a mute toggle.

@@ -1,0 +1,212 @@
+import { createShapeId, type Editor, type TLShape, type TLShapeId } from 'tldraw'
+
+import { loadWorkflow, uploadImage, viewUrl } from './comfy'
+import { ask, stripThink } from './llm'
+import { spawnHolder, startJob, type ErrorSink, type GenInfo } from './jobs'
+import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
+import { agentModels, isVideo, modelOf } from './models'
+import { applyRefs, PALETTE_MODE, refHints, refModesOf, refStrengthsOf, usableRefs } from './refModes'
+import { paletteImage, palettePrompt } from './palette'
+import { annotated, imageToVideoGraph, storyboardGraph, t2vGraph, videoSize, type Built, type Scene } from './workflows'
+import { t } from './i18n'
+
+export const RESOLUTIONS = ['1K', '2K', 'custom']
+export const QUALITIES: [string, string][] = [['fast', t('generate.turbo')], ['standard', t('generate.standard')], ['high', t('generate.highQuality')]]
+export const SHOTS: [string, string, string][] = [
+  ['', t('common.auto'), ''], ['fixed', t('generate.static'), 'static locked-off camera'], ['advance', t('generate.pushIn'), 'slow push-in toward the subject'],
+  ['zoom_out', t('generate.pullOut'), 'slow pull-back revealing the scene'], ['orbit', t('generate.orbit'), 'camera orbits around the subject'],
+  ['follow', t('generate.follow'), 'tracking shot following the subject'], ['handheld', t('generate.handheld'), 'handheld camera with natural shake'],
+  ['left', t('generate.panLeft'), 'camera pans left'], ['right', t('generate.panRight'), 'camera pans right'], ['up', t('generate.tiltUp'), 'camera tilts up'], ['down', t('generate.tiltDown'), 'camera tilts down'],
+]
+export const MAX_SCENES = 6
+export const MAX_STORY_SECONDS = 30
+
+export function scenesOf(shape: GeneratorShape): Scene[] {
+  return (shape.meta.scenes as Scene[] | undefined) ?? []
+}
+
+export const STYLES: [string, string, string][] = [
+  ['', t('common.none'), ''], ['photo', t('generate.photo'), 'professional photography, natural light, sharp focus'], ['cinematic', t('generate.cinematic'), 'cinematic still, dramatic lighting, film grain'],
+  ['illustration', t('common.illustration'), 'editorial illustration, clean shapes'], ['3d', '3D', 'high quality 3D render, soft studio light'], ['anime', t('common.anime'), 'anime style, cel shading'],
+  ['minimal', t('generate.minimal'), 'minimalist design, generous negative space'], ['retro', t('generate.retro'), 'retro vintage print, muted colors, halftone texture'],
+]
+export const RATIOS = ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '4:5', '5:4', '21:9']
+export const VIDEO_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9']
+export const DURATIONS = [5, 10]
+
+const SHORT_SIDE: Record<string, number> = { '1K': 1024, '2K': 2048 }
+const CARD_LONG = 512
+const GAP = 40
+const [PROMPT, LATENT, RESULT] = ['6', '5', '9']
+
+function ratioOf(ratio: string): number {
+  const [a, b] = ratio.split(':').map(Number)
+  return a / b
+}
+
+const snap16 = (v: number) => Math.round(v / 16) * 16
+
+export function targetSize({ ratio, resolution, workflow, cw, ch }: GeneratorShape['props']): [number, number] {
+  const r = ratioOf(ratio)
+  if (isVideo(workflow)) return videoSize(r)
+  if (resolution === 'custom') return [snap16(cw), snap16(ch)]
+  const short = SHORT_SIDE[resolution] ?? 1024
+  return r >= 1 ? [snap16(short * r), short] : [short, snap16(short / r)]
+}
+
+export function cardSize(ratio: string): [number, number] {
+  const r = ratioOf(ratio)
+  return r >= 1 ? [CARD_LONG, CARD_LONG / r] : [CARD_LONG * r, CARD_LONG]
+}
+
+function freeSpot(editor: Editor, w: number, h: number): [number, number] {
+  const center = editor.getViewportPageBounds().center
+  const boxes = editor.getCurrentPageShapes().map((s) => editor.getShapePageBounds(s)!).filter(Boolean)
+  let [x, y] = [center.x - w / 2, center.y - h / 2]
+  for (let i = 0; i < 200; i++) {
+    const hit = boxes.find((b) => x < b.maxX + GAP && x + w + GAP > b.minX && y < b.maxY + GAP && y + h + GAP > b.minY)
+    if (!hit) break
+    x = hit.maxX + GAP
+  }
+  return [x, y]
+}
+
+export function createGenerator(editor: Editor, video = false, props: Partial<GeneratorShape['props']> = {}, focus = true): TLShapeId {
+  const id = createShapeId()
+  const ratio = props.ratio ?? (video ? VIDEO_RATIOS[0] : '1:1')
+  const [w, h] = cardSize(ratio)
+  const [x, y] = freeSpot(editor, w, h)
+  const workflow = props.workflow || agentModels(video)[0].id
+  editor.createShape({ id, type: GENERATOR, x, y, props: { ...props, w, h, ratio, workflow } })
+  if (focus) {
+    editor.setCurrentTool('select')
+    editor.select(id)
+    editor.zoomToSelectionIfOffscreen(64, { animation: { duration: 200 } })
+  }
+  return id
+}
+
+export const MAX_REFS = 4
+
+export function refsOf(shape: GeneratorShape): string[] {
+  return (shape.meta.refs as string[] | undefined) ?? []
+}
+
+export const MAX_COLORS = 6
+
+export const BASE_STRENGTH = 60
+
+export function baseOf(shape: GeneratorShape): { src: string; strength: number } | null {
+  const src = shape.meta.base as string | undefined
+  return src ? { src, strength: (shape.meta.strength as number | undefined) ?? BASE_STRENGTH } : null
+}
+
+export function lastFrameOf(shape: GeneratorShape): string | null {
+  return (shape.meta.lastFrame as string | undefined) ?? null
+}
+
+export function colorsOf(shape: GeneratorShape): string[] {
+  return (shape.meta.colors as string[] | undefined) ?? []
+}
+
+async function caption(spec: string, prompt: string, width: number, height: number): Promise<string> {
+  const { system, template } = await loadWorkflow(spec) as unknown as { system: string; template: string }
+  return stripThink(await ask(template.replace('{w}', String(width)).replace('{h}', String(height)).replace('{prompt}', prompt), system, []))
+}
+
+async function generateGraph(shape: GeneratorShape): Promise<Built> {
+  const { ratio, count, workflow, duration, transparent, quality, style } = shape.props
+  const suffix = (isVideo(workflow) ? SHOTS : STYLES).find(([k]) => k === style)?.[2]
+  const refs = refsOf(shape)
+  const model = isVideo(workflow) ? null : modelOf(workflow) ?? agentModels(false)[0]
+  const colors = isVideo(workflow) ? [] : colorsOf(shape)
+  const picked = model ? usableRefs(model, refs, refModesOf(shape)) : []
+  const palette = colors.length && model?.refs && picked.length < MAX_REFS
+    ? viewUrl(await uploadImage(await paletteImage(colors), `palette-mosaic-${colors.join('').replace(/#/g, '')}.png`))
+    : null
+  const used = palette ? [...picked, { src: palette, mode: PALETTE_MODE }] : picked
+  const hints = refHints(used)
+  const prompt = [
+    [shape.props.prompt, suffix, transparent && 'isolated subject on a plain white background'].filter(Boolean).join(', '),
+    ...hints,
+    colors.length > 0 && palettePrompt(colors),
+  ].filter(Boolean).join(' ')
+  if (isVideo(workflow)) {
+    const scenes = scenesOf(shape).filter((sc) => sc.prompt.trim())
+    if (scenes.length) {
+      return storyboardGraph(scenes.map((sc) => ({ ...sc, prompt: [sc.prompt, suffix].filter(Boolean).join(', ') })), ratioOf(ratio), refs[0] ? annotated(refs[0]) : null)
+    }
+    const last = lastFrameOf(shape)
+    return refs.length || last
+      ? imageToVideoGraph(refs[0] ? annotated(refs[0]) : null, prompt, ratioOf(ratio), duration, last ? annotated(last) : null)
+      : t2vGraph(prompt, ratioOf(ratio), duration)
+  }
+  const [width, height] = targetSize(shape.props)
+  if (!model) throw new Error('unknown image model')
+  const graph = await loadWorkflow(model.id)
+  graph[PROMPT].inputs[model.prompt!] = model.caption ? await caption(model.caption, prompt, width, height) : prompt
+  applyRefs(graph, model, used, refStrengthsOf(shape), width, height)
+  for (const id of model.sizes!) Object.assign(graph[id].inputs, { width, height })
+  graph[LATENT].inputs.batch_size = count
+  const base = baseOf(shape)
+  if (base) {
+    graph.b0 = { class_type: 'LoadImage', inputs: { image: annotated(base.src) } }
+    graph.b1 = { class_type: 'ImageScale', inputs: { image: ['b0', 0], upscale_method: 'lanczos', width, height, crop: 'center' } }
+    graph.b2 = { class_type: 'VAEEncode', inputs: { pixels: ['b1', 0], vae: [model.vae!, 0] } }
+    graph.b3 = { class_type: 'RepeatLatentBatch', inputs: { samples: ['b2', 0], amount: count } }
+    graph['7'].inputs.latent_image = ['b3', 0]
+    if (graph['7'].class_type === 'KSampler') graph['7'].inputs.denoise = base.strength / 100
+    else {
+      graph.b4 = { class_type: 'SplitSigmasDenoise', inputs: { sigmas: graph['7'].inputs.sigmas, denoise: base.strength / 100 } }
+      graph['7'].inputs.sigmas = ['b4', 1]
+    }
+  }
+  graph[model.seed![0]].inputs[model.seed![1]] = Math.floor(Math.random() * 2 ** 31)
+  if (model.steps) graph[model.steps[0]].inputs.steps = model.steps[1][quality] ?? model.steps[1].standard
+  if (transparent) {
+    Object.assign(graph, {
+      bg1: { class_type: 'LoadBackgroundRemovalModel', inputs: { bg_removal_name: 'birefnet.safetensors' } },
+      bg2: { class_type: 'RemoveBackground', inputs: { bg_removal_model: ['bg1', 0], image: ['8', 0] } },
+      bg3: { class_type: 'InvertMask', inputs: { mask: ['bg2', 0] } },
+      bg4: { class_type: 'JoinImageWithAlpha', inputs: { image: ['8', 0], alpha: ['bg3', 0] } },
+    })
+    graph[RESULT].inputs.images = ['bg4', 0]
+  }
+  return { graph, result: RESULT }
+}
+
+export function generate(editor: Editor, shape: GeneratorShape, onError: ErrorSink) {
+  const kind = isVideo(shape.props.workflow) ? 'video' : 'image'
+  const name = shape.props.prompt || scenesOf(shape)[0]?.prompt || ''
+  return startJob(editor, shape.id, generateGraph(shape), { name: name.slice(0, 32), kind }, onError)
+}
+
+export function genInfoOf(shape: TLShape): GenInfo | null {
+  return (shape.meta.gen as GenInfo | undefined) ?? null
+}
+
+function settingsOf(info: GenInfo): Partial<GeneratorShape['props']> {
+  return {
+    prompt: info.prompt ?? '',
+    ...(info.ratio ? { ratio: info.ratio } : {}),
+    ...(info.resolution ? { resolution: info.resolution } : {}),
+    ...(info.duration ? { duration: info.duration } : {}),
+    ...(info.workflow ? { workflow: info.workflow } : {}),
+  }
+}
+
+export function remix(editor: Editor, shape: TLShape) {
+  const info = genInfoOf(shape)
+  if (!info?.prompt) return
+  const id = createGenerator(editor, isVideo(info.workflow ?? ''), { ...settingsOf(info), count: 1 })
+  if (info.refs) editor.updateShape<GeneratorShape>({ id, type: GENERATOR, meta: { refs: info.refs } })
+}
+
+export function regenerate(editor: Editor, shape: TLShape, onError: ErrorSink) {
+  const info = genInfoOf(shape)
+  const b = editor.getShapePageBounds(shape)
+  if (!info?.prompt || !b) return
+  const holder = spawnHolder(editor, shape, b.w / b.h)
+  editor.updateShape<GeneratorShape>({ id: holder, type: GENERATOR, props: { ...settingsOf(info), count: 1 }, meta: { temp: true, ...(info.refs ? { refs: info.refs } : {}) } })
+  return generate(editor, editor.getShape<GeneratorShape>(holder)!, onError)
+}

@@ -1,0 +1,60 @@
+---
+title: "Getting started"
+description: "Install ComfyArt, open the canvas and make your first image."
+---
+
+## Requirements
+
+- A working [ComfyUI](https://github.com/comfyanonymous/ComfyUI) install with a GPU that can run the image model you pick.
+- The model files for the features you want to use. See [Models](/guides/models). Qwen Image 2.1 alone is enough for generation, quick edit, edit text and expand.
+
+## Install
+
+<Steps>
+  <Step title="Clone into custom_nodes">
+    ```bash
+    cd ComfyUI/custom_nodes
+    git clone https://github.com/jtydhr88/ComfyArt
+    ```
+  </Step>
+  <Step title="Install the Python requirements">
+    Use the same Python environment that runs ComfyUI. Today this only adds `pypdfium2`, used for PDF uploads.
+
+    ```bash
+    pip install -r ComfyArt/requirements.txt
+    ```
+  </Step>
+  <Step title="Restart ComfyUI and open ComfyArt">
+    Open [http://127.0.0.1:8188/comfyart/](http://127.0.0.1:8188/comfyart/) in your browser.
+  </Step>
+</Steps>
+
+The built page ships in `dist/`, so you do not need Node.js to use ComfyArt. Only if you change the frontend source in `src/`, rebuild it with `npm install && npm run build`.
+
+## Your first image
+
+<Frame>
+  <img src="/images/canvas.webp" alt="The ComfyArt canvas with a selected image and its toolbar" />
+</Frame>
+
+1. Click **Image Generation** in the bottom bar. A generator card appears on the canvas with a prompt box under it.
+2. Describe the image. Put any text that should appear in the image in quotes, for example `the title "SUMMER DRINKS"`.
+3. Pick a ratio, size and count, then press the arrow button. A progress ring runs around the card while ComfyUI works.
+4. Select the result to open the image toolbar: quick edit, upscale, split layers, remove background, eraser, edit text, multi-angle, animate, and more under **⋯**.
+
+## Projects and language
+
+- Each project is a URL: `/comfyart/?project=<id>`. Use the **Projects** button at the top left to switch, rename or create projects.
+- Projects are saved in the ComfyUI user directory under `comfyart/projects/`, with snapshot history you can restore.
+- The interface follows ComfyUI's language setting (English or Chinese).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Generate" icon="wand-magic-sparkles" href="/guides/generate">
+    References, color palettes, base images and video.
+  </Card>
+  <Card title="Agent" icon="robot" href="/guides/agent">
+    Turn on the agent and let it plan and build designs for you.
+  </Card>
+</CardGroup>

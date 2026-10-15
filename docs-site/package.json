@@ -1,0 +1,12 @@
+{
+  "name": "comfyart-docs",
+  "private": true,
+  "description": "ComfyArt documentation site (Mintlify).",
+  "scripts": {
+    "dev": "npx mint dev",
+    "check": "npx mint broken-links"
+  },
+  "dependencies": {
+    "mint": "^4.2.700"
+  }
+}

@@ -1,0 +1,190 @@
+import { AssetRecordType, atom, createShapeId, type Editor, type TLAssetId, type TLImageAsset, type TLShape, type TLShapeId, type TLVideoAsset } from 'tldraw'
+
+import { queuePrompt, viewUrl, waitForImages, type ImageRef } from './comfy'
+import { GENERATOR } from './shapes/GeneratorShape'
+import type { Built } from './workflows'
+import { t } from './i18n'
+
+export type MediaKind = 'image' | 'video'
+
+export interface Job {
+  id: string
+  node: string
+  name: string
+  kind: MediaKind
+  placer?: string
+  extra?: Record<string, unknown>
+}
+
+export interface Media { ref: ImageRef; src: string; w: number; h: number; kind: MediaKind }
+export type ErrorSink = (msg: string) => void
+export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
+export type Placer = (editor: Editor, holder: TLShape, media: Media[], job: Job, onError: ErrorSink) => Promise<void>
+
+const GAP = 40
+const CARD_LONG = 512
+const active = new Set<string>()
+const placers: Record<string, Placer> = {}
+
+export interface JobResult { srcs: string[]; error?: string }
+export const resultsAtom = atom<Record<string, JobResult>>('job results', {})
+
+function report(holderId: TLShapeId, result: JobResult) {
+  resultsAtom.update((r) => ({ ...r, [holderId]: result }))
+}
+
+export function registerPlacer(name: string, placer: Placer) {
+  placers[name] = placer
+}
+
+export type MediaAsset = (TLImageAsset | TLVideoAsset) & { props: { src: string } }
+
+export function mediaAsset(editor: Editor, shape: TLShape | undefined): MediaAsset | null {
+  const assetId = (shape?.props as { assetId?: TLAssetId | null } | undefined)?.assetId
+  const asset = assetId ? editor.getAsset(assetId) : undefined
+  return (asset?.type === 'image' || asset?.type === 'video') && asset.props.src ? asset as MediaAsset : null
+}
+
+export function jobOf(shape: TLShape): Job | null {
+  return (shape.meta?.job as Job | undefined) ?? null
+}
+
+function mediaSize(src: string, kind: MediaKind): Promise<[number, number]> {
+  return new Promise((resolve, reject) => {
+    if (kind === 'video') {
+      const v = document.createElement('video')
+      v.preload = 'metadata'
+      v.onloadedmetadata = () => resolve([v.videoWidth, v.videoHeight])
+      v.onerror = () => reject(new Error('cannot load video'))
+      v.src = src
+      return
+    }
+    const img = new Image()
+    img.onload = () => resolve([img.naturalWidth, img.naturalHeight])
+    img.onerror = () => reject(new Error('cannot load image'))
+    img.src = src
+  })
+}
+
+export async function toMedia(ref: ImageRef, kind: MediaKind): Promise<Media> {
+  const src = viewUrl(ref)
+  const [w, h] = ref.metadata?.width && ref.metadata?.height && kind === 'image'
+    ? [ref.metadata.width, ref.metadata.height]
+    : await mediaSize(src, kind)
+  return { ref, src, w, h, kind }
+}
+
+export function placeMedia(editor: Editor, m: Media, name: string, x: number, y: number, w: number, parentId?: TLShape['parentId']): TLShapeId {
+  const assetId = AssetRecordType.createId()
+  editor.createAssets([{
+    id: assetId,
+    typeName: 'asset',
+    type: m.kind,
+    props: { name, src: m.src, w: m.w, h: m.h, mimeType: m.kind === 'video' ? 'video/mp4' : m.ref.filename.endsWith('.svg') ? 'image/svg+xml' : m.ref.filename.endsWith('.webp') ? 'image/webp' : 'image/png', isAnimated: m.kind === 'video' || m.ref.filename.endsWith('.webp') },
+    meta: {},
+  } as any])
+  const id = createShapeId()
+  editor.createShape({ id, type: m.kind, x, y, ...(parentId ? { parentId } : {}), props: { assetId, w, h: w * m.h / m.w } } as any)
+  return id
+}
+
+export interface GenInfo { tool: string; prompt?: string; ratio?: string; resolution?: string; duration?: number; workflow?: string; refs?: string[] }
+
+function infoOf(holder: TLShape, job: Job): GenInfo {
+  const p = holder.props as { prompt?: string; ratio: string; resolution: string; duration: number; workflow: string }
+  if (holder.type !== GENERATOR || !p.prompt) return { tool: job.name }
+  const refs = holder.meta.refs as string[] | undefined
+  return { tool: t('common.generate'), prompt: p.prompt, ratio: p.ratio, resolution: p.resolution, duration: p.duration, workflow: p.workflow, ...(refs?.length ? { refs } : {}) }
+}
+
+const defaultPlacer: Placer = async (editor, holder, media, job) => {
+  const w = (holder.props as { w: number }).w
+  const gen = infoOf(holder, job)
+  let x = holder.x
+  const ids: TLShapeId[] = []
+  editor.run(() => {
+    editor.deleteShape(holder.id)
+    for (const m of media) {
+      const id = placeMedia(editor, m, job.name, x, holder.y, w, holder.parentId)
+      editor.updateShape({ id, type: m.kind, meta: { gen: gen as any } })
+      ids.push(id)
+      x += w + GAP
+    }
+  }, { history: 'ignore' })
+  editor.select(...ids)
+}
+
+async function finish(editor: Editor, holderId: TLShapeId, job: Job, onError: ErrorSink) {
+  if (active.has(job.id)) return
+  active.add(job.id)
+  try {
+    const refs = await waitForImages(job.id, job.node)
+    const media = await Promise.all(refs.map((r) => toMedia(r, job.kind)))
+    const holder = editor.getShape(holderId)
+    if (!holder) return
+    await (placers[job.placer ?? ''] ?? defaultPlacer)(editor, holder, media, job, onError)
+    report(holderId, { srcs: media.map((m) => m.src) })
+  } catch (e) {
+    const holder = editor.getShape(holderId)
+    if (holder?.meta.temp) editor.deleteShape(holderId)
+    else if (holder) editor.updateShape({ id: holderId, type: holder.type, meta: { ...holder.meta, job: null } })
+    const msg = e instanceof Error ? e.message : String(e)
+    report(holderId, { srcs: [], error: msg })
+    onError(msg)
+  } finally {
+    active.delete(job.id)
+  }
+}
+
+export async function startJob(
+  editor: Editor,
+  holderId: TLShapeId,
+  build: Promise<Built>,
+  opts: { name: string; kind?: MediaKind; placer?: string; extra?: Record<string, unknown> },
+  onError: ErrorSink,
+) {
+  try {
+    const { graph, result } = await build
+    const job: Job = {
+      id: await queuePrompt(graph),
+      node: result,
+      name: opts.name,
+      kind: opts.kind ?? 'image',
+      ...(opts.placer ? { placer: opts.placer } : {}),
+      ...(opts.extra ? { extra: opts.extra } : {}),
+    }
+    const holder = editor.getShape(holderId)
+    if (!holder) return
+    editor.updateShape({ id: holderId, type: holder.type, meta: { ...holder.meta, job: job as any } })
+    await finish(editor, holderId, job, onError)
+  } catch (e) {
+    const holder = editor.getShape(holderId)
+    if (holder?.meta.temp) editor.deleteShape(holderId)
+    const msg = e instanceof Error ? e.message : String(e)
+    report(holderId, { srcs: [], error: msg })
+    onError(msg)
+  }
+}
+
+export function spawnHolder(editor: Editor, beside: TLShape, aspect: number): TLShapeId {
+  const b = editor.getShapePageBounds(beside)!
+  const scale = Math.min(1, CARD_LONG / Math.max(b.w, b.h))
+  const [w, h] = aspect >= b.w / b.h ? [b.w * scale, b.w * scale / aspect] : [b.h * scale * aspect, b.h * scale]
+  const boxes = editor.getCurrentPageShapes().map((s) => editor.getShapePageBounds(s)!).filter(Boolean)
+  let [x, y] = [b.maxX + GAP, b.minY]
+  for (let i = 0; i < 200; i++) {
+    const hit = boxes.find((o) => x < o.maxX + GAP && x + w + GAP > o.minX && y < o.maxY + GAP && y + h + GAP > o.minY)
+    if (!hit) break
+    x = hit.maxX + GAP
+  }
+  const id = createShapeId()
+  editor.createShape({ id, type: GENERATOR, x, y, props: { w, h }, meta: { temp: true } })
+  return id
+}
+
+export function resumeJobs(editor: Editor, onError: ErrorSink) {
+  for (const shape of editor.store.query.records('shape').get()) {
+    const job = jobOf(shape)
+    if (job) void finish(editor, shape.id, job, onError)
+  }
+}

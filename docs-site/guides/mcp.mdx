@@ -1,0 +1,39 @@
+---
+title: "MCP server"
+description: "Let the built-in agent, or any local MCP client, see and edit the canvas."
+---
+
+ComfyArt serves an [MCP](https://modelcontextprotocol.io) server over HTTP. The built-in [Agent](/guides/agent) uses it, and you can connect any other local MCP client to it, for example Claude Code or Codex in a terminal.
+
+## Enable it
+
+Turn on **Enable MCP** in Agent Settings. The endpoint is:
+
+```
+POST http://127.0.0.1:8188/comfyart/mcp?project=<project-id>
+```
+
+The project id is the `project` value in the ComfyArt URL. Canvas tools are executed by the open ComfyArt tab of that project, so keep it open.
+
+For Claude Code:
+
+```bash
+claude mcp add --transport http comfyart "http://127.0.0.1:8188/comfyart/mcp?project=<project-id>"
+```
+
+## Tools
+
+| Group | Tools |
+|---|---|
+| Look | `server_info`, `get_canvas`, `view_canvas`, `focus`, `list_models`, `brand_kits` |
+| Generate | `generate_image`, `generate_video`, `wait_generation` |
+| Edit images | `edit_image`, `replace_text`, `upscale_image`, `remove_background`, `expand_image`, `split_layers`, `change_angle`, `animate_image` |
+| Video | `extend_video` |
+| Layout | `add_text`, `add_shape`, `create_frame`, `update_shapes`, `delete_shapes`, `place_html`, `create_slides` |
+| Memory and skills | `memory`, `skill` |
+
+`generate_image` and `generate_video` return at once with ids; call `wait_generation` with them to get the results. Use `list_models` to see which installed models accept references. Inside built-in Agent chats the agent also gets a tool to ask you multiple-choice questions.
+
+<Note>
+The MCP server is part of your local ComfyUI and has no login of its own. Anyone who can reach your ComfyUI port can use it, so keep ComfyUI on localhost or a trusted network when MCP is on.
+</Note>

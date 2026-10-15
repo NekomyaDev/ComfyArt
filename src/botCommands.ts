@@ -1,0 +1,374 @@
+import { createShapeId, react, type Editor, type TLFrameShape, type TLImageShape, type TLShape, type TLShapeId, type TLVideoShape } from 'tldraw'
+
+import * as actions from './actions'
+import { api } from './comfy'
+import { placeHtml } from './embeds'
+import { createGenerator, DURATIONS, generate, genInfoOf, RATIOS, VIDEO_RATIOS } from './generate'
+import { type ErrorSink, errorText, jobOf, mediaAsset, resultsAtom } from './jobs'
+import { describeItem, itemImages, libraryAtom, linkedKit } from './library'
+import { correct, forget, memoryAtom, remember } from './memory'
+import { agentModels } from './models'
+import { buildSlides } from './slides'
+import { COMMENT } from './shapes/CommentShape'
+import { HTML, type HtmlShape } from './shapes/EmbedShapes'
+import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
+import { TEXT, type TextShape } from './shapes/TextShape'
+import { VECTOR, type VectorShape } from './shapes/VectorShape'
+import { loadSkills, saveSkill } from './skills'
+import { onComfyEvent } from './ws'
+import { t } from './i18n'
+
+type Args = Record<string, any>
+type Handler = (editor: Editor, args: Args, onError: ErrorSink) => unknown
+
+const MAX_SHAPES = 300
+const VIEW_MAX_PX = 1024
+const GAP = 40
+
+function shapeOf(editor: Editor, id: unknown): TLShape {
+  const shape = typeof id === 'string' ? editor.getShape(id as TLShapeId) : undefined
+  if (!shape) throw new Error(`no shape ${JSON.stringify(id)} — use ids from get_canvas`)
+  return shape
+}
+
+function imageOf(editor: Editor, id: unknown): TLImageShape {
+  const shape = shapeOf(editor, id)
+  if (shape.type !== 'image') throw new Error(`${shape.id} is a ${shape.type}, not an image`)
+  return shape as TLImageShape
+}
+
+function mediaSrc(editor: Editor, shape: TLShape): string | null {
+  return mediaAsset(editor, shape)?.props.src ?? null
+}
+
+function nameOf(editor: Editor, shape: TLShape): string {
+  if (shape.type === 'frame') return (shape as TLFrameShape).props.name
+  if (shape.type === TEXT) return (shape as TextShape).props.text.slice(0, 200)
+  return mediaAsset(editor, shape)?.props.name || (shape.props as { name?: string }).name || ''
+}
+
+function describe(editor: Editor, shape: TLShape) {
+  const b = editor.getShapePageBounds(shape)!
+  const parent = editor.getShape(shape.parentId as TLShapeId)
+  const gen = genInfoOf(shape)
+  const job = jobOf(shape)
+  return {
+    id: shape.id,
+    type: shape.type === GENERATOR ? (job ? 'generating' : 'generator') : shape.type,
+    name: nameOf(editor, shape) || undefined,
+    x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.w), height: Math.round(b.h),
+    ...(parent?.type === 'frame' ? { frame: parent.id } : {}),
+    ...(mediaSrc(editor, shape) ? { url: mediaSrc(editor, shape) } : {}),
+    ...(gen?.prompt ? { prompt: gen.prompt.slice(0, 300) } : {}),
+    ...(shape.type === GENERATOR ? { prompt: (shape as GeneratorShape).props.prompt.slice(0, 300) } : {}),
+  }
+}
+
+function pageOf(editor: Editor, page: unknown) {
+  if (!page) return editor.getCurrentPage()
+  const found = editor.getPages().find((p) => p.id === page || p.name === page)
+  if (!found) throw new Error(`no page ${JSON.stringify(page)}`)
+  return found
+}
+
+function toPageShapes(editor: Editor, ids: TLShapeId[]) {
+  return ids.map((id) => editor.getShape(id)!).filter(Boolean)
+}
+
+async function blobBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let s = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(s)
+}
+
+function place(editor: Editor, id: TLShapeId, args: Args) {
+  const shape = editor.getShape(id)!
+  if (args.frame) {
+    const frame = shapeOf(editor, args.frame)
+    if (frame.type !== 'frame') throw new Error(`${frame.id} is not a frame`)
+    editor.reparentShapes([id], frame.id)
+    editor.updateShape({ id, type: shape.type, x: GAP, y: GAP })
+  } else if (args.near) {
+    const b = editor.getShapePageBounds(shapeOf(editor, args.near))!
+    editor.updateShape({ id, type: shape.type, x: b.maxX + GAP, y: b.y })
+  }
+}
+
+function refUrls(editor: Editor, refs: unknown): string[] {
+  if (!Array.isArray(refs)) return []
+  return refs.map((r) => {
+    if (typeof r === 'string' && /^(\/|https?:)/.test(r)) return r
+    const src = mediaSrc(editor, shapeOf(editor, r))
+    if (!src) throw new Error(`${r} has no image`)
+    return src
+  })
+}
+
+function startGenerator(editor: Editor, video: boolean, args: Args, onError: ErrorSink) {
+  const models = agentModels(video)
+  const wantsRefs = !video && Array.isArray(args.refs) && args.refs.length > 0
+  const model = args.model ? models.find((m) => m.id === args.model) : (wantsRefs && models.find((m) => m.refs)) || models[0]
+  if (!model) throw new Error(`unknown model ${JSON.stringify(args.model)} — see list_models`)
+  if (wantsRefs && !model.refs) throw new Error(`${model.label} does not accept refs; use a model with accepts_refs from list_models, or drop refs`)
+  const ratios = video ? VIDEO_RATIOS : RATIOS
+  if (args.ratio && !ratios.includes(args.ratio)) throw new Error(`ratio must be one of ${ratios.join(', ')}`)
+  const props = video
+    ? { prompt: String(args.prompt), workflow: model.id, ratio: args.ratio ?? ratios[0], duration: DURATIONS.includes(args.duration) ? args.duration : DURATIONS[0] }
+    : { prompt: String(args.prompt), workflow: model.id, ratio: args.ratio ?? '1:1', count: Math.min(4, Math.max(1, Number(args.count) || 1)) }
+  const refs = video ? refUrls(editor, args.first_frame ? [args.first_frame] : []) : refUrls(editor, args.refs)
+  const meta = {
+    ...(refs.length ? { refs } : {}),
+    ...(!video && args.base ? { base: refUrls(editor, [args.base])[0], strength: Number(args.base_strength) || 60 } : {}),
+    ...(video && args.last_frame ? { lastFrame: refUrls(editor, [args.last_frame])[0] } : {}),
+  }
+  const id = createGenerator(editor, video, props, false)
+  if (Object.keys(meta).length) editor.updateShape<GeneratorShape>({ id, type: GENERATOR, meta })
+  place(editor, id, args)
+  void generate(editor, editor.getShape<GeneratorShape>(id)!, onError)
+  return { ids: [id], model: model.id, note: 'call wait_generation with these ids' }
+}
+
+function started(holder: TLShapeId | undefined) {
+  if (!holder) throw new Error('that shape has no source media to work on')
+  return { ids: [holder], note: 'call wait_generation with these ids' }
+}
+
+function shapesWithSrc(editor: Editor, srcs: string[]): string[] {
+  const all = editor.store.query.records('shape').get()
+  return srcs.flatMap((src) => all.filter((s) => mediaSrc(editor, s) === src).map((s) => s.id))
+}
+
+function waitResults(editor: Editor, ids: string[], timeout: number) {
+  const unknown = new Set(ids.filter((id) => !resultsAtom.get()[id] && !editor.getShape(id as TLShapeId)))
+  const settle = () => {
+    const results = resultsAtom.get()
+    return ids.map((id) => {
+      const r = results[id]
+      if (!r) return { id, status: unknown.has(id) ? 'unknown id' : 'running' }
+      return r.error ? { id, status: 'error', error: r.error } : { id, status: 'done', urls: r.srcs, shapes: shapesWithSrc(editor, r.srcs) }
+    })
+  }
+  return new Promise<object>((resolve) => {
+    let stop = () => { }
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      stop()
+      const results = settle()
+      resolve({ status: results.some((r) => r.status === 'running') ? 'running' : 'done', results })
+    }
+    const timer = setTimeout(finish, timeout * 1000)
+    stop = react('wait generation', () => {
+      if (settle().every((r) => r.status !== 'running')) queueMicrotask(finish)
+    })
+  })
+}
+
+function textProps(args: Args): Partial<TextShape['props']> {
+  return {
+    text: String(args.text ?? ''),
+    ...(args.font_size ? { size: Number(args.font_size) } : {}),
+    ...(args.color ? { color: String(args.color) } : {}),
+    ...(args.font ? { font: String(args.font) } : {}),
+    ...(args.align ? { align: String(args.align) } : {}),
+    ...(args.width ? { w: Number(args.width), autoSize: false } : {}),
+  }
+}
+
+const HANDLERS: Record<string, Handler> = {
+  get_canvas: (editor, args) => {
+    const page = pageOf(editor, args.page)
+    const ids = [...editor.getPageShapeIds(page.id)]
+    const shapes = toPageShapes(editor, ids).filter((s) => s.type !== COMMENT).slice(0, MAX_SHAPES).map((s) => describe(editor, s))
+    const kit = linkedKit(editor.getDocumentSettings().meta.brandKit)
+    return {
+      project: editor.getDocumentSettings().name || undefined,
+      pages: editor.getPages().map((p) => ({ id: p.id, name: p.name, current: p.id === editor.getCurrentPageId() })),
+      page: page.id,
+      shapes,
+      truncated: ids.length > MAX_SHAPES || undefined,
+      selection: editor.getSelectedShapeIds(),
+      brand_kit: kit ? { id: kit.id, name: kit.name } : null,
+    }
+  },
+  view_canvas: async (editor, args) => {
+    const ids = Array.isArray(args.ids) && args.ids.length ? args.ids.map((id: string) => shapeOf(editor, id).id) : [...editor.getCurrentPageShapeIds()]
+    if (!ids.length) throw new Error('the page is empty')
+    const shapes = toPageShapes(editor, ids)
+    const bounds = shapes.map((s) => editor.getShapePageBounds(s)!).reduce((a, b) => a.union(b))
+    const maxPx = Math.min(2048, Number(args.max_px) || VIEW_MAX_PX)
+    const { blob, width, height } = await editor.toImage(ids, { format: 'png', background: true, scale: Math.min(1, maxPx / Math.max(bounds.w, bounds.h)) })
+    return { width, height, bounds: { x: Math.round(bounds.x), y: Math.round(bounds.y), width: Math.round(bounds.w), height: Math.round(bounds.h) }, png: await blobBase64(blob) }
+  },
+  list_models: () => ({
+    image: agentModels(false).map((m) => ({ id: m.id, label: m.label, desc: m.desc, accepts_refs: !!m.refs, ratios: RATIOS })),
+    video: agentModels(true).map((m) => ({ id: m.id, label: m.label, desc: m.desc, accepts_first_frame: true, ratios: VIDEO_RATIOS, durations: DURATIONS })),
+  }),
+  brand_kits: (editor) => {
+    const linked = linkedKit(editor.getDocumentSettings().meta.brandKit)
+    return {
+      linked: linked?.id ?? null,
+      items: libraryAtom.get().map((k) => ({ id: k.id, kind: k.kind, name: k.name, summary: describeItem(k), images: itemImages(k) })),
+    }
+  },
+  generate_image: (editor, args, onError) => startGenerator(editor, false, args, onError),
+  generate_video: (editor, args, onError) => startGenerator(editor, true, args, onError),
+  edit_image: (editor, args, onError) => started(actions.quickEdit(editor, imageOf(editor, args.id), String(args.prompt), onError)),
+  animate_image: (editor, args, onError) => started(actions.animate(editor, imageOf(editor, args.id), String(args.prompt), onError, args.loop !== false)),
+  upscale_image: (editor, args, onError) => {
+    const factor = args.factor === 4 ? 4 : 2
+    const shape = imageOf(editor, args.id)
+    return started(args.creative ? actions.creativeUpscale(editor, shape, factor, String(args.style ?? ''), 50, onError) : actions.upscale(editor, shape, factor, onError))
+  },
+  remove_background: (editor, args, onError) => started(actions.cutout(editor, imageOf(editor, args.id), onError)),
+  expand_image: (editor, args, onError) => started(actions.expand(editor, imageOf(editor, args.id),
+    { l: Number(args.left) || 0, t: Number(args.top) || 0, r: Number(args.right) || 0, b: Number(args.bottom) || 0 }, String(args.prompt ?? ''), onError)),
+  split_layers: (editor, args, onError) => started(actions.splitLayers(editor, imageOf(editor, args.id), Math.min(8, Math.max(2, Number(args.layers) || 4)), String(args.prompt ?? ''), onError)),
+  change_angle: (editor, args, onError) => started(actions.angles(editor, imageOf(editor, args.id), Number(args.horizontal) || 0, Number(args.vertical) || 0, Number(args.zoom) || 1, onError)),
+  replace_text: (editor, args, onError) => started(actions.editText(editor, imageOf(editor, args.id), [[String(args.from), String(args.to)]], onError)),
+  extend_video: (editor, args, onError) => {
+    const shape = shapeOf(editor, args.id)
+    if (shape.type !== 'video') throw new Error(`${shape.id} is not a video`)
+    return started(actions.extendVideo(editor, shape as TLVideoShape, String(args.prompt), DURATIONS.includes(args.duration) ? args.duration : DURATIONS[0], onError))
+  },
+  wait_generation: (editor, args) => waitResults(editor, (args.ids ?? []).map(String), Number(args.timeout_s) || 60),
+  place_html: (editor, args) => {
+    const id = placeHtml(editor, String(args.html), String(args.name ?? t('botCommands.webPage')))
+    editor.updateShape<HtmlShape>({
+      id, type: HTML,
+      ...(args.x != null ? { x: Number(args.x) } : {}),
+      ...(args.y != null ? { y: Number(args.y) } : {}),
+      props: { ...(args.width ? { w: Number(args.width) } : {}), ...(args.height ? { h: Number(args.height) } : {}) },
+    })
+    return { id }
+  },
+  create_slides: (editor, args, onError) => {
+    if (!Array.isArray(args.slides) || !args.slides.length) throw new Error('slides must be a non-empty array')
+    const before = new Set(editor.getCurrentPageShapeIds())
+    const ids = buildSlides(editor, String(args.title ?? t('botCommands.presentation')), args.slides.map((s: Args) => ({
+      title: String(s.title ?? ''), bullets: Array.isArray(s.bullets) ? s.bullets.map(String) : [], image: s.image ? String(s.image) : undefined,
+    })), onError)
+    const frames = [...editor.getCurrentPageShapeIds()].filter((id) => !before.has(id) && editor.getShape(id)?.type === 'frame')
+    return { frames, ids, note: ids.length ? 'images are generating: call wait_generation with ids' : undefined }
+  },
+  add_text: (editor, args) => {
+    const id = createShapeId()
+    const center = editor.getViewportPageBounds().center
+    editor.createShape<TextShape>({ id, type: TEXT, x: Number(args.x ?? center.x), y: Number(args.y ?? center.y), props: textProps(args) })
+    if (args.frame) {
+      const frame = shapeOf(editor, args.frame)
+      editor.reparentShapes([id], frame.id)
+      editor.updateShape({ id, type: TEXT, x: Number(args.x ?? GAP), y: Number(args.y ?? GAP) })
+    }
+    return { id }
+  },
+  add_shape: (editor, args) => {
+    const kinds = ['rect', 'ellipse', 'polygon', 'star']
+    if (!kinds.includes(args.kind)) throw new Error(`kind must be one of ${kinds.join(', ')}`)
+    const id = createShapeId()
+    const center = editor.getViewportPageBounds().center
+    editor.createShape<VectorShape>({
+      id, type: VECTOR, x: Number(args.x ?? center.x), y: Number(args.y ?? center.y),
+      props: { kind: args.kind, w: Number(args.width) || 200, h: Number(args.height) || 200, ...(args.fill ? { fill: String(args.fill) } : {}), ...(args.stroke ? { stroke: String(args.stroke) } : {}), ...(args.sides ? { sides: Number(args.sides) } : {}) },
+    })
+    if (args.frame) editor.reparentShapes([id], shapeOf(editor, args.frame).id)
+    return { id }
+  },
+  create_frame: (editor, args) => {
+    const id = createShapeId()
+    const w = Number(args.width) || 1080
+    const h = Number(args.height) || 1080
+    const center = editor.getViewportPageBounds().center
+    editor.createShape<TLFrameShape>({ id, type: 'frame', x: Number(args.x ?? center.x - w / 2), y: Number(args.y ?? center.y - h / 2), props: { w, h, name: String(args.name ?? t('common.artboard')) } })
+    if (Array.isArray(args.children) && args.children.length) editor.reparentShapes(args.children.map((c: string) => shapeOf(editor, c).id), id)
+    return { id }
+  },
+  update_shapes: (editor, args) => {
+    if (!Array.isArray(args.updates)) throw new Error('updates must be an array')
+    const updated: string[] = []
+    editor.run(() => {
+      for (const u of args.updates as Args[]) {
+        const shape = shapeOf(editor, u.id)
+        if (u.frame !== undefined) editor.reparentShapes([shape.id], u.frame ? shapeOf(editor, u.frame).id : editor.getCurrentPageId())
+        const current = editor.getShape(shape.id)!
+        const point = u.x != null || u.y != null
+          ? editor.getPointInParentSpace(shape.id, { x: Number(u.x ?? editor.getShapePageBounds(current)!.x), y: Number(u.y ?? editor.getShapePageBounds(current)!.y) })
+          : null
+        const props: Record<string, unknown> = {}
+        if (u.width != null && 'w' in current.props) props.w = Number(u.width)
+        if (u.height != null && 'h' in current.props) props.h = Number(u.height)
+        if (u.name != null && current.type === 'frame') props.name = String(u.name)
+        if (u.text != null && current.type === TEXT) props.text = String(u.text)
+        if (u.color != null && current.type === TEXT) props.color = String(u.color)
+        if (u.color != null && current.type === VECTOR) props.fill = String(u.color)
+        editor.updateShape({
+          id: shape.id, type: current.type,
+          ...(point ? { x: point.x, y: point.y } : {}),
+          ...(u.rotation != null ? { rotation: (Number(u.rotation) * Math.PI) / 180 } : {}),
+          ...(u.opacity != null ? { opacity: Number(u.opacity) } : {}),
+          ...(Object.keys(props).length ? { props } : {}),
+        })
+        updated.push(shape.id)
+      }
+    })
+    return { updated }
+  },
+  delete_shapes: (editor, args) => {
+    const ids = (args.ids ?? []).map((id: string) => shapeOf(editor, id).id)
+    editor.deleteShapes(ids)
+    return { deleted: ids }
+  },
+  focus: (editor, args) => {
+    const shapes = (args.ids ?? []).map((id: string) => shapeOf(editor, id))
+    const page = shapes[0] && editor.getAncestorPageId(shapes[0])
+    if (page) editor.setCurrentPage(page)
+    editor.select(...shapes.map((s: TLShape) => s.id))
+    editor.zoomToSelection({ animation: { duration: 200 } })
+    return { selected: shapes.map((s: TLShape) => s.id) }
+  },
+  memory: async (_editor, args) => {
+    if (args.action === 'list') return { memories: memoryAtom.get().map((m) => ({ text: m.text, category: m.category ?? 'about' })) }
+    if (args.action === 'add') {
+      await remember([{ text: String(args.text), category: args.category }], t('botCommands.chat'))
+      return { added: args.text }
+    }
+    if (args.action === 'correct') return { corrected: await correct([{ old: String(args.old), new: String(args.new) }], t('botCommands.chat')) }
+    if (args.action === 'forget') return { forgotten: await forget([String(args.text)], t('botCommands.chat')) }
+    throw new Error('action must be list, add, correct or forget')
+  },
+  skill: async (_editor, args) => {
+    const skills = await loadSkills()
+    if (args.action === 'list') return { skills: skills.map((s) => ({ name: s.name, description: s.instructions.slice(0, 200), custom: !!s.custom })) }
+    if (args.action === 'save') {
+      if (!args.name || !args.instructions) throw new Error('save needs name and instructions')
+      const existing = skills.find((s) => s.custom && s.name === args.name)
+      await saveSkill({ ...existing, id: existing?.id ?? crypto.randomUUID().slice(0, 8), name: String(args.name), instructions: String(args.instructions), custom: true })
+      return { saved: args.name }
+    }
+    if (args.action !== 'read') throw new Error('action must be list, read or save')
+    const skill = skills.find((s) => s.name === args.name)
+    if (!skill) throw new Error(`unknown skill ${JSON.stringify(args.name)} — available: ${skills.map((s) => s.name).join(', ')}`)
+    if (args.path) {
+      const content = skill.files?.[args.path]
+      if (content == null) throw new Error(`skill ${skill.name} has no file ${args.path}; files: ${Object.keys(skill.files ?? {}).join(', ') || '(none)'}`)
+      return { name: skill.name, path: args.path, content }
+    }
+    return { name: skill.name, instructions: skill.instructions, files: Object.keys(skill.files ?? {}), images: Object.values(skill.images ?? {}) }
+  },
+}
+
+export function registerCommandBus(editor: Editor, project: string, isStale: () => boolean, onError: ErrorSink) {
+  return onComfyEvent('comfyart-mcp-command', (msg: { id: string; action: string; project: string; args: Args }) => {
+    if ((msg.project && msg.project !== project) || isStale()) return
+    const handler = HANDLERS[msg.action]
+    const reply = (body: object) => api('/comfyart/mcp_command_result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command_id: msg.id, ...body }) })
+    if (!handler) return void reply({ ok: false, error: `unknown command ${msg.action}` })
+    Promise.resolve()
+      .then(() => handler(editor, msg.args ?? {}, onError))
+      .then((result) => reply({ ok: true, result }), (e) => reply({ ok: false, error: errorText(e) }))
+  })
+}
+
