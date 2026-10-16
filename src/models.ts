@@ -1,6 +1,6 @@
 import { atom } from 'tldraw'
 
-import { api, readUserJson, writeUserJson } from './comfy'
+import { api, loadModelPaths, readUserJson, writeUserJson } from './comfy'
 import { t } from './i18n'
 
 export interface ModelDef {
@@ -59,10 +59,10 @@ export const modelPrefsAtom = atom<ModelPrefs>('model prefs', { auto: true, enab
 export const installedAtom = atom<string[] | null>('installed models', null)
 
 export async function loadModels() {
-  const [prefs, files] = await Promise.all([readUserJson<ModelPrefs | null>(FILE, null), api('/models/diffusion_models')])
+  const [prefs, files, paths] = await Promise.all([readUserJson<ModelPrefs | null>(FILE, null), api('/models/diffusion_models'), loadModelPaths()])
   if (prefs) modelPrefsAtom.set(prefs)
   const names: string[] = files.ok ? await files.json() : []
-  installedAtom.set([...IMAGE_MODELS, ...VIDEO_MODELS].filter((m) => m.files.every((f) => names.includes(f))).map((m) => m.id))
+  installedAtom.set([...IMAGE_MODELS, ...VIDEO_MODELS].filter((m) => m.files.every((f) => names.includes(f) || f in paths)).map((m) => m.id))
 }
 
 export async function saveModelPrefs(prefs: ModelPrefs) {

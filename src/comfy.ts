@@ -78,11 +78,26 @@ export async function loadWorkflow(name: string): Promise<PromptGraph> {
   return res.json()
 }
 
+let modelPaths: Record<string, string> = {}
+
+export async function loadModelPaths(): Promise<Record<string, string>> {
+  const res = await fetch('/comfyart/model-paths')
+  modelPaths = res.ok ? await res.json() : {}
+  return modelPaths
+}
+
+function withModelPaths(prompt: PromptGraph): PromptGraph {
+  return Object.fromEntries(Object.entries(prompt).map(([id, node]) => [id, {
+    ...node,
+    inputs: Object.fromEntries(Object.entries(node.inputs).map(([k, v]) => [k, typeof v === 'string' && v in modelPaths ? modelPaths[v] : v])),
+  }]))
+}
+
 export async function queuePrompt(prompt: PromptGraph): Promise<string> {
   const res = await api('/prompt', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, client_id: CLIENT_ID }),
+    body: JSON.stringify({ prompt: withModelPaths(prompt), client_id: CLIENT_ID }),
   })
   const body = await res.json()
   if (!res.ok) throw new Error(body?.error?.message ?? `queue failed: ${res.status}`)
