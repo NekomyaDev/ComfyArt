@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+from pathlib import Path
 
 import pytest
 
@@ -277,3 +278,16 @@ class TestCodexCaps:
         text = path.read_text(encoding="utf-8")
         assert "old resource" not in text
         assert "get_canvas" in text
+
+
+def test_logged_in_check_survives_unreadable_auth_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    stat = Path.stat
+
+    def guarded(self, *a, **k):
+        if self.name == "auth.json":
+            raise OSError(448, "The path cannot be traversed because it contains an untrusted mount point")
+        return stat(self, *a, **k)
+
+    monkeypatch.setattr(Path, "stat", guarded)
+    assert CodexCodeProvider(home_dir=str(tmp_path / "home"))._detect_logged_in() is False

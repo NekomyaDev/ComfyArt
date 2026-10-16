@@ -132,6 +132,16 @@ async def test_settings_validate_keys_and_types(bot_client):
     assert saved["ocr-engine"] == "agent"
 
 
+async def test_status_survives_a_failing_probe(bot_client, fake_provider, monkeypatch):
+    async def boom(self):
+        raise OSError(448, "untrusted mount point")
+    monkeypatch.setattr(type(fake_provider), "probe", boom)
+    resp = await bot_client.get("/comfyart/bot/status")
+    assert resp.status == 200
+    entry = next(p for p in (await resp.json())["providers"] if p["id"] == "fake-test")
+    assert entry["available"] is False and "untrusted mount point" in entry["detail"]
+
+
 def test_reap_marks_unfinished_messages_aborted():
     chat = chat_store.create_chat(user="default", project="p", provider="codex")
     msg = chat_store.create_message(chat_id=chat["id"], role="assistant", blocks=[], status="streaming")

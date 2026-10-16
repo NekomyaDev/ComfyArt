@@ -254,9 +254,11 @@ class CodexCodeProvider(AgentProvider):
         return self._home_dir
 
     def _detect_logged_in(self) -> bool:
-        auth = Path.home() / ".codex" / "auth.json"
-        if auth.exists() and auth.stat().st_size > 2:
-            return True
+        try:
+            if (Path.home() / ".codex" / "auth.json").stat().st_size > 2:
+                return True
+        except OSError:
+            pass
         providers = read_codex_config().get("model_providers") or {}
         if not isinstance(providers, dict):
             return False

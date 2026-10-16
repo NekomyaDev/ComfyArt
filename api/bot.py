@@ -1,6 +1,7 @@
 from aiohttp import web
 
 from ..bot import get_provider, list_providers
+from ..bot.providers import ProviderStatus
 from . import bot_asks, chat_store
 from . import bot_send as send_core
 from ._common import error, json_body, request_user, routes
@@ -15,7 +16,10 @@ async def bot_status(request: web.Request) -> web.Response:
         return web.json_response({"enabled": False, "user": user, "providers": []})
     out = []
     for provider in list_providers():
-        st = await provider.probe()
+        try:
+            st = await provider.probe()
+        except Exception as e:
+            st = ProviderStatus(available=False, detail=f"probe failed: {e}")
         caps = provider.capabilities()
         entry = {
             "id": provider.id,
