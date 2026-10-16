@@ -17,6 +17,7 @@ import { VoiceButton } from './VoiceButton'
 import { skillsOpenAtom } from './SkillsDialog'
 import { Popover } from './Popover'
 import { t } from '../i18n'
+import { uuid } from '../id'
 
 const MODES: [AgentMode, string, keyof typeof Icons][] = [['agent', 'Agent', 'agent'], ['image', t('composer.image'), 'genImage'], ['video', t('common.video'), 'genVideo']]
 const REVIEW_PROMPT = t('composer.canvasReviewUseGetCanvas')
@@ -41,7 +42,7 @@ function SkillEditor({ onDone }: { onDone: (s: Skill | null) => void }) {
           type="button"
           className="ca-panel__primary"
           disabled={!name.trim() || !text.trim()}
-          onClick={() => onDone({ id: crypto.randomUUID().slice(0, 8), name: name.trim(), instructions: text.trim(), custom: true })}
+          onClick={() => onDone({ id: uuid().slice(0, 8), name: name.trim(), instructions: text.trim(), custom: true })}
         >
           {t('common.save')}
         </button>

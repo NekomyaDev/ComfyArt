@@ -5,6 +5,7 @@ import { mediaAsset } from '../jobs'
 import { isVideo, modelOf } from '../models'
 import { Icons } from './icons'
 import { t } from '../i18n'
+import { copyText } from '../clipboard'
 
 export const infoAtom = atom<TLShapeId | null>('gen info', null)
 
@@ -43,7 +44,7 @@ export function InfoDialog({ editor, onError }: { editor: Editor; onError: (msg:
           {rows.filter(([, v]) => v).map(([k, v]) => <div key={k} className="ca-keys__row"><span>{k}</span><span className="ca-menu__key">{v}</span></div>)}
           {info?.prompt && (
             <div className="ca-panel__foot">
-              <button type="button" className="ca-panel__secondary" onClick={() => void navigator.clipboard.writeText(info.prompt!)}>{t('imageToolbar.copyPrompt')}</button>
+              <button type="button" className="ca-panel__secondary" onClick={() => void copyText(info.prompt!)}>{t('imageToolbar.copyPrompt')}</button>
               <button type="button" className="ca-panel__secondary" onClick={() => { close(); remix(editor, shape) }}>{t('imageToolbar.remix')}</button>
               <button type="button" className="ca-panel__primary" onClick={() => { close(); void regenerate(editor, shape, onError) }}>{t('common.regenerate')}</button>
             </div>

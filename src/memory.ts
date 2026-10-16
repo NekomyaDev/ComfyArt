@@ -2,6 +2,7 @@ import { atom } from 'tldraw'
 
 import { readUserJson, writeUserJson } from './comfy'
 import { t } from './i18n'
+import { uuid } from './id'
 
 export interface Memory { id: string; text: string; time: number; category?: string }
 export interface MemoryInput { text: string; category?: string }
@@ -85,6 +86,6 @@ export async function remember(items: MemoryInput[], source = t('botCommands.cha
   const known = new Set(memoryAtom.get().map((m) => m.text))
   const fresh = items.filter((m) => !known.has(m.text))
   if (!fresh.length) return
-  await saveMemory([...memoryAtom.get(), ...fresh.map((m) => ({ id: crypto.randomUUID().slice(0, 8), text: m.text, time: Date.now(), ...(m.category ? { category: m.category } : {}) }))])
+  await saveMemory([...memoryAtom.get(), ...fresh.map((m) => ({ id: uuid().slice(0, 8), text: m.text, time: Date.now(), ...(m.category ? { category: m.category } : {}) }))])
   await logMemory(fresh.map((m) => ({ action: 'add' as const, text: m.text, source })))
 }

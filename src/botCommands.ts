@@ -17,6 +17,7 @@ import { VECTOR, type VectorShape } from './shapes/VectorShape'
 import { loadSkills, saveSkill } from './skills'
 import { onComfyEvent } from './ws'
 import { t } from './i18n'
+import { uuid } from './id'
 
 type Args = Record<string, any>
 type Handler = (editor: Editor, args: Args, onError: ErrorSink) => unknown
@@ -345,7 +346,7 @@ const HANDLERS: Record<string, Handler> = {
     if (args.action === 'save') {
       if (!args.name || !args.instructions) throw new Error('save needs name and instructions')
       const existing = skills.find((s) => s.custom && s.name === args.name)
-      await saveSkill({ ...existing, id: existing?.id ?? crypto.randomUUID().slice(0, 8), name: String(args.name), instructions: String(args.instructions), custom: true })
+      await saveSkill({ ...existing, id: existing?.id ?? uuid().slice(0, 8), name: String(args.name), instructions: String(args.instructions), custom: true })
       return { saved: args.name }
     }
     if (args.action !== 'read') throw new Error('action must be list, read or save')

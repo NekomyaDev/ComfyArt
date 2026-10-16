@@ -1,6 +1,7 @@
 import { atom } from 'tldraw'
 
 import { readUserJson, writeUserJson } from './comfy'
+import { uuid } from './id'
 
 export type NoticeKind = 'task' | 'suggestion' | 'comment' | 'schedule'
 export interface Notice { id: string; kind: NoticeKind; title: string; body?: string; time: number; read?: boolean; project: string; chat?: string; srcs?: string[] }
@@ -42,7 +43,7 @@ async function update(fn: (list: Notice[]) => Notice[]) {
 channel.onmessage = () => void loadNotices()
 
 export function notify(n: Omit<Notice, 'id' | 'time' | 'project'> & { project?: string }) {
-  const notice: Notice = { id: crypto.randomUUID().slice(0, 8), time: Date.now(), project: currentProject(), ...n }
+  const notice: Notice = { id: uuid().slice(0, 8), time: Date.now(), project: currentProject(), ...n }
   if (document.hidden && pushEnabled() && Notification.permission === 'granted') {
     new Notification(notice.title, { body: notice.body, icon: notice.srcs?.[0] })
   }

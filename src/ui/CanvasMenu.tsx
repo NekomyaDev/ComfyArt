@@ -25,6 +25,7 @@ import { lightboxAtom } from './Lightbox'
 import { slideshowAtom } from './Slideshow'
 import { sideAtom } from './SidePanel'
 import { t } from '../i18n'
+import { uuid } from '../id'
 
 function replaceImage(editor: Editor, shape: TLImageShape) {
   const input = document.createElement('input')
@@ -61,7 +62,7 @@ function addToLibrary(editor: Editor, kind: LibraryKind, target: string | null) 
   const list = libraryAtom.get()
   const next = target
     ? list.map((x) => (x.id === target ? { ...x, images: [...x.images, ...srcs.filter((src) => !x.images.includes(src))] } : x))
-    : [...list, { id: crypto.randomUUID().slice(0, 8), kind, name: t('canvasMenu.new', KIND_LABELS[kind]), description: '', images: srcs, colors: [], fonts: [] }]
+    : [...list, { id: uuid().slice(0, 8), kind, name: t('canvasMenu.new', KIND_LABELS[kind]), description: '', images: srcs, colors: [], fonts: [] }]
   void saveLibrary(next)
   libraryTabAtom.set(kind)
   sideAtom.set('assets')

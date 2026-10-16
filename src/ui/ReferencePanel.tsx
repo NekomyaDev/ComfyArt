@@ -12,6 +12,7 @@ import { AssetGrid } from './AssetPicker'
 import { Icons } from './icons'
 import { Popover } from './Popover'
 import { t } from '../i18n'
+import { uuid } from '../id'
 
 type Source = 'upload' | 'canvas' | 'assets'
 interface Reference { src: string; notes?: string; name?: string; source?: Source; time?: number; key?: string }
@@ -22,6 +23,7 @@ const keyOf = (r: Reference) => r.key ?? r.src
 const nameOf = (r: Reference) => r.name ?? decodeURIComponent(new URL(r.src, location.origin).searchParams.get('filename') ?? t('common.reference'))
 
 async function copyImage(src: string) {
+  if (!navigator.clipboard) throw new Error(t('referencePanel.copyNeedsSecureContext'))
   const blob = await (await fetch(src)).blob()
   const png = blob.type === 'image/png' ? blob : await new Promise<Blob>((resolve) => {
     const img = new Image()
@@ -171,7 +173,7 @@ export function ReferencePanel({ editor, onError }: { editor: Editor; onError: E
                 <button type="button" className="ca-menu__item" onClick={act(() => setRenaming(keyOf(r)))}><span className="ca-menu__grow">{t('batchRename.rename')}</span></button>
                 <button type="button" className="ca-menu__item" onClick={act(() => copyImage(r.src))}><span className="ca-menu__grow">{t('common.copy')}</span></button>
                 <button type="button" className="ca-menu__item" onClick={act(async () => { await copyImage(r.src); removeRef(keyOf(r)) })}><span className="ca-menu__grow">{t('common.cut')}</span></button>
-                <button type="button" className="ca-menu__item" onClick={act(() => setRefs(editor, [...refsOf(editor), { ...r, key: crypto.randomUUID().slice(0, 8), name: t('referencePanel.copy', nameOf(r)), time: Date.now() }]))}><span className="ca-menu__grow">{t('common.duplicate')}</span></button>
+                <button type="button" className="ca-menu__item" onClick={act(() => setRefs(editor, [...refsOf(editor), { ...r, key: uuid().slice(0, 8), name: t('referencePanel.copy', nameOf(r)), time: Date.now() }]))}><span className="ca-menu__grow">{t('common.duplicate')}</span></button>
                 <button type="button" className="ca-menu__item" onClick={act(() => downloadUrl(r.src, nameOf(r)))}><span className="ca-menu__grow">{t('common.export')}</span></button>
                 <div className="ca-menu__sep" />
                 <button type="button" className="ca-menu__item" onClick={act(() => removeRef(keyOf(r)))}><span className="ca-menu__grow">{t('common.delete')}</span></button>

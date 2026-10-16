@@ -15,6 +15,7 @@ import { Popover } from './Popover'
 import { ProjectHeader } from './ProjectHeader'
 import { detailsAtom } from './TaskDetails'
 import { t } from '../i18n'
+import { copyText } from '../clipboard'
 
 const DOCK_KEY = 'comfyart.dock'
 
@@ -160,7 +161,7 @@ export function AgentPanel({ editor, projectId, max, onMax, onCollapse, onError 
                   {!busy && i === messages.length - 1 && lastUser === i - 1 && (
                     <button type="button" className="ca-history__del" title={t('common.regenerate')} onClick={() => void resend(editor, messages[i - 1]).catch(fail)}>{Icons.replace}</button>
                   )}
-                  <button type="button" className="ca-history__del" title={t('common.copy')} onClick={() => void navigator.clipboard.writeText(textOf(m))}>{Icons.page}</button>
+                  <button type="button" className="ca-history__del" title={t('common.copy')} onClick={() => void copyText(textOf(m))}>{Icons.page}</button>
                   <button type="button" className="ca-history__del" title={t('agentPanel.taskDetails')} onClick={() => detailsAtom.set(m.id)}>{Icons.files}</button>
                 </div>
               )}

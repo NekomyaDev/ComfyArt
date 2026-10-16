@@ -8,6 +8,7 @@ import { Icons } from './icons'
 import { memoryOpenAtom } from './MemoryDialog'
 import { Popover } from './Popover'
 import { t } from '../i18n'
+import { uuid } from '../id'
 
 export const UNTITLED = t('projectHeader.untitled')
 
@@ -37,7 +38,7 @@ export function ProjectHeader({ editor, projectId, children }: { editor: Editor;
         )}
       >
         <div className="ca-menu ca-head__list">
-          <button type="button" className="ca-menu__item" onClick={() => openProject(crypto.randomUUID().slice(0, 8))}>
+          <button type="button" className="ca-menu__item" onClick={() => openProject(uuid().slice(0, 8))}>
             <span className="ca-icon">{Icons.plus}</span><span className="ca-menu__grow">{t('projectHeader.newProject')}</span>
           </button>
           <button type="button" className="ca-menu__item" onClick={() => { setOpen(false); historyAtom.set(true) }}>

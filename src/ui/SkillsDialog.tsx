@@ -6,6 +6,7 @@ import { deleteSkill, importFolder, listVersions, loadSkills, saveSkill, skillAt
 import { confirmAtom } from './Confirm'
 import { Icons } from './icons'
 import { t } from '../i18n'
+import { uuid } from '../id'
 
 export const skillsOpenAtom = atom('skills open', false)
 
@@ -121,7 +122,7 @@ export function SkillsDialog({ onError }: { onError: (msg: string) => void }) {
           <div className="ca-rename__body">
             <div className="ca-chat__hint">{t('skillsDialog.eachSkillIsAFolder')}</div>
             <div className="ca-style__row">
-              <button type="button" className="ca-lib__new" onClick={() => setView({ kind: 'edit', skill: { id: crypto.randomUUID().slice(0, 8), name: '', instructions: '', files: {}, custom: true } })}>
+              <button type="button" className="ca-lib__new" onClick={() => setView({ kind: 'edit', skill: { id: uuid().slice(0, 8), name: '', instructions: '', files: {}, custom: true } })}>
                 <span className="ca-icon">{Icons.plus}</span>{t('skillsDialog.newSkill')}
               </button>
               <button type="button" className="ca-lib__new" onClick={() => folder.current?.click()}><span className="ca-icon">{Icons.upload}</span>{t('skillsDialog.importFolder')}</button>

@@ -17,6 +17,7 @@ import { Popover } from './Popover'
 import { UpscaleMenu } from './UpscaleMenu'
 import { useSelectedImage, useSelectionRect } from './selection'
 import { t } from '../i18n'
+import { copyText } from '../clipboard'
 
 const GAP = 22
 const EDGE = 8
@@ -119,7 +120,7 @@ export function ImageToolbar({ onError }: { onError: (msg: string) => void }) {
       if (!text) throw new Error(t('imageToolbar.noTextDetected'))
       const b = editor.getShapePageBounds(shape)!
       editor.createShape<TextShape>({ type: TEXT, x: b.maxX + 40, y: b.y, props: { text, size: 24, autoSize: false, w: b.w } })
-      void navigator.clipboard.writeText(text).catch(() => undefined)
+      void copyText(text).catch(() => undefined)
     } catch (e) {
       onError(errorText(e))
     }
@@ -166,7 +167,7 @@ export function ImageToolbar({ onError }: { onError: (msg: string) => void }) {
     { id: 'rotate', icon: Icons.rotate, label: t('canvasMenu.rotate90'), run: () => editor.rotateShapesBy([shape.id], Math.PI / 2) },
     { id: 'regenerate', icon: Icons.replace, label: t('common.regenerate'), run: () => void regenerate(editor, shape, onError), when: !!genInfo?.prompt },
     { id: 'remix', icon: Icons.genImage, label: t('imageToolbar.remix'), run: () => remix(editor, shape), when: !!genInfo?.prompt },
-    { id: 'copyPrompt', icon: Icons.skill, label: t('imageToolbar.copyPrompt'), run: () => void navigator.clipboard.writeText(genInfo!.prompt!), when: !!genInfo?.prompt },
+    { id: 'copyPrompt', icon: Icons.skill, label: t('imageToolbar.copyPrompt'), run: () => void copyText(genInfo!.prompt!), when: !!genInfo?.prompt },
     { id: 'info', icon: Icons.files, label: t('imageToolbar.generationInfo'), run: () => infoAtom.set(shape.id) },
     { id: 'preview', icon: Icons.preview, label: t('canvasMenu.viewLarger'), run: () => lightboxAtom.set(shape.id) },
     { id: 'export', icon: Icons.export, label: t('canvasMenu.export'), run: () => exportAtom.set([shape.id]) },

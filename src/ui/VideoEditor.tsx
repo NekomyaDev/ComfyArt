@@ -7,6 +7,7 @@ import { clipLength, filmstrip, freshEdit, layout, MIN_CLIP, Player, removeClip,
 import { ColorPicker } from './ColorPicker'
 import { Icons } from './icons'
 import { t } from '../i18n'
+import { uuid } from '../id'
 
 export const videoEditorAtom = atom<TLShapeId | null>('video editor', null)
 
@@ -145,7 +146,7 @@ function EditorBody({ editor, shape, src, name, onError }: { editor: Editor; sha
   }
 
   const addSubtitle = () => {
-    const sub: Subtitle = { id: crypto.randomUUID().slice(0, 8), start: time, end: Math.min(total, time + 2), text: t('videoEditor.enterCaptionHere'), size: 56, color: '#FFFFFF' }
+    const sub: Subtitle = { id: uuid().slice(0, 8), start: time, end: Math.min(total, time + 2), text: t('videoEditor.enterCaptionHere'), size: 56, color: '#FFFFFF' }
     commit({ ...edit, subtitles: [...edit.subtitles, sub] })
     setSel({ kind: 'subtitle', id: sub.id })
   }

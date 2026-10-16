@@ -1,10 +1,12 @@
+import { uuid } from './id'
+
 type Handler = (data: any) => void
 
 const handlers = new Map<string, Set<Handler>>()
 const RETRY_MS = 2000
 let socket: WebSocket | null = null
 
-export const CLIENT_ID = crypto.randomUUID()
+export const CLIENT_ID = uuid()
 
 function connect() {
   const url = new URL('/ws', location.href)

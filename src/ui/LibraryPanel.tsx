@@ -14,6 +14,7 @@ import { ColorPicker } from './ColorPicker'
 import { Icons } from './icons'
 import { Popover } from './Popover'
 import { t } from '../i18n'
+import { uuid } from '../id'
 
 type Tab = 'files' | LibraryKind
 export const libraryTabAtom = atom<Tab>('library tab', 'files')
@@ -192,7 +193,7 @@ export function LibraryPanel({ editor, onError }: { editor: Editor; onError: (ms
       )}
       {tab !== 'files' && !editing && (
         <>
-          <button type="button" className="ca-lib__new" onClick={() => setEditing({ id: crypto.randomUUID().slice(0, 8), kind: tab, name: '', description: '', images: [], colors: [], fonts: [] })}>
+          <button type="button" className="ca-lib__new" onClick={() => setEditing({ id: uuid().slice(0, 8), kind: tab, name: '', description: '', images: [], colors: [], fonts: [] })}>
             <span className="ca-icon">{Icons.plus}</span>{t('libraryPanel.newItem', KIND_LABELS[tab])}
           </button>
           {items.length === 0 && <div className="ca-side__empty">{t('libraryPanel.emptyHint', KIND_LABELS[tab])}</div>}
@@ -207,9 +208,9 @@ export function LibraryPanel({ editor, onError }: { editor: Editor; onError: (ms
               <div className="ca-lib__acts">
                 <button type="button" className="ca-history__del" title={t('libraryPanel.addToChat')} disabled={kits.some((k) => k.id === item.id)} onClick={() => kitsAtom.set([...kits, item])}>{Icons.comment}</button>
                 <button type="button" className="ca-history__del" title={t('common.edit')} onClick={() => setEditing(item)}>{Icons.textTool}</button>
-                <button type="button" className="ca-history__del" title={t('common.copy')} onClick={() => void save([...library, { ...item, id: crypto.randomUUID().slice(0, 8), name: t('libraryPanel.copy', item.name), isDefault: false }])}>{Icons.page}</button>
+                <button type="button" className="ca-history__del" title={t('common.copy')} onClick={() => void save([...library, { ...item, id: uuid().slice(0, 8), name: t('libraryPanel.copy', item.name), isDefault: false }])}>{Icons.page}</button>
                 {item.kind === 'brand' && (
-                  <button type="button" className="ca-history__del" title={t('libraryPanel.designWithThisKitNew')} onClick={() => openProject(crypto.randomUUID().slice(0, 8), item.id)}>{Icons.plus}</button>
+                  <button type="button" className="ca-history__del" title={t('libraryPanel.designWithThisKitNew')} onClick={() => openProject(uuid().slice(0, 8), item.id)}>{Icons.plus}</button>
                 )}
                 {item.kind === 'brand' && (
                   <button type="button" className="ca-history__del" title={item.isDefault ? t('libraryPanel.defaultForNewProjectsOn') : t('libraryPanel.setAsDefaultForNew')} data-on={item.isDefault || undefined} onClick={() => void save(library.map((x) => (x.kind === 'brand' ? { ...x, isDefault: x.id === item.id ? !item.isDefault : false } : x)))}>{Icons.check}</button>

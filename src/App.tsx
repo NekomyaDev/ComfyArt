@@ -64,10 +64,11 @@ import { VideoEditor } from './ui/VideoEditor'
 import { VideoToolbar } from './ui/VideoToolbar'
 import { Zoom } from './ui/Zoom'
 import { lang, t } from './i18n'
+import { uuid } from './id'
 
 const SAVE_DELAY = 800
 const CHANNEL = 'comfyart-projects'
-const TAB = crypto.randomUUID()
+const TAB = uuid()
 const assetUrls = getAssetUrlsByImport()
 const shapeUtils = [GeneratorShapeUtil, CommentShapeUtil, DoodleShapeUtil, TextShapeUtil, VectorShapeUtil, LottieShapeUtil, ModelShapeUtil, HtmlShapeUtil]
 const tools = [CommentTool, DoodleTool, TextTool, VectorTool]
@@ -98,7 +99,7 @@ function projectId(): string {
   const url = new URL(location.href)
   let id = url.searchParams.get('project')
   if (!id) {
-    id = crypto.randomUUID().slice(0, 8)
+    id = uuid().slice(0, 8)
     url.searchParams.set('project', id)
     history.replaceState(null, '', url)
   }

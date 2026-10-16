@@ -2,6 +2,7 @@ import { atom } from 'tldraw'
 
 import { deleteUserFile, listUserFiles, readUserText, uploadImage, viewUrl, writeUserText } from './comfy'
 import { t } from './i18n'
+import { uuid } from './id'
 
 export interface Skill { id: string; name: string; instructions: string; files?: Record<string, string>; images?: Record<string, string>; custom?: boolean }
 export interface SkillVersion { time: number; skill: Skill }
@@ -85,7 +86,7 @@ export async function listVersions(id: string): Promise<SkillVersion[]> {
   return out
 }
 
-const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-|-$/g, '') || crypto.randomUUID().slice(0, 8)
+const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-|-$/g, '') || uuid().slice(0, 8)
 
 export async function uploadSkillImage(file: File, id: string): Promise<string> {
   return viewUrl(await uploadImage(file, `skill-${id}-${file.name}`))

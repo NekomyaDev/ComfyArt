@@ -7,6 +7,7 @@ import { loadSchedules, nextRun, REPEAT_LABELS, runNow, saveSchedules, schedules
 import { confirmAtom } from './Confirm'
 import { Icons } from './icons'
 import { t } from '../i18n'
+import { uuid } from '../id'
 
 const today = () => new Date().toLocaleDateString('sv')
 
@@ -65,7 +66,7 @@ export function ScheduleDialog({ editor, onError }: { editor: Editor; onError: (
   useEffect(() => {
     if (!open) return
     void loadSchedules().catch(fail)
-    setEditing(open.prompt ? { id: crypto.randomUUID().slice(0, 8), name: open.prompt.slice(0, 16), prompt: open.prompt, project: currentProject(), repeat: 'daily', time: '09:00', enabled: true, created: Date.now() } : null)
+    setEditing(open.prompt ? { id: uuid().slice(0, 8), name: open.prompt.slice(0, 16), prompt: open.prompt, project: currentProject(), repeat: 'daily', time: '09:00', enabled: true, created: Date.now() } : null)
   }, [open])
 
   if (!open) return null
@@ -94,7 +95,7 @@ export function ScheduleDialog({ editor, onError }: { editor: Editor; onError: (
         {!editing && (
           <div className="ca-rename__body">
             <div className="ca-chat__hint">{t('scheduleDialog.whenItsTimeThe')}</div>
-            <button type="button" className="ca-lib__new" onClick={() => setEditing({ id: crypto.randomUUID().slice(0, 8), name: '', prompt: '', project: currentProject(), repeat: 'daily', time: '09:00', enabled: true, created: Date.now() })}>
+            <button type="button" className="ca-lib__new" onClick={() => setEditing({ id: uuid().slice(0, 8), name: '', prompt: '', project: currentProject(), repeat: 'daily', time: '09:00', enabled: true, created: Date.now() })}>
               <span className="ca-icon">{Icons.plus}</span>{t('scheduleDialog.newSchedule')}
             </button>
             {mine.length === 0 && <div className="ca-side__empty">{t('scheduleDialog.thisProjectHasNoScheduled')}</div>}
