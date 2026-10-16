@@ -66,8 +66,10 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
   const [menu, setMenu] = useState<'plus' | 'skills' | 'assets' | 'mode' | 'create' | null>(null)
   const [skills, setSkills] = useState<Skill[]>([])
   const file = useRef<HTMLInputElement>(null)
+  const [hidden, setHidden] = useState<TLShapeId[]>([])
 
-  const refs = [...selected, ...extra.map((id) => editor.getShape<TLImageShape>(id)).filter((s): s is TLImageShape => !!s && !selected.some((x) => x.id === s.id))]
+  const shown = selected.filter((s) => !hidden.includes(s.id))
+  const refs = [...shown, ...extra.map((id) => editor.getShape<TLImageShape>(id)).filter((s): s is TLImageShape => !!s && !shown.some((x) => x.id === s.id))]
   const slash = /^\/(\S*)$/.exec(draft)
   const at = /(?:^|\s)@(\S*)$/.exec(draft)
 
@@ -75,7 +77,18 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
     if (menu === 'skills' || slash) void loadSkills().then(setSkills)
   }, [menu, !!slash])
 
-  const addRef = (id: TLShapeId) => extraRefsAtom.set([...extraRefsAtom.get().filter((x) => x !== id), id])
+  useEffect(() => {
+    setHidden((h) => h.filter((id) => selected.some((s) => s.id === id)))
+  }, [selected])
+
+  const addRef = (id: TLShapeId) => {
+    setHidden((h) => h.filter((x) => x !== id))
+    extraRefsAtom.set([...extraRefsAtom.get().filter((x) => x !== id), id])
+  }
+  const removeRef = (id: TLShapeId) => {
+    extraRefsAtom.set(extraRefsAtom.get().filter((x) => x !== id))
+    if (selected.some((s) => s.id === id)) setHidden((h) => [...h, id])
+  }
   const useSkill = (s: Skill) => { skillAtom.set(s); setMenu(null); if (slash) draftAtom.set('') }
 
   const upload = async (files: FileList | null) => {
@@ -147,7 +160,7 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
           {refs.map((r) => (
             <span key={r.id} className="ca-chip ca-chip--image">
               <img src={srcOf(editor, r) ?? ''} alt="" />
-              {extra.includes(r.id) && <button type="button" title={t('common.remove')} onClick={() => extraRefsAtom.set(extra.filter((x) => x !== r.id))}>{Icons.close}</button>}
+              <button type="button" title={t('common.remove')} onClick={() => removeRef(r.id)}>{Icons.close}</button>
             </span>
           ))}
         </div>
