@@ -116,11 +116,11 @@ export function AgentPanel({ editor, projectId, max, onMax, onCollapse, onError 
           <History onError={onError} />
         </div>
         <NoticeCenter editor={editor} />
-        <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={max ? t('agentPanel.restoreChat') : t('agentPanel.maximizeChat')} data-on={max || undefined} onClick={onMax}>
+        <button type="button" className="ca-bar__btn ca-bar__btn--icon ca-wide-only" title={max ? t('agentPanel.restoreChat') : t('agentPanel.maximizeChat')} data-on={max || undefined} onClick={onMax}>
           <span className="ca-icon">{Icons.expandPanel}</span>
         </button>
         {!max && (
-          <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={dock === 'left' ? t('agentPanel.moveChatToRight') : t('agentPanel.moveChatToLeft')} onClick={() => setDock(dock === 'left' ? 'right' : 'left')}>
+          <button type="button" className="ca-bar__btn ca-bar__btn--icon ca-wide-only" title={dock === 'left' ? t('agentPanel.moveChatToRight') : t('agentPanel.moveChatToLeft')} onClick={() => setDock(dock === 'left' ? 'right' : 'left')}>
             <span className="ca-icon">{dock === 'left' ? Icons.panelRight : Icons.panel}</span>
           </button>
         )}
