@@ -1,6 +1,7 @@
 import type { Editor, TLShapeId } from 'tldraw'
 
 import { api, refFromUrl } from './comfy'
+import { t } from './i18n'
 import { placeMedia, toMedia, type MediaKind } from './jobs'
 
 interface ApiAsset { id: string; name: string; mime_type?: string; preview_url?: string; metadata?: { width?: number; height?: number } }
@@ -13,6 +14,7 @@ export async function listAssets(tags: string, search: string, after?: string): 
   if (search) q.set('name_contains', search)
   if (after) q.set('after', after)
   const res = await api(`/assets?${q}`)
+  if (res.status === 503) throw new Error(t('assetPicker.disabled'))
   if (!res.ok) throw new Error(`assets: ${res.status}`)
   const { assets, next_cursor } = await res.json()
   const items = (assets as ApiAsset[]).flatMap((a): AssetItem[] => {

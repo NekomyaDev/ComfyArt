@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { listAssets, type AssetItem } from '../assets'
 import { thumbUrl } from '../comfy'
+import { errorText } from '../jobs'
 import { t } from '../i18n'
 import { Icons } from './icons'
 
@@ -34,7 +35,7 @@ export function AssetGrid({ onPick, images }: { onPick: (item: AssetItem) => voi
         setItems((prev) => (after && prev ? [...prev, ...list] : list))
         setNext(page.next)
       })
-      .catch((e) => id === query.current && setError(String(e)))
+      .catch((e) => id === query.current && setError(errorText(e)))
       .finally(() => id === query.current && setLoading(false))
   }
 
