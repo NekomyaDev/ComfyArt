@@ -7,10 +7,11 @@ import { sideAtom, type Side } from './SidePanel'
 import { t } from '../i18n'
 
 const DEFAULT_BG = '#F5F5F5'
+const DEFAULT_DARK_BG = '#1A1A1C'
 
 function Background() {
   const editor = useEditor()
-  const bg = useValue('canvas bg', () => String(editor.getDocumentSettings().meta.bg ?? DEFAULT_BG), [editor])
+  const bg = useValue('canvas bg', () => String(editor.getDocumentSettings().meta.bg ?? (editor.user.getIsDarkMode() ? DEFAULT_DARK_BG : DEFAULT_BG)), [editor])
 
   useEffect(() => {
     editor.getContainer().style.setProperty('--ca-canvas', bg)

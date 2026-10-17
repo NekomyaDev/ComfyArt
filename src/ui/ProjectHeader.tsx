@@ -3,6 +3,7 @@ import { useValue, type Editor } from 'tldraw'
 
 import { libraryAtom } from '../library'
 import { listProjects, openProject, type ProjectEntry } from '../projects'
+import { setTheme, themeAtom, type Theme } from '../theme'
 import { historyAtom } from './HistoryDialog'
 import { Icons } from './icons'
 import { memoryOpenAtom } from './MemoryDialog'
@@ -11,12 +12,14 @@ import { t } from '../i18n'
 import { uuid } from '../id'
 
 export const UNTITLED = t('projectHeader.untitled')
+const THEMES: [Theme, string][] = [['light', t('projectHeader.themeLight')], ['dark', t('projectHeader.themeDark')], ['system', t('projectHeader.themeSystem')]]
 
 export function ProjectHeader({ editor, projectId, children }: { editor: Editor; projectId: string; children?: ReactNode }) {
   const name = useValue('doc name', () => editor.getDocumentSettings().name, [editor])
   const [open, setOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectEntry[]>([])
   const kits = useValue('brand kits', () => libraryAtom.get().filter((x) => x.kind === 'brand'), [])
+  const theme = useValue(themeAtom)
   const linked = useValue('linked kit', () => editor.getDocumentSettings().meta.brandKit ?? null, [editor])
   const link = (id: string | null) => {
     const doc = editor.getDocumentSettings()
@@ -47,6 +50,14 @@ export function ProjectHeader({ editor, projectId, children }: { editor: Editor;
           <button type="button" className="ca-menu__item" onClick={() => { setOpen(false); memoryOpenAtom.set(true) }}>
             <span className="ca-icon">{Icons.memory}</span><span className="ca-menu__grow">{t('common.memory')}</span>
           </button>
+          <div className="ca-menu__sep" />
+          <div className="ca-gen__label">{t('projectHeader.theme')}</div>
+          {THEMES.map(([value, label]) => (
+            <button key={value} type="button" className="ca-menu__item" onClick={() => setTheme(editor, value)}>
+              <span className="ca-menu__grow">{label}</span>
+              {theme === value && <span className="ca-icon">{Icons.check}</span>}
+            </button>
+          ))}
           {kits.length > 0 && (
             <>
               <div className="ca-menu__sep" />

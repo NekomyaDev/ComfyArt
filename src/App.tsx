@@ -12,6 +12,7 @@ import { defaultKitId, loadLibrary } from './library'
 import { loadMemory } from './memory'
 import { loadModels } from './models'
 import { loadProject, saveProject, touchProject } from './projects'
+import { markDark, themeAtom } from './theme'
 import { CommentShapeUtil, CommentTool } from './shapes/CommentShape'
 import { HtmlShapeUtil, LottieShapeUtil, ModelShapeUtil } from './shapes/EmbedShapes'
 import { DoodleShapeUtil, DoodleTool } from './shapes/DoodleShape'
@@ -128,13 +129,18 @@ export function App() {
   const [stale, setStale] = useState(false)
   const staleRef = useRef(false)
   const dock = useValue(dockAtom)
+  const dark = useValue('dark mode', () => editor?.user.getIsDarkMode() ?? false, [editor])
+
+  useEffect(() => {
+    if (editor) markDark(dark)
+  }, [editor, dark])
 
   useEffect(() => {
     void Promise.all([loadMemory(), loadModels(), loadNotices()]).catch((e) => setError(String(e)))
   }, [])
 
   const onMount = useCallback((ed: Editor) => {
-    ed.user.updateUserPreferences({ colorScheme: 'light', locale: lang === 'zh' ? 'zh-cn' : 'en' })
+    ed.user.updateUserPreferences({ colorScheme: themeAtom.get(), locale: lang === 'zh' ? 'zh-cn' : 'en' })
     setEditor(ed)
     return registerFrameRules(ed)
   }, [])

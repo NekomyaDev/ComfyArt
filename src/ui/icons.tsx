@@ -11,6 +11,8 @@ function Svg({ children, fill }: { children: ReactNode; fill?: boolean }) {
 }
 
 export const Icons = {
+  sun: <Svg><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></Svg>,
+  moon: <Svg><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5" /></Svg>,
   image: <Svg fill><path d="M18 3a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zm-8.78 9.16a1.75 1.75 0 0 0-2.44-.04l-1.23 1.3A2 2 0 0 0 5 14.8V18a1 1 0 0 0 1 1h12.29a.71.71 0 0 0 .5-1.2l-3.55-3.62a1.75 1.75 0 0 0-2.48 0L12 14.94zM15.5 6a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5" /></Svg>,
   video: <Svg fill><path d="M18 3a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zm-7.6 5.6a.9.9 0 0 0-1.4.75v5.3a.9.9 0 0 0 1.4.75l4-2.65a.9.9 0 0 0 0-1.5z" /></Svg>,
   genVideo: <Svg><rect x="3" y="5" width="13" height="14" rx="3" /><path d="m16 10.5 4.2-2.6a.5.5 0 0 1 .8.4v7.4a.5.5 0 0 1-.8.4L16 13.5" /></Svg>,
@@ -87,7 +89,7 @@ export const Icons = {
   crop: <Svg><path d="M6 2.5V16a2 2 0 0 0 2 2h13.5M2.5 6H16a2 2 0 0 1 2 2v13.5" /></Svg>,
   flipH: <Svg><path d="M12 3v18M9 6 4 18h5zM15 6l5 12h-5z" /></Svg>,
   flipV: <Svg><path d="M3 12h18M6 9 18 4v5zM6 15l12 5v-5z" /></Svg>,
-  quick: <Svg fill><circle cx="12" cy="12" r="10" /><path fill="#fff" d="M10.2 15.6h3.6v-1.3h-2.2V9.8h-1.4zM16.3 8.6a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2m0 1.3a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6M5.4 12.2h3.2v-1.3H5.4z" /></Svg>,
+  quick: <Svg fill><circle cx="12" cy="12" r="10" /><path fill="var(--ca-float)" d="M10.2 15.6h3.6v-1.3h-2.2V9.8h-1.4zM16.3 8.6a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2m0 1.3a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6M5.4 12.2h3.2v-1.3H5.4z" /></Svg>,
   upscale: <Svg><rect x="3" y="5.5" width="18" height="13" rx="3" /><path d="M7.5 9.5v5M7.5 12h3M10.5 9.5v5M13.5 9.5v5h1.5a2.5 2.5 0 0 0 0-5z" /></Svg>,
   cutout: <Svg><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="10" r="2.5" /><path d="M7.5 17a4.5 4.5 0 0 1 9 0" /></Svg>,
   erase: <Svg><path d="m8 20-4.3-4.3a1.6 1.6 0 0 1 0-2.3l9-9a1.6 1.6 0 0 1 2.3 0l5.3 5.3a1.6 1.6 0 0 1 0 2.3L12.6 20z" /><path d="M8 20h12M7.2 10.8l6 6" /></Svg>,
