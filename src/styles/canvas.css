@@ -273,6 +273,14 @@ body { font-family: var(--ca-font); color: var(--ca-text); }
   pointer-events: auto;
 }
 .ca-panel[data-wide] { width: 480px; padding: 12px 16px; }
+.ca-panel:has(.ca-angle) { width: 320px; }
+.ca-angle { display: flex; flex-direction: column; gap: 6px; }
+.ca-angle__bar { display: flex; gap: 6px; }
+.ca-angle__inset { margin-left: auto; }
+.ca-angle__inset:disabled { opacity: .5; cursor: default; }
+.ca-angle__view {height: 240px; border-radius: 10px; overflow: hidden; background: var(--ca-field); touch-action: none; }
+.ca-angle__view canvas { display: block; }
+.ca-angle__prompt { overflow: hidden; color: var(--ca-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .ca-panel__head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px; }
 .ca-panel__icon {
   display: flex;

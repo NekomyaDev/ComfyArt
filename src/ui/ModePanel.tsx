@@ -4,6 +4,7 @@ import { useEditor, useValue } from 'tldraw'
 import * as actions from '../actions'
 import { regionSplit, separateRegions } from '../layers'
 import { ocrLines, ocrStatusAtom, type OcrStatus } from '../llm'
+import { AnglePreview } from './AnglePreview'
 import { Icons } from './icons'
 import { boxesAtom, brushAtom, exitMode, MAX_REGIONS, modeAtom, OWN_PANEL, padsAtom, strokesAtom, type Mode } from './mode'
 import { useElementSize, useSelectedImage, useSelectionRect } from './selection'
@@ -235,6 +236,7 @@ export function ModePanel({ onError }: { onError: (msg: string) => void }) {
           {mode === 'erase' && <Slider label={t('modePanel.brush')} value={brush} min={4} max={160} onChange={(v) => brushAtom.set(v)} />}
           {mode === 'angles' && (
             <>
+              <AnglePreview value={angle} src={asset.props.src ?? null} onChange={setAngle} />
               <div className="ca-panel__chips">
                 {ANGLE_PRESETS.map(([label, patch]) => <button key={label} type="button" className="ca-panel__chip" onClick={() => setAngle({ ...angle, ...patch })}>{label}</button>)}
               </div>
