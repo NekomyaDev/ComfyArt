@@ -147,15 +147,15 @@ export function anglePrompt(horizontal: number, vertical: number, zoom: number):
   })[1]
   const elKw = vertical <= -15 ? 'low-angle shot' : vertical <= 15 ? 'eye-level shot' : vertical <= 45 ? 'elevated shot' : 'high-angle shot'
   const distKw = zoom >= 7 ? 'close-up' : zoom >= 3 ? 'medium shot' : 'wide shot'
-  return `<sks> ${azKw} ${elKw} ${distKw}`
+  return `<qma> ${azKw} ${elKw} ${distKw}`
 }
 
 export async function anglesGraph(image: string, horizontal: number, vertical: number, zoom: number): Promise<Built> {
-  const g = await loadWorkflow('multiangle-qwen-edit-2511.api.json')
-  g['1'].inputs.image = image
-  g['11'].inputs.prompt = anglePrompt(horizontal, vertical, zoom)
-  g['16'].inputs.seed = seed()
-  return { graph: g, result: '19' }
+  const g = await loadWorkflow('multiangle-qwen-image-2.1.api.json')
+  g['11'].inputs.image = image
+  g['6'].inputs.prompt = anglePrompt(horizontal, vertical, zoom)
+  g['7'].inputs.seed = seed()
+  return { graph: g, result: '9' }
 }
 
 export async function layersGraph(image: string, layers: number, prompt: string): Promise<Built> {
