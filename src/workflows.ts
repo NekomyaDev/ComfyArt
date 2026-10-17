@@ -10,11 +10,16 @@ export function annotated(src: string): string {
   return `${sub ? `${sub}/` : ''}${q.get('filename')} [${q.get('type') || 'input'}]`
 }
 
-export async function upscaleGraph(image: string, factor: 2 | 4): Promise<Built> {
+const MODEL_SCALE = 4
+
+export async function upscaleGraph(image: string, w: number, h: number, factor: number): Promise<Built> {
   const g = await loadWorkflow('upscale-ultrasharp-4x.api.json')
   g['1'].inputs.image = image
-  if (factor === 2) {
-    g['5'] = { class_type: 'ImageScaleBy', inputs: { image: ['3', 0], upscale_method: 'lanczos', scale_by: 0.5 } }
+  if (factor > MODEL_SCALE) {
+    g['5'] = { class_type: 'ImageScaleBy', inputs: { image: ['1', 0], upscale_method: 'lanczos', scale_by: factor / MODEL_SCALE } }
+    g['3'].inputs.image = ['5', 0]
+  } else if (factor < MODEL_SCALE) {
+    g['5'] = { class_type: 'ImageScale', inputs: { image: ['3', 0], upscale_method: 'lanczos', width: Math.round(w * factor), height: Math.round(h * factor), crop: 'disabled' } }
     g['4'].inputs.images = ['5', 0]
   }
   return { graph: g, result: '4' }
@@ -23,8 +28,8 @@ export async function upscaleGraph(image: string, factor: 2 | 4): Promise<Built>
 const REFINE_LONG = 2048
 const snap16 = (v: number) => Math.max(16, Math.round(v / 16) * 16)
 
-export async function creativeUpscaleGraph(image: string, factor: 2 | 4, w: number, h: number, style: string, strength: number): Promise<Built> {
-  const g = await upscaleGraph(image, 4).then((b) => b.graph)
+export async function creativeUpscaleGraph(image: string, factor: number, w: number, h: number, style: string, strength: number): Promise<Built> {
+  const g = await upscaleGraph(image, w, h, MODEL_SCALE).then((b) => b.graph)
   const t2i = await loadWorkflow('qwen-image-2.1-t2i.api.json')
   const k = Math.min(factor, REFINE_LONG / Math.max(w, h))
   const [tw, th] = [Math.round(w * factor), Math.round(h * factor)]
@@ -233,7 +238,11 @@ export async function extendGraph(video: string, width: number, height: number, 
     v3: { class_type: 'ImageFromBatch', inputs: { image: ['v2', 0], batch_index: -1, length: 1 } },
     v4: { class_type: 'ImageFromBatch', inputs: { image: ['105:10', 0], batch_index: 1, length: 4096 } },
     v5: { class_type: 'ImageBatch', inputs: { image1: ['v2', 0], image2: ['v4', 0] } },
-    v6: { class_type: 'AudioConcat', inputs: { audio1: ['v2', 1], audio2: ['105:23', 0], direction: 'after' } },
+    v6: { class_type: 'AudioConcat', inputs: { audio1: ['v10', 0], audio2: ['105:23', 0], direction: 'after' } },
+    v7: { class_type: 'GetImageSize', inputs: { image: ['v2', 0] } },
+    v8: { class_type: 'ComfyMathExpression', inputs: { expression: 'a / b', 'values.a': ['v7', 2], 'values.b': ['v2', 2] } },
+    v9: { class_type: 'EmptyAudio', inputs: { duration: ['v8', 0], sample_rate: 44100, channels: 2 } },
+    v10: { class_type: 'AudioMerge', inputs: { audio1: ['v9', 0], audio2: ['v2', 1], merge_method: 'add' } },
   })
   g['105:104'].inputs.first_frame = ['v3', 0]
   Object.assign(g['105:91'].inputs, { images: ['v5', 0], audio: ['v6', 0], fps: ['v2', 2] })

@@ -1,7 +1,7 @@
-import { AssetRecordType, atom, createShapeId, type Editor, type TLAssetId, type TLImageAsset, type TLShape, type TLShapeId, type TLVideoAsset } from 'tldraw'
+import { AssetRecordType, atom, createShapeId, type Editor, type JsonValue, type TLAssetId, type TLImageAsset, type TLShape, type TLShapeId, type TLVideoAsset } from 'tldraw'
 
 import { queuePrompt, viewUrl, waitForImages, type ImageRef } from './comfy'
-import { GENERATOR } from './shapes/GeneratorShape'
+import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import type { Built } from './workflows'
 import { t } from './i18n'
 
@@ -22,7 +22,6 @@ export const errorText = (e: unknown) => (e instanceof Error ? e.message : Strin
 export type Placer = (editor: Editor, holder: TLShape, media: Media[], job: Job, onError: ErrorSink) => Promise<void>
 
 const GAP = 40
-const CARD_LONG = 512
 const active = new Set<string>()
 const placers: Record<string, Placer> = {}
 
@@ -88,13 +87,34 @@ export function placeMedia(editor: Editor, m: Media, name: string, x: number, y:
   return id
 }
 
-export interface GenInfo { tool: string; prompt?: string; ratio?: string; resolution?: string; duration?: number; workflow?: string; refs?: string[] }
+export interface GenInfo {
+  tool: string
+  prompt?: string
+  ratio?: string
+  resolution?: string
+  duration?: number
+  workflow?: string
+  refs?: string[]
+  settings?: Pick<GeneratorShape['props'], 'count' | 'quality' | 'style' | 'transparent' | 'cw' | 'ch'>
+  inputs?: Record<string, JsonValue>
+}
+
+const GEN_INPUTS = ['refs', 'base', 'strength', 'colors', 'refModes', 'refStrengths', 'lastFrame', 'scenes']
 
 function infoOf(holder: TLShape, job: Job): GenInfo {
-  const p = holder.props as { prompt?: string; ratio: string; resolution: string; duration: number; workflow: string }
-  if (holder.type !== GENERATOR || !p.prompt) return { tool: job.name }
+  if (holder.type !== GENERATOR) return { tool: job.name }
+  const p = (holder as GeneratorShape).props
+  const scenes = holder.meta.scenes as { prompt: string }[] | null | undefined
+  const prompt = p.prompt || scenes?.map((s) => s.prompt).join(' / ')
+  if (!prompt) return { tool: job.name }
   const refs = holder.meta.refs as string[] | undefined
-  return { tool: t('common.generate'), prompt: p.prompt, ratio: p.ratio, resolution: p.resolution, duration: p.duration, workflow: p.workflow, ...(refs?.length ? { refs } : {}) }
+  const inputs = Object.fromEntries(GEN_INPUTS.filter((k) => holder.meta[k] != null).map((k) => [k, holder.meta[k]!]))
+  return {
+    tool: t('common.generate'), prompt, ratio: p.ratio, resolution: p.resolution, duration: p.duration, workflow: p.workflow,
+    ...(refs?.length ? { refs } : {}),
+    settings: { count: p.count, quality: p.quality, style: p.style, transparent: p.transparent, cw: p.cw, ch: p.ch },
+    inputs,
+  }
 }
 
 const defaultPlacer: Placer = async (editor, holder, media, job) => {
@@ -111,7 +131,11 @@ const defaultPlacer: Placer = async (editor, holder, media, job) => {
       x += w + GAP
     }
   }, { history: 'ignore' })
-  editor.select(...ids)
+  selectResults(editor, holder, ids)
+}
+
+export function selectResults(editor: Editor, holder: TLShape, ids: TLShapeId[]) {
+  if (!holder.meta.quiet) editor.select(...ids)
 }
 
 async function finish(editor: Editor, holderId: TLShapeId, job: Job, onError: ErrorSink) {
@@ -127,7 +151,7 @@ async function finish(editor: Editor, holderId: TLShapeId, job: Job, onError: Er
   } catch (e) {
     const holder = editor.getShape(holderId)
     if (holder?.meta.temp) editor.deleteShape(holderId)
-    else if (holder) editor.updateShape({ id: holderId, type: holder.type, meta: { ...holder.meta, job: null } })
+    else if (holder) editor.updateShape({ id: holderId, type: holder.type, meta: { ...holder.meta, job: null, quiet: false } })
     const msg = e instanceof Error ? e.message : String(e)
     report(holderId, { srcs: [], error: msg })
     onError(msg)
@@ -166,10 +190,9 @@ export async function startJob(
   }
 }
 
-export function spawnHolder(editor: Editor, beside: TLShape, aspect: number): TLShapeId {
+export function spawnHolder(editor: Editor, beside: TLShape, size?: [number, number]): TLShapeId {
   const b = editor.getShapePageBounds(beside)!
-  const scale = Math.min(1, CARD_LONG / Math.max(b.w, b.h))
-  const [w, h] = aspect >= b.w / b.h ? [b.w * scale, b.w * scale / aspect] : [b.h * scale * aspect, b.h * scale]
+  const [w, h] = size ?? [b.w, b.h]
   const boxes = editor.getCurrentPageShapes().map((s) => editor.getShapePageBounds(s)!).filter(Boolean)
   let [x, y] = [b.maxX + GAP, b.minY]
   for (let i = 0; i < 200; i++) {

@@ -10,6 +10,7 @@ import { memoryOpenAtom } from './MemoryDialog'
 import { Popover } from './Popover'
 import { t } from '../i18n'
 import { uuid } from '../id'
+import { isEnter } from './keys'
 
 export const UNTITLED = t('projectHeader.untitled')
 const THEMES: [Theme, string][] = [['light', t('projectHeader.themeLight')], ['dark', t('projectHeader.themeDark')], ['system', t('projectHeader.themeSystem')]]
@@ -87,7 +88,7 @@ export function ProjectHeader({ editor, projectId, children }: { editor: Editor;
         onChange={(e) => editor.updateDocumentSettings({ name: e.target.value })}
         onKeyDown={(e) => {
           e.stopPropagation()
-          if (e.key === 'Enter') e.currentTarget.blur()
+          if (isEnter(e)) e.currentTarget.blur()
         }}
       />
       {children}

@@ -7,6 +7,7 @@ import { COMMENT, COMMENT_SIZE, type CommentShape } from '../shapes/CommentShape
 import { Icons } from './icons'
 import { useElementSize, useOnlySelected, useSelectionRect } from './selection'
 import { t } from '../i18n'
+import { isEnter } from './keys'
 
 const GAP = 12
 const EDGE = 8
@@ -89,7 +90,7 @@ export function CommentPanel({ onError }: { onError: (msg: string) => void }) {
         onChange={(e) => set({ text: e.target.value, done: false })}
         onKeyDown={(e) => {
           e.stopPropagation()
-          if (e.key === 'Enter' && !e.shiftKey && onImage) {
+          if (isEnter(e) && !e.shiftKey && onImage) {
             e.preventDefault()
             run()
           }

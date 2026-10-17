@@ -16,7 +16,7 @@ import { t } from '../i18n'
 
 const INSERTS: [string, string, keyof typeof Icons, string, string?][] = [
   ['text', t('common.text'), 'textTool', 'T'], ['rect', t('common.rectangle'), 'rect', 'R'], ['ellipse', t('dock.circle'), 'ellipse', 'O'], ['polygon', t('dock.polygon'), 'polygon', ''], ['star', t('dock.star'), 'star', ''],
-  ['line', t('dock.line'), 'minus', 'L'], ['arrow', t('dock.arrow'), 'link', 'Shift A'], ['note', t('dock.stickyNote'), 'page', 'N'], ['frame', t('common.artboard'), 'frame', 'F'],
+  ['line', t('dock.line'), 'minus', 'L'], ['arrow', t('dock.arrow'), 'link', 'Shift L'], ['note', t('dock.stickyNote'), 'page', 'N'], ['frame', t('common.artboard'), 'frame', 'F'],
 ]
 
 const KINDS: [CommentKind, string, keyof typeof Icons][] = [['point', t('dock.clickSelect'), 'comment'], ['lasso', t('dock.lassoSelect'), 'lasso'], ['box', t('dock.boxSelect'), 'box']]
@@ -60,12 +60,12 @@ export function Dock() {
       o: () => { vectorKindAtom.set('ellipse'); editor.setCurrentTool(VECTOR) },
       l: () => editor.setCurrentTool('line'),
       n: () => editor.setCurrentTool('note'),
-      'shift+a': () => editor.setCurrentTool('arrow'),
+      'shift+l': () => editor.setCurrentTool('arrow'),
       'shift+?': () => shortcutsAtom.set(true),
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
-      if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable="true"]')) return
+      if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"]')) return
       if (editor.getEditingShapeId()) return
       const fn = keys[`${e.shiftKey ? 'shift+' : ''}${e.key.toLowerCase()}`]
       if (!fn) return

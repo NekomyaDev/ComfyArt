@@ -9,6 +9,7 @@ import { Icons } from './icons'
 import { boxesAtom, brushAtom, exitMode, MAX_REGIONS, modeAtom, OWN_PANEL, padsAtom, strokesAtom, type Mode } from './mode'
 import { useElementSize, useSelectedImage, useSelectionRect } from './selection'
 import { t } from '../i18n'
+import { isEnter } from './keys'
 
 const GAP = 12
 const EDGE = 8
@@ -123,7 +124,7 @@ export function ModePanel({ onError }: { onError: (msg: string) => void }) {
     top = Math.min(Math.max(rect.t, EDGE), host.height - size.h - EDGE)
   }
 
-  const textEdits = (): [string, string][] => (lines ?? []).flatMap((line, i) => (edits[i]?.trim() && edits[i].trim() !== line ? [[line, edits[i].trim()] as [string, string]] : []))
+  const textEdits = (): [string, string][] => (lines ?? []).flatMap((line, i) => ((edits[i] ?? '').trim() !== line ? [[line, (edits[i] ?? '').trim()] as [string, string]] : []))
   const tooBig = Math.max(iw + pads.l + pads.r, ih + pads.t + pads.b) > EXPAND_LIMIT
   const canSubmit = (() => {
     switch (mode) {
@@ -179,7 +180,7 @@ export function ModePanel({ onError }: { onError: (msg: string) => void }) {
 
   const keys = (e: React.KeyboardEvent) => {
     e.stopPropagation()
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (isEnter(e) && !e.shiftKey) {
       e.preventDefault()
       submit()
     }

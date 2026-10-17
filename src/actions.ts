@@ -26,11 +26,11 @@ function run(
   label: string,
   onError: ErrorSink,
   build: (src: Source) => Promise<Built>,
-  opts: { aspect?: number; kind?: MediaKind; placer?: string; extra?: (src: Source) => Record<string, unknown> } = {},
+  opts: { size?: [number, number]; kind?: MediaKind; placer?: string; extra?: (src: Source) => Record<string, unknown> } = {},
 ) {
   const src = source(editor, shape)
   if (!src) return
-  const holder = spawnHolder(editor, shape, opts.aspect ?? src.w / src.h)
+  const holder = spawnHolder(editor, shape, opts.size)
   void startJob(editor, holder, build(src), {
     name: `${src.name} · ${label}`,
     kind: opts.kind,
@@ -40,10 +40,10 @@ function run(
   return holder
 }
 
-export const upscale = (e: Editor, s: TLImageShape, factor: 2 | 4, err: ErrorSink) =>
-  run(e, s, t('common.upscale'), err, (src) => upscaleGraph(src.image, factor))
+export const upscale = (e: Editor, s: TLImageShape, factor: number, err: ErrorSink) =>
+  run(e, s, t('common.upscale'), err, (src) => upscaleGraph(src.image, src.w, src.h, factor))
 
-export const creativeUpscale = (e: Editor, s: TLImageShape, factor: 2 | 4, style: string, strength: number, err: ErrorSink) =>
+export const creativeUpscale = (e: Editor, s: TLImageShape, factor: number, style: string, strength: number, err: ErrorSink) =>
   run(e, s, t('common.upscale'), err, (src) => creativeUpscaleGraph(src.image, factor, src.w, src.h, style, strength))
 
 export const cutout = (e: Editor, s: TLImageShape, err: ErrorSink) =>
@@ -54,7 +54,7 @@ export const quickEdit = (e: Editor, s: TLImageShape, prompt: string, err: Error
 
 export const editText = (e: Editor, s: TLImageShape, edits: [string, string][], err: ErrorSink) =>
   run(e, s, t('common.editText'), err, (src) => editGraph(src.image,
-    `Change ${edits.map(([from, to]) => `the text "${from}" to "${to}"`).join(', and ')}. Keep the font, color, size and position of the text, and keep everything else in the image unchanged.`))
+    `${edits.map(([from, to]) => (to ? `Change the text "${from}" to "${to}" in the same font, color, size and position` : `Remove the text "${from}" and fill its area with the surrounding background`)).join('. ')}. Keep everything else in the image unchanged.`))
 
 export const angles = (e: Editor, s: TLImageShape, h: number, v: number, z: number, err: ErrorSink) =>
   run(e, s, t('common.multiAngle'), err, (src) => anglesGraph(src.image, h, v, z))
@@ -62,8 +62,9 @@ export const angles = (e: Editor, s: TLImageShape, h: number, v: number, z: numb
 export const expand = (e: Editor, s: TLImageShape, pads: Pads, prompt: string, err: ErrorSink) => {
   const src = source(e, s)
   if (!src) return
+  const k = s.props.w / src.w
   return run(e, s, t('common.expand'), err, () => expandGraph(src.image, pads, prompt),
-    { aspect: (src.w + pads.l + pads.r) / (src.h + pads.t + pads.b) })
+    { size: [(src.w + pads.l + pads.r) * k, (src.h + pads.t + pads.b) * k] })
 }
 
 export const animate = (e: Editor, s: TLImageShape, prompt: string, err: ErrorSink, loop = true) =>
@@ -134,7 +135,7 @@ export function inpaint(e: Editor, shape: TLImageShape, mask: HTMLCanvasElement,
   if (!bounds) return
   const k = src.w / mask.width
   const crop = cropAround({ x: bounds.x * k, y: bounds.y * k, w: bounds.w * k, h: bounds.h * k }, src.w, src.h)
-  const holder = spawnHolder(e, shape, src.w / src.h)
+  const holder = spawnHolder(e, shape)
   void startJob(e, holder, (async () => {
     const file = await maskFile(crop.w, crop.h, (ctx) => {
       ctx.filter = `blur(${feather}px)`
@@ -152,7 +153,7 @@ export function moveObject(e: Editor, shape: TLImageShape, mask: HTMLCanvasEleme
   const k = src.w / mask.width
   const from = { x: Math.round(bounds.x * k), y: Math.round(bounds.y * k), w: Math.round(bounds.w * k), h: Math.round(bounds.h * k) }
   const to = { x: Math.round(from.x + dx * k), y: Math.round(from.y + dy * k) }
-  const holder = spawnHolder(e, shape, src.w / src.h)
+  const holder = spawnHolder(e, shape)
   void startJob(e, holder, (async () => {
     const file = await maskFile(src.w, src.h, (ctx) => ctx.drawImage(mask, 0, 0, src.w, src.h))
     return moveGraph(src.image, file, from, to)
@@ -243,7 +244,7 @@ export function touchEdit(e: Editor, comment: CommentShape, err: ErrorSink) {
   const crop = cropAround(region, src.w, src.h)
   const [cw, ch] = [crop.w, crop.h]
   const feather = Math.max(4, Math.min(cw, ch) * 0.04)
-  const holder = spawnHolder(e, shape, src.w / src.h)
+  const holder = spawnHolder(e, shape)
   void startJob(e, holder, (async () => {
     const object = marked && lumaToAlpha(await loadImage(marked.src), src.w, src.h)
     const mask = await maskFile(cw, ch, (ctx) => {

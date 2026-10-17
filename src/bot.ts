@@ -51,7 +51,7 @@ export const TOOL_LABELS: Record<string, string> = {
   generate_image: t('bot.generateImage'),
   generate_video: t('bot.generateVideo'),
   edit_image: t('bot.editImage'),
-  animate_image: t('bot.imageToVideo'),
+  animate_image: t('common.animateImage'),
   upscale_image: t('common.upscale'),
   remove_background: t('common.removeBackground'),
   expand_image: t('bot.expandImage'),

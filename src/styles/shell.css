@@ -26,6 +26,7 @@
 .ca-head__name { flex: 1; min-width: 60px; height: 32px; padding: 0 6px; border: none; border-radius: 8px; background: transparent; font: 500 15px/20px var(--ca-font); color: var(--ca-text); outline: none; }
 .ca-head__name:hover, .ca-head__name:focus { background: var(--ca-field); }
 .ca-head__list { max-height: 360px; overflow: auto; min-width: 240px; }
+.ca-head__list .ca-gen__label { padding: 0 10px; }
 
 .ca-top { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 12px; flex: none; border-bottom: .5px solid var(--ca-border); background: var(--ca-float); font: 400 14px/20px var(--ca-font); color: var(--ca-text); }
 .ca-top > .ca-head { width: 340px; padding: 0 8px 0 0; border-right: .5px solid var(--ca-border); }
@@ -41,6 +42,7 @@
 
 .ca-agent { width: 400px; flex: none; display: flex; flex-direction: column; border-right: .5px solid var(--ca-border); background: var(--ca-float); font: 400 14px/22px var(--ca-font); color: var(--ca-text); z-index: 10; }
 .ca-chat { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 20px 16px; display: flex; flex-direction: column; gap: 16px; }
+.ca-chat__jump { align-self: center; position: relative; z-index: 1; margin: -44px 0 12px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: .5px solid var(--ca-border); border-radius: 50%; background: var(--ca-float); box-shadow: var(--ca-shadow); color: var(--ca-text); cursor: pointer; }
 .ca-chat__empty { margin: auto 0; text-align: center; color: var(--ca-muted); display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .ca-chat__hello { display: inline-flex; width: 40px; height: 40px; color: var(--ca-strong); margin-bottom: 6px; }
 .ca-chat__hello svg { width: 100%; height: 100%; }

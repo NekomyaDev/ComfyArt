@@ -21,7 +21,6 @@ export function AssetGrid({ onPick, images }: { onPick: (item: AssetItem) => voi
   const [next, setNext] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const grid = useRef<HTMLDivElement>(null)
   const sentinel = useRef<HTMLDivElement>(null)
   const query = useRef(0)
 
@@ -52,7 +51,7 @@ export function AssetGrid({ onPick, images }: { onPick: (item: AssetItem) => voi
     if (!next || loading || !sentinel.current) return
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((e) => e.isIntersecting)) load(next)
-    }, { root: grid.current, rootMargin: '300px' })
+    }, { rootMargin: '300px' })
     observer.observe(sentinel.current)
     return () => observer.disconnect()
   }, [next, loading])
@@ -66,8 +65,9 @@ export function AssetGrid({ onPick, images }: { onPick: (item: AssetItem) => voi
         <input className="ca-assets__search" value={search} placeholder={t('assetPicker.search')} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
       </div>
       {error && <div className="ca-side__empty">{error}</div>}
+      {!error && items === null && <div className="ca-side__empty">{t('assetPicker.loading')}</div>}
       {!error && items?.length === 0 && !next && <div className="ca-side__empty">{t('assetPicker.noAssetsYet')}</div>}
-      <div ref={grid} className="ca-assets__grid">
+      <div className="ca-assets__grid">
         {items?.map((i) => (
           <button key={i.id} type="button" className="ca-side__cell" title={i.name} onClick={() => onPick(i)}>
             <Thumb item={i} />

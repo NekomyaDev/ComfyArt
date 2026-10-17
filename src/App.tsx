@@ -13,6 +13,7 @@ import { loadMemory } from './memory'
 import { loadModels } from './models'
 import { loadProject, saveProject, touchProject } from './projects'
 import { markDark, themeAtom } from './theme'
+import { overrides } from './overrides'
 import { CommentShapeUtil, CommentTool } from './shapes/CommentShape'
 import { HtmlShapeUtil, LottieShapeUtil, ModelShapeUtil } from './shapes/EmbedShapes'
 import { DoodleShapeUtil, DoodleTool } from './shapes/DoodleShape'
@@ -35,7 +36,7 @@ import { ExportDialog } from './ui/ExportDialog'
 import { FrameToolbar, registerFrameRules } from './ui/FrameToolbar'
 import { EditLayers } from './ui/EditLayers'
 import { GenPanel } from './ui/GenPanel'
-import { ImageToolbar } from './ui/ImageToolbar'
+import { ImageToolbar, registerCropRule } from './ui/ImageToolbar'
 import { InfoDialog } from './ui/InfoDialog'
 import { NoticeCenter } from './ui/NoticeCenter'
 import { loadNotices } from './notices'
@@ -142,7 +143,9 @@ export function App() {
   const onMount = useCallback((ed: Editor) => {
     ed.user.updateUserPreferences({ colorScheme: themeAtom.get(), locale: lang === 'zh' ? 'zh-cn' : 'en' })
     setEditor(ed)
-    return registerFrameRules(ed)
+    const stopFrames = registerFrameRules(ed)
+    const stopCrop = registerCropRule(ed)
+    return () => { stopFrames(); stopCrop() }
   }, [])
 
   useEffect(() => {
@@ -238,6 +241,7 @@ export function App() {
               shapeUtils={shapeUtils}
               tools={tools}
               components={components}
+              overrides={overrides}
               getShapeVisibility={getShapeVisibility}
               onMount={onMount}
             >

@@ -18,6 +18,7 @@ import { t } from '../i18n'
 import { copyText } from '../clipboard'
 
 const DOCK_KEY = 'comfyart.dock'
+const NEAR_BOTTOM = 80
 
 export type ChatView = 'open' | 'max' | 'closed'
 export const chatViewAtom = atom<ChatView>('chat view', 'open')
@@ -100,9 +101,25 @@ export function AgentPanel({ editor, projectId, max, onMax, onCollapse, onError 
   const canBranch = providers.find((p) => p.id === chat?.provider)?.branch ?? false
   const fail = (e: unknown) => onError(errorText(e))
 
+  const [away, setAway] = useState(false)
+  const count = useRef(0)
+  const toBottom = () => list.current?.scrollTo({ top: list.current.scrollHeight })
+  const onScroll = () => {
+    const el = list.current!
+    setAway(el.scrollHeight - el.scrollTop - el.clientHeight > NEAR_BOTTOM)
+  }
+
   useEffect(() => {
-    list.current?.scrollTo({ top: list.current.scrollHeight })
+    const sent = messages.length > count.current && messages[messages.length - 1]?.role === 'user'
+    count.current = messages.length
+    if (sent || !away) toBottom()
   }, [messages])
+
+  useEffect(() => {
+    count.current = 0
+    setAway(false)
+    toBottom()
+  }, [chat?.id])
 
   const lastUser = messages.map((m) => m.role).lastIndexOf('user')
 
@@ -128,7 +145,7 @@ export function AgentPanel({ editor, projectId, max, onMax, onCollapse, onError 
           <span className="ca-icon">{dock === 'left' ? Icons.panel : Icons.panelRight}</span>
         </button>
       </ProjectHeader>
-      <div ref={list} className="ca-chat">
+      <div ref={list} className="ca-chat" onScroll={onScroll}>
         {enabled === false && (
           <div className="ca-chat__empty">
             <span className="ca-chat__hello">{Icons.agent}</span>
@@ -168,6 +185,7 @@ export function AgentPanel({ editor, projectId, max, onMax, onCollapse, onError 
             </div>
           )))}
       </div>
+      {away && <button type="button" className="ca-chat__jump" title={t('agentPanel.jumpToLatest')} onClick={toBottom}><span className="ca-icon">{Icons.chevron}</span></button>}
       <Composer editor={editor} busy={busy} onError={onError} />
     </aside>
   )

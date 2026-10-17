@@ -44,7 +44,11 @@ function ratioOf(ratio: string): number {
   return a / b
 }
 
-const snap16 = (v: number) => Math.round(v / 16) * 16
+export function nearestRatio(aspect: number, ratios: string[]): string {
+  return ratios.reduce((a, b) => Math.abs(Math.log(ratioOf(b) / aspect)) < Math.abs(Math.log(ratioOf(a) / aspect)) ? b : a)
+}
+
+const snap16 =(v: number) => Math.round(v / 16) * 16
 
 export function targetSize({ ratio, resolution, workflow, cw, ch }: GeneratorShape['props']): [number, number] {
   const r = ratioOf(ratio)
@@ -192,21 +196,23 @@ function settingsOf(info: GenInfo): Partial<GeneratorShape['props']> {
     ...(info.resolution ? { resolution: info.resolution } : {}),
     ...(info.duration ? { duration: info.duration } : {}),
     ...(info.workflow ? { workflow: info.workflow } : {}),
+    ...info.settings,
   }
 }
+
+const inputsOf = (info: GenInfo) => info.inputs ?? (info.refs ? { refs: info.refs } : {})
 
 export function remix(editor: Editor, shape: TLShape) {
   const info = genInfoOf(shape)
   if (!info?.prompt) return
-  const id = createGenerator(editor, isVideo(info.workflow ?? ''), { ...settingsOf(info), count: 1 })
-  if (info.refs) editor.updateShape<GeneratorShape>({ id, type: GENERATOR, meta: { refs: info.refs } })
+  const id = createGenerator(editor, isVideo(info.workflow ?? ''), settingsOf(info))
+  editor.updateShape<GeneratorShape>({ id, type: GENERATOR, meta: inputsOf(info) })
 }
 
 export function regenerate(editor: Editor, shape: TLShape, onError: ErrorSink) {
   const info = genInfoOf(shape)
-  const b = editor.getShapePageBounds(shape)
-  if (!info?.prompt || !b) return
-  const holder = spawnHolder(editor, shape, b.w / b.h)
-  editor.updateShape<GeneratorShape>({ id: holder, type: GENERATOR, props: { ...settingsOf(info), count: 1 }, meta: { temp: true, ...(info.refs ? { refs: info.refs } : {}) } })
+  if (!info?.prompt) return
+  const holder = spawnHolder(editor, shape)
+  editor.updateShape<GeneratorShape>({ id: holder, type: GENERATOR, props: { ...settingsOf(info), count: 1 }, meta: { temp: true, ...inputsOf(info) } })
   return generate(editor, editor.getShape<GeneratorShape>(holder)!, onError)
 }

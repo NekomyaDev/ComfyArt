@@ -57,7 +57,7 @@ export function Lightbox({ editor }: { editor: Editor }) {
         <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('lightbox.rotateRight')} onClick={() => setTurn(turn + 90)}><span className="ca-icon">{Icons.replace}</span></button>
         <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('common.zoomOut')} onClick={() => setZoom(Math.max(0.2, zoom / 1.25))}><span className="ca-icon">{Icons.minus}</span></button>
         <span className="ca-lightbox__zoom">{Math.round(zoom * 100)}%</span>
-        <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('common.upscale')} onClick={() => setZoom(Math.min(8, zoom * 1.25))}><span className="ca-icon">{Icons.plus}</span></button>
+        <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('common.zoomIn')} onClick={() => setZoom(Math.min(8, zoom * 1.25))}><span className="ca-icon">{Icons.plus}</span></button>
         {item.video && <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={muted ? t('lightbox.unmute') : t('lightbox.mute')} onClick={() => setMuted(!muted)}><span className="ca-icon">{muted ? Icons.soundOff : Icons.sound}</span></button>}
         <div className="ca-bar__sep" />
         <a className="ca-bar__btn ca-bar__btn--icon" href={item.src} download={item.name} title={t('common.download')}><span className="ca-icon">{Icons.download}</span></a>

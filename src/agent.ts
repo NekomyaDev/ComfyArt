@@ -1,8 +1,7 @@
 import { atom, type Editor, type TLImageShape, type TLShapeId } from 'tldraw'
 
-import * as actions from './actions'
 import { botEnabledAtom, logDirect, sendMessage } from './bot'
-import { createGenerator, DURATIONS, generate, MAX_SCENES, MAX_STORY_SECONDS, VIDEO_RATIOS } from './generate'
+import { createGenerator, DURATIONS, generate, MAX_SCENES, MAX_STORY_SECONDS, nearestRatio, VIDEO_RATIOS } from './generate'
 import type { ErrorSink } from './jobs'
 import { describeItem, itemImages, linkedKit, type LibraryItem } from './library'
 import { ask, ocrLines, parseJson } from './llm'
@@ -46,13 +45,8 @@ export async function sendToAgent(editor: Editor, text: string, refs: TLImageSha
 }
 
 export async function generateDirect(editor: Editor, text: string, refs: TLImageShape[], video: boolean, onError: ErrorSink) {
-  if (video && refs[0]) {
-    const holder = actions.animate(editor, refs[0], text, onError)
-    if (holder && botEnabledAtom.get()) await logDirect(text, [{ type: 'task', label: t('common.animateImage'), holder, detail: { tool: 'animate_image', prompt: text } }])
-    return
-  }
-  const ratio = video ? VIDEO_RATIOS[0] : '1:1'
-  const srcs = video ? [] : refs.flatMap((r) => srcOf(editor, r) ?? []).slice(0, MAX_DIRECT_REFS)
+  const ratio = video ? (refs[0] ? nearestRatio(refs[0].props.w / refs[0].props.h, VIDEO_RATIOS) : VIDEO_RATIOS[0]) : '1:1'
+  const srcs = refs.flatMap((r) => srcOf(editor, r) ?? []).slice(0, video ? 1 : MAX_DIRECT_REFS)
   const holder = createGenerator(editor, video, video ? { prompt: text, ratio } : { prompt: text, ratio, count: 1 }, false)
   if (srcs.length) editor.updateShape<GeneratorShape>({ id: holder, type: GENERATOR, meta: { refs: srcs } })
   void generate(editor, editor.getShape<GeneratorShape>(holder)!, onError)

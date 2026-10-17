@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import { Popover } from './Popover'
 import { t } from '../i18n'
+import { isEnter } from './keys'
 
 const SWATCHES = ['#000000', '#FFFFFF', '#F5F5F5', '#9E9E9E', '#424242', '#E53935', '#FB8C00', '#FDD835', '#43A047', '#1E88E5', '#8E24AA', '#EC407A']
 
@@ -48,7 +49,7 @@ export function ColorPicker({ value, onChange, title, trigger, allowNone }: {
             maxLength={6}
             onChange={(e) => setHex(`#${e.target.value}`)}
             onBlur={() => set(hex)}
-            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') set(hex) }}
+            onKeyDown={(e) => { e.stopPropagation(); if (isEnter(e)) set(hex) }}
           />
         </label>
       </div>

@@ -119,19 +119,22 @@ function startGenerator(editor: Editor, video: boolean, args: Args, onError: Err
     : { prompt: String(args.prompt), workflow: model.id, ratio: args.ratio ?? '1:1', count: Math.min(4, Math.max(1, Number(args.count) || 1)) }
   const refs = video ? refUrls(editor, args.first_frame ? [args.first_frame] : []) : refUrls(editor, args.refs)
   const meta = {
+    quiet: true,
     ...(refs.length ? { refs } : {}),
     ...(!video && args.base ? { base: refUrls(editor, [args.base])[0], strength: Number(args.base_strength) || 60 } : {}),
     ...(video && args.last_frame ? { lastFrame: refUrls(editor, [args.last_frame])[0] } : {}),
   }
   const id = createGenerator(editor, video, props, false)
-  if (Object.keys(meta).length) editor.updateShape<GeneratorShape>({ id, type: GENERATOR, meta })
+  editor.updateShape<GeneratorShape>({ id, type: GENERATOR, meta })
   place(editor, id, args)
   void generate(editor, editor.getShape<GeneratorShape>(id)!, onError)
   return { ids: [id], model: model.id, note: 'call wait_generation with these ids' }
 }
 
-function started(holder: TLShapeId | undefined) {
+function started(editor: Editor, holder: TLShapeId | undefined) {
   if (!holder) throw new Error('that shape has no source media to work on')
+  const shape = editor.getShape(holder)!
+  editor.updateShape({ id: holder, type: shape.type, meta: { ...shape.meta, quiet: true } })
   return { ids: [holder], note: 'call wait_generation with these ids' }
 }
 
@@ -217,23 +220,23 @@ const HANDLERS: Record<string, Handler> = {
   },
   generate_image: (editor, args, onError) => startGenerator(editor, false, args, onError),
   generate_video: (editor, args, onError) => startGenerator(editor, true, args, onError),
-  edit_image: (editor, args, onError) => started(actions.quickEdit(editor, imageOf(editor, args.id), String(args.prompt), onError)),
-  animate_image: (editor, args, onError) => started(actions.animate(editor, imageOf(editor, args.id), String(args.prompt), onError, args.loop !== false)),
+  edit_image: (editor, args, onError) => started(editor, actions.quickEdit(editor, imageOf(editor, args.id), String(args.prompt), onError)),
+  animate_image: (editor, args, onError) => started(editor, actions.animate(editor, imageOf(editor, args.id), String(args.prompt), onError, args.loop !== false)),
   upscale_image: (editor, args, onError) => {
     const factor = args.factor === 4 ? 4 : 2
     const shape = imageOf(editor, args.id)
-    return started(args.creative ? actions.creativeUpscale(editor, shape, factor, String(args.style ?? ''), 50, onError) : actions.upscale(editor, shape, factor, onError))
+    return started(editor, args.creative ? actions.creativeUpscale(editor, shape, factor, String(args.style ?? ''), 0.3, onError) : actions.upscale(editor, shape, factor, onError))
   },
-  remove_background: (editor, args, onError) => started(actions.cutout(editor, imageOf(editor, args.id), onError)),
-  expand_image: (editor, args, onError) => started(actions.expand(editor, imageOf(editor, args.id),
+  remove_background: (editor, args, onError) => started(editor, actions.cutout(editor, imageOf(editor, args.id), onError)),
+  expand_image: (editor, args, onError) => started(editor, actions.expand(editor, imageOf(editor, args.id),
     { l: Number(args.left) || 0, t: Number(args.top) || 0, r: Number(args.right) || 0, b: Number(args.bottom) || 0 }, String(args.prompt ?? ''), onError)),
-  split_layers: (editor, args, onError) => started(actions.splitLayers(editor, imageOf(editor, args.id), Math.min(8, Math.max(2, Number(args.layers) || 4)), String(args.prompt ?? ''), onError)),
-  change_angle: (editor, args, onError) => started(actions.angles(editor, imageOf(editor, args.id), Number(args.horizontal) || 0, Number(args.vertical) || 0, Number(args.zoom) || 1, onError)),
-  replace_text: (editor, args, onError) => started(actions.editText(editor, imageOf(editor, args.id), [[String(args.from), String(args.to)]], onError)),
+  split_layers: (editor, args, onError) => started(editor, actions.splitLayers(editor, imageOf(editor, args.id), Math.min(8, Math.max(2, Number(args.layers) || 4)), String(args.prompt ?? ''), onError)),
+  change_angle: (editor, args, onError) => started(editor, actions.angles(editor, imageOf(editor, args.id), Number(args.horizontal) || 0, Number(args.vertical) || 0, Number(args.zoom) || 1, onError)),
+  replace_text: (editor, args, onError) => started(editor, actions.editText(editor, imageOf(editor, args.id), [[String(args.from), String(args.to)]], onError)),
   extend_video: (editor, args, onError) => {
     const shape = shapeOf(editor, args.id)
     if (shape.type !== 'video') throw new Error(`${shape.id} is not a video`)
-    return started(actions.extendVideo(editor, shape as TLVideoShape, String(args.prompt), DURATIONS.includes(args.duration) ? args.duration : DURATIONS[0], onError))
+    return started(editor, actions.extendVideo(editor, shape as TLVideoShape, String(args.prompt), DURATIONS.includes(args.duration) ? args.duration : DURATIONS[0], onError))
   },
   wait_generation: (editor, args) => waitResults(editor, (args.ids ?? []).map(String), Number(args.timeout_s) || 60),
   place_html: (editor, args) => {

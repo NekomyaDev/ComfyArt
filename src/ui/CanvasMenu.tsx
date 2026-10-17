@@ -140,6 +140,7 @@ function Content() {
         {s.group && <Item id="ungroup" label={t('canvasMenu.ungroup')} />}
         {s.frame && <Item id="remove-frame" label={t('canvasMenu.removeArtboard')} />}
         {s.count > 1 && <Item id="flatten-to-image" label={t('canvasMenu.mergeLayers')} />}
+        {s.count > 1 && <Item id="ca-tidy" label={t('multiToolbar.tidyUp')} />}
       </TldrawUiMenuGroup>
       <TldrawUiMenuGroup id="ca-order">
         <Item id="bring-to-front" label={t('canvasMenu.bringToFront')} />
@@ -151,6 +152,7 @@ function Content() {
         <Item id="flip-horizontal" label={t('common.flipHorizontal')} />
         <Item id="flip-vertical" label={t('common.flipVertical')} />
         <Item id="rotate-cw" label={t('canvasMenu.rotate90')} />
+        <Item id="ca-hide" label={`${t('sidePanel.show')} / ${t('sidePanel.hide')}`} />
         <Item id="toggle-lock" label={t('canvasMenu.lockUnlock')} />
       </TldrawUiMenuGroup>
       {s.count === 1 && !s.media && <TldrawUiMenuGroup id="ca-raster"><Item id="flatten-to-image" label={t('canvasMenu.convertToImage')} /></TldrawUiMenuGroup>}

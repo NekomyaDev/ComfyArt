@@ -15,6 +15,7 @@ import {
   type TLShape,
 } from 'tldraw'
 import { t } from '../i18n'
+import { isEnter } from '../ui/keys'
 
 export const TEXT = 'ca-text'
 
@@ -96,7 +97,7 @@ function Text({ shape }: { shape: TextShape }) {
           onPointerDown={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             e.stopPropagation()
-            if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) editor.setEditingShape(null)
+            if (e.key === 'Escape' || (isEnter(e) && (e.ctrlKey || e.metaKey))) editor.setEditingShape(null)
           }}
         />
       )}

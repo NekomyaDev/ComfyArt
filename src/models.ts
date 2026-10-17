@@ -71,13 +71,17 @@ export async function saveModelPrefs(prefs: ModelPrefs) {
 }
 
 export function installedModels(video: boolean): ModelDef[] {
-  const installed = installedAtom.get()
-  return (video ? VIDEO_MODELS : IMAGE_MODELS).filter((m) => !installed || installed.includes(m.id))
+  return (video ? VIDEO_MODELS : IMAGE_MODELS).filter((m) => isInstalled(m.id))
 }
 
 export function agentModels(video: boolean): ModelDef[] {
   const { auto, enabled } = modelPrefsAtom.get()
   const list = installedModels(video)
   const picked = auto ? list : list.filter((m) => enabled.includes(m.id))
-  return picked.length ? picked : list.slice(0, 1)
+  return picked.length ? picked : list.length ? list.slice(0, 1) : (video ? VIDEO_MODELS : IMAGE_MODELS).slice(0, 1)
+}
+
+export function isInstalled(id: string): boolean {
+  const installed = installedAtom.get()
+  return !installed || installed.includes(id)
 }

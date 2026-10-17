@@ -14,6 +14,7 @@ export interface Schedule { id: string; name: string; prompt: string; project: s
 const FILE = 'comfyart/schedules.json'
 const TICK = 30000
 const DAY = 86400000
+const channel = new BroadcastChannel('comfyart-schedules')
 
 export const schedulesAtom = atom<Schedule[]>('schedules', [])
 export const schedulesOpenAtom = atom<{ prompt?: string } | null>('schedules open', null)
@@ -31,7 +32,10 @@ export async function loadSchedules() {
 export async function saveSchedules(list: Schedule[]) {
   schedulesAtom.set(list)
   await writeUserJson(FILE, list)
+  channel.postMessage('changed')
 }
+
+channel.onmessage = () => void loadSchedules()
 
 function at(day: Date, time: string) {
   const [h, m] = time.split(':').map(Number)
@@ -69,7 +73,7 @@ export function startScheduler(editor: Editor, onError: ErrorSink) {
     busy = true
     try {
       const now = Date.now()
-      const list = await loadSchedules()
+      const list = schedulesAtom.get()
       const due = list.find((s) => s.enabled && s.project === currentProject() && (nextRun(s) ?? Infinity) <= now)
       if (!due) return
       await saveSchedules(list.map((s) => (s.id === due.id ? { ...s, lastRun: now, enabled: s.repeat !== 'once' && s.enabled } : s)))
@@ -80,7 +84,7 @@ export function startScheduler(editor: Editor, onError: ErrorSink) {
       busy = false
     }
   }
-  void tick()
+  void loadSchedules().then(tick, (e) => onError(errorText(e)))
   const timer = window.setInterval(() => void tick(), TICK)
   return () => clearInterval(timer)
 }

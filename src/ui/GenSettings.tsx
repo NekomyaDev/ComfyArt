@@ -25,14 +25,14 @@ export function settingsSummary(p: GeneratorShape['props'], video: boolean) {
   return t('genSettings.summary', size, p.count, p.transparent ? t('genSettings.transparent') : '')
 }
 
-export function GenSettings({ p, video, update }: { p: GeneratorShape['props']; video: boolean; update: (patch: Partial<GeneratorShape['props']>) => void }) {
+export function GenSettings({ p, video, quality, update }: { p: GeneratorShape['props']; video: boolean; quality: boolean; update: (patch: Partial<GeneratorShape['props']>) => void }) {
   const dim = (key: 'cw' | 'ch', v: number) => v >= 64 && v <= 4096 && update({ [key]: v })
   return (
     <div className="ca-menu ca-gen__settings">
       <div className="ca-gen__title">{video ? t('genSettings.videoSettings') : t('genSettings.imageSettings')}</div>
       {!video && (
         <>
-          <div className="ca-gen__label">{t('adjustPanel.clarity')}</div>
+          <div className="ca-gen__label">{t('genSettings.resolution')}</div>
           <Chips value={p.resolution} options={RESOLUTIONS.map((r) => [r, RES_LABELS[r]] as [string, string])} onPick={(r) => update({ resolution: r })} />
           {p.resolution === 'custom' && (
             <div className="ca-style__row">
@@ -67,8 +67,12 @@ export function GenSettings({ p, video, update }: { p: GeneratorShape['props']; 
       )}
       {!video && (
         <>
-          <div className="ca-gen__label">{t('genSettings.quality')}</div>
-          <Chips value={p.quality} options={QUALITIES} onPick={(q) => update({ quality: q })} />
+          {quality && (
+            <>
+              <div className="ca-gen__label">{t('genSettings.quality')}</div>
+              <Chips value={p.quality} options={QUALITIES} onPick={(q) => update({ quality: q })} />
+            </>
+          )}
           <div className="ca-gen__label">{t('refModes.style')}</div>
           <Chips value={p.style} options={STYLES.map(([k, label]) => [k, label] as [string, string])} onPick={(s) => update({ style: s })} />
           <label className="ca-panel__row ca-gen__toggle"><span>{t('genSettings.transparentBackground')}</span><input type="checkbox" checked={p.transparent} onChange={(e) => update({ transparent: e.target.checked })} /></label>

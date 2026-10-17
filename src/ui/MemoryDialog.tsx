@@ -9,6 +9,7 @@ import { correct, forget, MEMORY_CATEGORIES, memoryAtom, memoryLogAtom, remember
 import { isPdf, uploadPdf } from '../pdf'
 import { Icons } from './icons'
 import { t } from '../i18n'
+import { isEnter } from './keys'
 
 export const memoryOpenAtom = atom('memory open', false)
 
@@ -142,7 +143,7 @@ export function MemoryDialog({ onError }: { onError: (msg: string) => void }) {
                     className="ca-panel__input"
                     defaultValue={m.text}
                     onBlur={(e) => { setEditing(null); const v = e.target.value.trim(); if (v && v !== m.text) void correct([{ old: m.text, new: v }], t('frameToolbar.manual')).catch(fail) }}
-                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') e.currentTarget.blur() }}
+                    onKeyDown={(e) => { e.stopPropagation(); if (isEnter(e)) e.currentTarget.blur() }}
                   />
                 ) : (
                   <span className="ca-menu__grow" onDoubleClick={() => setEditing(m.id)}>{m.text}</span>
@@ -152,7 +153,7 @@ export function MemoryDialog({ onError }: { onError: (msg: string) => void }) {
               </div>
             ))}
             {tab !== 'log' && <div className="ca-style__row">
-              <input className="ca-panel__input" value={text} placeholder={t('memoryDialog.add', MEMORY_CATEGORIES.find(([id]) => id === tab)![1])} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') add() }} />
+              <input className="ca-panel__input" value={text} placeholder={t('memoryDialog.add', MEMORY_CATEGORIES.find(([id]) => id === tab)![1])} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (isEnter(e)) add() }} />
               <button type="button" className="ca-panel__primary ca-memory__add" disabled={!text.trim()} onClick={add}>{t('common.add')}</button>
             </div>}
           </div>

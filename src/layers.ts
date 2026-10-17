@@ -2,7 +2,7 @@ import { AssetRecordType, createShapeId, type Editor, getIndicesBetween, type TL
 
 import { maskFile } from './actions'
 import { queuePrompt, uploadImage, viewUrl, waitForImages } from './comfy'
-import { type ErrorSink, errorText, type Media, placeMedia, registerPlacer, spawnHolder, startJob } from './jobs'
+import { type ErrorSink, errorText, type Media, placeMedia, registerPlacer, selectResults, spawnHolder, startJob } from './jobs'
 import { annotated, eraseGraph, samBoxesGraph } from './workflows'
 import { t } from './i18n'
 
@@ -142,7 +142,7 @@ registerPlacer('layers', async (editor, holder, media, job, onError) => {
       placeMedia(editor, c.media, t('layers.layer', base, i + 1), c.x * scale, c.y * scale, c.media.w * scale, frameId)
     })
   }, { history: 'ignore' })
-  editor.select(frameId)
+  selectResults(editor, holder, [frameId])
 
   if (!kept.length || !bgId) return
   const union = new Uint8ClampedArray(w * h * 4)
@@ -173,7 +173,7 @@ registerPlacer('regions', async (editor, holder, [bg], job) => {
     placeMedia(editor, bg, t('layers.background', base), 0, 0, fw, frameId)
     layers.forEach((l, i) => placeMedia(editor, l.media, t('layers.layer', base, i + 1), l.x * scale, l.y * scale, l.media.w * scale, frameId))
   }, { history: 'ignore' })
-  editor.select(frameId)
+  selectResults(editor, holder, [frameId])
 })
 
 export async function separateRegions(editor: Editor, shape: TLImageShape, boxes: [number, number, number, number][], onError: ErrorSink) {
@@ -234,7 +234,7 @@ export function regionSplit(editor: Editor, shape: TLImageShape, boxes: [number,
   if (asset?.type !== 'image' || !asset.props.src) return
   const { w, h, name } = asset.props
   const src = asset.props.src
-  const holder = spawnHolder(editor, shape, w / h)
+  const holder = spawnHolder(editor, shape)
   void (async () => {
     try {
       const crops = boxes.map(([x, y, bw, bh]) => ({ x: Math.round(x * w), y: Math.round(y * h), w: Math.round(bw * w), h: Math.round(bh * h) }))

@@ -16,7 +16,7 @@ const ARRANGE_GAP = 40
 
 type Menu = 'align' | 'distribute' | 'download' | null
 
-function arrange(editor: Editor, shapes: TLShape[]) {
+export function arrange(editor: Editor, shapes: TLShape[]) {
   const boxes = shapes.map((s) => ({ s, b: editor.getShapePageBounds(s)! })).sort((a, b) => a.b.y - b.b.y || a.b.x - b.b.x)
   const cols = Math.ceil(Math.sqrt(boxes.length))
   const origin = editor.getSelectionPageBounds()!

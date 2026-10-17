@@ -9,6 +9,7 @@ import { Popover } from './Popover'
 import { useElementSize, useOnlySelected, useSelectionRect, type ScreenRect } from './selection'
 import { videoEditorAtom } from './VideoEditor'
 import { t } from '../i18n'
+import { isEnter } from './keys'
 
 const GAP = 22
 const EDGE = 8
@@ -47,7 +48,7 @@ function ExtendPanel({ shape, rect, onClose, onError }: { shape: TLVideoShape; r
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={(e) => {
           e.stopPropagation()
-          if (e.key === 'Enter' && !e.shiftKey) {
+          if (isEnter(e) && !e.shiftKey) {
             e.preventDefault()
             submit()
           }

@@ -11,6 +11,7 @@ import { ask, parseJson } from '../llm'
 import { isPdf, uploadPdf } from '../pdf'
 import { AssetGrid } from './AssetPicker'
 import { ColorPicker } from './ColorPicker'
+import { confirmAtom } from './Confirm'
 import { Icons } from './icons'
 import { Popover } from './Popover'
 import { t } from '../i18n'
@@ -215,7 +216,7 @@ export function LibraryPanel({ editor, onError }: { editor: Editor; onError: (ms
                 {item.kind === 'brand' && (
                   <button type="button" className="ca-history__del" title={item.isDefault ? t('libraryPanel.defaultForNewProjectsOn') : t('libraryPanel.setAsDefaultForNew')} data-on={item.isDefault || undefined} onClick={() => void save(library.map((x) => (x.kind === 'brand' ? { ...x, isDefault: x.id === item.id ? !item.isDefault : false } : x)))}>{Icons.check}</button>
                 )}
-                <button type="button" className="ca-history__del" title={t('common.delete')} onClick={() => void save(library.filter((x) => x.id !== item.id))}>{Icons.trash}</button>
+                <button type="button" className="ca-history__del" title={t('common.delete')} onClick={() => confirmAtom.set({ title: t('libraryPanel.deleteItem', KIND_LABELS[item.kind]), desc: t('libraryPanel.itemWillBeRemoved', item.name), ok: t('common.delete'), run: () => void save(libraryAtom.get().filter((x) => x.id !== item.id)) })}>{Icons.trash}</button>
               </div>
             </div>
           ))}

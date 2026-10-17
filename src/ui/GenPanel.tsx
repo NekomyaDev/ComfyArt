@@ -7,7 +7,7 @@ import { baseOf, cardSize, colorsOf, generate, lastFrameOf, MAX_COLORS, MAX_REFS
 import { DEFAULT_STRENGTH, modeOf, modesFor, refModeFor, refModesOf, refStrengthsOf, usableRefs } from '../refModes'
 import { errorText, jobOf } from '../jobs'
 import type { GeneratorShape } from '../shapes/GeneratorShape'
-import { installedModels, isVideo, modelOf } from '../models'
+import { installedModels, isInstalled, isVideo, modelOf } from '../models'
 import { AssetGrid } from './AssetPicker'
 import { ColorPicker } from './ColorPicker'
 import { GenSettings, settingsSummary } from './GenSettings'
@@ -16,6 +16,7 @@ import { StoryboardEditor } from './StoryboardEditor'
 import { Popover } from './Popover'
 import { useElementSize, useSelectedGenerator, useSelectionRect } from './selection'
 import { t } from '../i18n'
+import { isEnter } from './keys'
 
 const GAP = 12
 const EDGE = 8
@@ -213,7 +214,7 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
         onChange={(e) => update({ prompt: e.target.value })}
         onKeyDown={(e) => {
           e.stopPropagation()
-          if (e.key === 'Enter' && !e.shiftKey) {
+          if (isEnter(e) && !e.shiftKey) {
             e.preventDefault()
             submit()
           }
@@ -230,7 +231,7 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
             </button>
           )}
         >
-          <GenSettings p={p} video={video} update={update} />
+          <GenSettings p={p} video={video} quality={!!model.steps} update={update} />
         </Popover>
         <div className="ca-gen__spacer" />
         <Popover
@@ -240,7 +241,7 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
           align="end"
           trigger={({ open, toggle }) => (
             <button type="button" className="ca-gen__pill" data-open={open || undefined} onClick={toggle}>
-              {model.label}<span className="ca-gen__chev">{Icons.chevron}</span>
+              {model.label}{!isInstalled(model.id) && <span className="ca-model__tag">{t('modelPrefs.notInstalled')}</span>}<span className="ca-gen__chev">{Icons.chevron}</span>
             </button>
           )}
         >

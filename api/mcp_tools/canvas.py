@@ -79,8 +79,9 @@ SPECS: dict[str, dict] = {
         "placed next to it. Returns ids for wait_generation.",
         {"id": _ID, "prompt": {"type": "string"}}, ["id", "prompt"], approval="编辑图片"),
     "animate_image": _tool(
-        "Turn an image shape into a short video (motion described by prompt). loop makes the last frame "
-        "match the first. Returns ids for wait_generation.",
+        "Turn an image shape into an animated image (a looping WebP of a few seconds, motion described by "
+        "prompt), placed as an image. loop makes the last frame match the first. For a real video use "
+        "generate_video with first_frame. Returns ids for wait_generation.",
         {"id": _ID, "prompt": {"type": "string"}, "loop": {"type": "boolean"}}, ["id", "prompt"],
         approval="动态图片"),
     "upscale_image": _tool(

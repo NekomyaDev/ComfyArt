@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { atom, useEditor, useValue, type TLImageShape } from 'tldraw'
+import { atom, useEditor, useValue, type Editor, type TLImageShape } from 'tldraw'
 
 import * as actions from '../actions'
 import { extractText } from '../agent'
@@ -74,6 +74,15 @@ function Item({ icon, label, onClick }: { icon: ReactNode; label: string; onClic
   )
 }
 
+export function registerCropRule(editor: Editor) {
+  return editor.sideEffects.registerAfterChangeHandler('instance_page_state', (_, next) => {
+    const { croppingShapeId: id, selectedShapeIds: sel } = next
+    if (!id || (sel.length === 1 && sel[0] === id)) return
+    editor.setCroppingShape(null)
+    if (editor.isIn('select.crop')) editor.setCurrentTool('select.idle')
+  })
+}
+
 export function ImageToolbar({ onError }: { onError: (msg: string) => void }) {
   const editor = useEditor()
   const shape = useSelectedImage()
@@ -93,7 +102,7 @@ export function ImageToolbar({ onError }: { onError: (msg: string) => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Tab' || !shape || modeAtom.get()) return
-      if ((e.target as HTMLElement | null)?.closest('input, textarea, [contenteditable="true"]')) return
+      if (e.target instanceof Element && e.target.closest('input, textarea, [contenteditable="true"]')) return
       e.preventDefault()
       e.stopPropagation()
       enterMode('quick')

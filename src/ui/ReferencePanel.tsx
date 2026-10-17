@@ -13,6 +13,7 @@ import { Icons } from './icons'
 import { Popover } from './Popover'
 import { t } from '../i18n'
 import { uuid } from '../id'
+import { isEnter } from './keys'
 
 type Source = 'upload' | 'canvas' | 'assets'
 interface Reference { src: string; notes?: string; name?: string; source?: Source; time?: number; key?: string }
@@ -181,7 +182,7 @@ export function ReferencePanel({ editor, onError }: { editor: Editor; onError: E
             </Popover>
           </div>
           {renaming === keyOf(r)
-            ? <input autoFocus className="ca-panel__input" defaultValue={nameOf(r)} onBlur={(e) => { setRenaming(null); if (e.target.value.trim()) update(keyOf(r), { name: e.target.value.trim() }) }} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') e.currentTarget.blur() }} />
+            ? <input autoFocus className="ca-panel__input" defaultValue={nameOf(r)} onBlur={(e) => { setRenaming(null); if (e.target.value.trim()) update(keyOf(r), { name: e.target.value.trim() }) }} onKeyDown={(e) => { e.stopPropagation(); if (isEnter(e)) e.currentTarget.blur() }} />
             : <div className="ca-ref__name" onDoubleClick={() => setRenaming(keyOf(r))}>{nameOf(r)}<span className="ca-model__tag">{SOURCES.find(([k]) => k === (r.source ?? 'upload'))![1]}</span></div>}
           <div className="ca-panel__chips">
             {ANALYSES.map((a) => (

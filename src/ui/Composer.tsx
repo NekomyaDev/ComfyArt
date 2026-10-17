@@ -18,6 +18,7 @@ import { skillsOpenAtom } from './SkillsDialog'
 import { Popover } from './Popover'
 import { t } from '../i18n'
 import { uuid } from '../id'
+import { isEnter } from './keys'
 
 const MODES: [AgentMode, string, keyof typeof Icons][] = [['agent', 'Agent', 'agent'], ['image', t('composer.image'), 'genImage'], ['video', t('common.video'), 'genVideo']]
 const REVIEW_PROMPT = t('composer.canvasReviewUseGetCanvas')
@@ -108,6 +109,7 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
     draftAtom.set('')
     extraRefsAtom.set([])
     kitsAtom.set([])
+    if (mode === 'agent') skillAtom.set(null)
     void (mode === 'agent' ? sendToAgent(editor, text, refs, skill, kits) : generateDirect(editor, text, refs, mode === 'video', onError)).catch(fail)
   }
 
@@ -172,7 +174,7 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
         onChange={(e) => draftAtom.set(e.target.value)}
         onKeyDown={(e) => {
           e.stopPropagation()
-          if (e.key === 'Enter' && !e.shiftKey && !slash && !mentions.length && !kitMentions.length) {
+          if (isEnter(e) && !e.shiftKey && !slash && !mentions.length && !kitMentions.length) {
             e.preventDefault()
             send()
           }

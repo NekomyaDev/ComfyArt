@@ -7,6 +7,7 @@ import { Icons } from './icons'
 import { sideAtom } from './SidePanel'
 import { setTheme } from '../theme'
 import { t } from '../i18n'
+import { isEnter } from './keys'
 
 export function TopBar({ editor, left }: { editor: Editor; left?: React.ReactNode }) {
   const pages = useValue('pages', () => editor.getPages(), [editor])
@@ -45,7 +46,7 @@ export function TopBar({ editor, left }: { editor: Editor; left?: React.ReactNod
                 onBlur={(e) => { editor.renamePage(p.id, e.target.value.trim() || p.name); setRenaming(null) }}
                 onKeyDown={(e) => {
                   e.stopPropagation()
-                  if (e.key === 'Enter') e.currentTarget.blur()
+                  if (isEnter(e)) e.currentTarget.blur()
                   if (e.key === 'Escape') setRenaming(null)
                 }}
               />
