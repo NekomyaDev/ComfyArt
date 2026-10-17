@@ -7,6 +7,7 @@ import { errorText } from '../jobs'
 import { libraryAtom } from '../library'
 import { loadSkills } from '../skills'
 import { botSettingsOpenAtom } from './AgentPicker'
+import { dockAtom } from './chatDock'
 import { AssistantBlocks, textOf, UserMessage } from './ChatMessage'
 import { Composer } from './Composer'
 import { Icons } from './icons'
@@ -17,20 +18,10 @@ import { detailsAtom } from './TaskDetails'
 import { t } from '../i18n'
 import { copyText } from '../clipboard'
 
-const DOCK_KEY = 'comfyart.dock'
 const NEAR_BOTTOM = 80
 
 export type ChatView = 'open' | 'max' | 'closed'
 export const chatViewAtom = atom<ChatView>('chat view', 'open')
-
-export const dockAtom = atom<'left' | 'right'>('chat dock', (() => {
-  try { return localStorage.getItem(DOCK_KEY) === 'right' ? 'right' : 'left' } catch { return 'left' }
-})())
-
-function setDock(side: 'left' | 'right') {
-  dockAtom.set(side)
-  try { localStorage.setItem(DOCK_KEY, side) } catch { }
-}
 
 function History({ onError }: { onError: (msg: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -136,11 +127,6 @@ export function AgentPanel({ editor, projectId, max, onMax, onCollapse, onError 
         <button type="button" className="ca-bar__btn ca-bar__btn--icon ca-wide-only" title={max ? t('agentPanel.restoreChat') : t('agentPanel.maximizeChat')} data-on={max || undefined} onClick={onMax}>
           <span className="ca-icon">{Icons.expandPanel}</span>
         </button>
-        {!max && (
-          <button type="button" className="ca-bar__btn ca-bar__btn--icon ca-wide-only" title={dock === 'left' ? t('agentPanel.moveChatToRight') : t('agentPanel.moveChatToLeft')} onClick={() => setDock(dock === 'left' ? 'right' : 'left')}>
-            <span className="ca-icon">{dock === 'left' ? Icons.panelRight : Icons.panel}</span>
-          </button>
-        )}
         <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('agentPanel.collapseChat')} onClick={onCollapse}>
           <span className="ca-icon">{dock === 'left' ? Icons.panel : Icons.panelRight}</span>
         </button>

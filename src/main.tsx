@@ -7,10 +7,14 @@ import './styles/shell.css'
 import './styles/overlays.css'
 
 await initLocale()
-const { App } = await import('./App')
+const params = new URL(location.href).searchParams
+const project = params.get('project')
+const root = createRoot(document.getElementById('root')!)
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+if (project) {
+  const { App } = await import('./App')
+  root.render(<StrictMode><App id={project} /></StrictMode>)
+} else {
+  const { HomeApp } = await import('./home/HomeApp')
+  root.render(<StrictMode><HomeApp view={params.get('view') === 'projects' ? 'projects' : 'home'} /></StrictMode>)
+}

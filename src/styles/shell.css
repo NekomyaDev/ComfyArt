@@ -25,7 +25,7 @@
 .ca-head__logo svg { width: 100%; height: 100%; }
 .ca-head__name { flex: 1; min-width: 60px; height: 32px; padding: 0 6px; border: none; border-radius: 8px; background: transparent; font: 500 15px/20px var(--ca-font); color: var(--ca-text); outline: none; }
 .ca-head__name:hover, .ca-head__name:focus { background: var(--ca-field); }
-.ca-head__list { max-height: 360px; overflow: auto; min-width: 240px; }
+.ca-head__list { max-height: calc(100vh - 80px); overflow: auto; min-width: 240px; }
 .ca-head__list .ca-gen__label { padding: 0 10px; }
 
 .ca-top { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 12px; flex: none; border-bottom: .5px solid var(--ca-border); background: var(--ca-float); font: 400 14px/20px var(--ca-font); color: var(--ca-text); }

@@ -4,8 +4,8 @@ import { useValue, type Editor, type TLPageId } from 'tldraw'
 import { allComments } from './CommentsList'
 import { confirmAtom } from './Confirm'
 import { Icons } from './icons'
+import { SettingsMenu } from './SettingsMenu'
 import { sideAtom } from './SidePanel'
-import { setTheme } from '../theme'
 import { t } from '../i18n'
 import { isEnter } from './keys'
 
@@ -14,7 +14,6 @@ export function TopBar({ editor, left }: { editor: Editor; left?: React.ReactNod
   const current = useValue('current page', () => editor.getCurrentPageId(), [editor])
   const [renaming, setRenaming] = useState<TLPageId | null>(null)
   const side = useValue(sideAtom)
-  const dark = useValue('dark mode', () => editor.user.getIsDarkMode(), [editor])
   const openComments = useValue('open comments', () => allComments(editor).filter((c) => !c.props.done).length, [editor])
 
   const add = () => {
@@ -65,12 +64,14 @@ export function TopBar({ editor, left }: { editor: Editor; left?: React.ReactNod
         </button>
       </div>
       <div className="ca-gen__spacer" />
-      <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={dark ? t('topBar.switchToLight') : t('topBar.switchToDark')} onClick={() => setTheme(editor, dark ? 'light' : 'dark')}>
-        <span className="ca-icon">{dark ? Icons.sun : Icons.moon}</span>
-      </button>
       <button type="button" className="ca-bar__btn" title={t('common.allComments')} data-on={side === 'comments' || undefined} onClick={() => sideAtom.set(side === 'comments' ? null : 'comments')}>
         <span className="ca-icon">{Icons.comment}</span>{openComments > 0 && <span className="ca-badge">{openComments}</span>}
       </button>
+      <SettingsMenu editor={editor} trigger={({ open, toggle }) => (
+        <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('settings.settings')} data-open={open || undefined} onClick={toggle}>
+          <span className="ca-icon">{Icons.settings}</span>
+        </button>
+      )} />
     </div>
   )
 }

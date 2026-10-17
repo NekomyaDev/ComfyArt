@@ -177,6 +177,13 @@ export async function updateChat(id: string, patch: Partial<Pick<BotChat, 'title
   upsertChat((await json<{ chat: BotChat }>(`/comfyart/bot/chats/${id}`, send(patch, 'PATCH'))).chat)
 }
 
+export async function deleteProjectChats(projectId: string) {
+  const res = await api(`/comfyart/bot/chats?project=${encodeURIComponent(projectId)}&archived=1`)
+  if (!res.ok) return
+  const { chats } = await res.json() as { chats: BotChat[] }
+  await Promise.all(chats.map((c) => api(`/comfyart/bot/chats/${c.id}`, { method: 'DELETE' })))
+}
+
 export async function deleteChat(id: string) {
   await json(`/comfyart/bot/chats/${id}`, { method: 'DELETE' })
   chatsAtom.set(chatsAtom.get().filter((c) => c.id !== id))

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useValue, type Editor } from 'tldraw'
 
 import { openChat } from '../bot'
-import { clearNotices, currentProject, markRead, noticesAtom, pushEnabled, removeNotice, setPush, type Notice, type NoticeKind } from '../notices'
+import { clearNotices, currentProject, markRead, noticesAtom, removeNotice, type Notice, type NoticeKind } from '../notices'
 import { openProject } from '../projects'
 import { chatViewAtom } from './AgentPanel'
 import { Icons } from './icons'
@@ -24,7 +24,6 @@ function ago(time: number) {
 export function NoticeCenter({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState<NoticeKind | 'all'>('all')
-  const [push, setPushOn] = useState(pushEnabled)
   const notices = useValue(noticesAtom)
   const unread = notices.filter((n) => !n.read).length
   const shown = notices.filter((n) => filter === 'all' || n.kind === filter)
@@ -78,10 +77,6 @@ export function NoticeCenter({ editor }: { editor: Editor }) {
             </div>
           ))}
         </div>
-        <label className="ca-notice__push">
-          <input type="checkbox" checked={push} onChange={(e) => void setPush(e.target.checked).then(setPushOn)} />
-          <span>{t('noticeCenter.sendSystemNotificationsWhenThe')}</span>
-        </label>
       </div>
     </Popover>
   )

@@ -112,6 +112,7 @@ body { font-family: var(--ca-font); color: var(--ca-text); }
   cursor: pointer;
 }
 .ca-menu__item:hover { background: var(--ca-hover); }
+.ca-menu__item--danger { color: #e74c3c; }
 .ca-menu__item:disabled { opacity: .4; cursor: default; background: transparent; }
 .ca-menu__grow { flex: 1; }
 .ca-menu__key { color: var(--ca-muted); padding-left: 24px; }

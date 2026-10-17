@@ -1,17 +1,18 @@
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getSnapshot, loadSnapshot, Tldraw, useValue, type Editor, type TLAssetStore, type TLComponents, type TLShape } from 'tldraw'
 import 'tldraw/tldraw.css'
 
 import { uploadImage, viewUrl } from './comfy'
 import { svgRaster } from './vectorize'
-import { resumeJobs } from './jobs'
+import { errorText, resumeJobs } from './jobs'
 import './layers'
 import { maybeSaveVersion } from './history'
 import { defaultKitId, loadLibrary } from './library'
 import { loadMemory } from './memory'
 import { loadModels } from './models'
-import { loadProject, saveProject, touchProject } from './projects'
+import { coversOf, loadProject, saveProject, touchProject } from './projects'
+import { takeHandoff } from './home/handoff'
 import { markDark, themeAtom } from './theme'
 import { overrides } from './overrides'
 import { CommentShapeUtil, CommentTool } from './shapes/CommentShape'
@@ -21,7 +22,8 @@ import { TextShapeUtil, TextTool } from './shapes/TextShape'
 import { VectorShapeUtil, VectorTool } from './shapes/VectorShape'
 import { GeneratorShapeUtil } from './shapes/GeneratorShape'
 import { AdjustPanel } from './ui/AdjustPanel'
-import { AgentPanel, chatViewAtom, dockAtom, type ChatView } from './ui/AgentPanel'
+import { AgentPanel, chatViewAtom, type ChatView } from './ui/AgentPanel'
+import { dockAtom } from './ui/chatDock'
 import { BatchRename } from './ui/BatchRename'
 import { CanvasMenu } from './ui/CanvasMenu'
 import { CanvasTools } from './ui/CanvasTools'
@@ -97,17 +99,6 @@ const components: TLComponents = {
   Minimap: null,
 }
 
-function projectId(): string {
-  const url = new URL(location.href)
-  let id = url.searchParams.get('project')
-  if (!id) {
-    id = uuid().slice(0, 8)
-    url.searchParams.set('project', id)
-    history.replaceState(null, '', url)
-  }
-  return id
-}
-
 const assets: TLAssetStore = {
   async upload(_asset, file) {
     const ref = await uploadImage(file, file.name || 'image.png')
@@ -120,8 +111,7 @@ const assets: TLAssetStore = {
   },
 }
 
-export function App() {
-  const id = useMemo(projectId, [])
+export function App({ id }: { id: string }) {
   const [editor, setEditor] = useState<Editor | null>(null)
   const [error, setError] = useState('')
   const chat = useValue(chatViewAtom)
@@ -170,10 +160,12 @@ export function App() {
         for (const page of editor.getPages()) {
           if (/^Page \d+$/.test(page.name)) editor.renamePage(page.id, page.name.replace('Page', t('app.page')))
         }
+        editor.clearHistory()
         ready = true
         resumeJobs(editor, setError)
         stopScheduler = startScheduler(editor, setError)
         stopCommands = registerCommandBus(editor, id, () => staleRef.current, setError)
+        takeHandoff(editor, setError).catch((e) => setError(errorText(e)))
       })
       .catch((e) => setError(String(e)))
     const stop = editor.store.listen(() => {
@@ -185,7 +177,7 @@ export function App() {
           .then(() => {
             channel.postMessage({ project: id, tab: TAB })
             maybeSaveVersion(id, () => getSnapshot(editor.store), editor.store.query.records('shape').get().length)
-            return touchProject(id, editor.getDocumentSettings().name)
+            return touchProject(id, editor.getDocumentSettings().name, coversOf(editor.store.allRecords()))
           })
           .catch((e) => setError(String(e)))
       }, SAVE_DELAY)
