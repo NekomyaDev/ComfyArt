@@ -335,7 +335,10 @@ const HANDLERS: Record<string, Handler> = {
       id, type: VECTOR, x: Number(args.x ?? center.x), y: Number(args.y ?? center.y),
       props: { kind: args.kind, w: Number(args.width) || 200, h: Number(args.height) || 200, ...(args.fill ? { fill: String(args.fill) } : {}), stroke: args.stroke ? String(args.stroke) : '', ...(args.sides ? { sides: Number(args.sides) } : {}) },
     })
-    if (args.frame) editor.reparentShapes([id], shapeOf(editor, args.frame).id)
+    if (args.frame) {
+      editor.reparentShapes([id], shapeOf(editor, args.frame).id)
+      editor.updateShape({ id, type: VECTOR, x: Number(args.x ?? GAP), y: Number(args.y ?? GAP) })
+    }
     return { id }
   },
   create_frame: (editor, args) => {

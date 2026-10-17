@@ -206,7 +206,7 @@ SPECS: dict[str, dict] = {
         ["text"]),
     "add_shape": _tool(
         "Add a vector shape: kind rect, ellipse, polygon (sides) or star (sides = points). fill and "
-        "stroke as hex.",
+        "stroke as hex. x/y are page coordinates, or relative to frame when frame is given.",
         {"kind": {"type": "string", "enum": ["rect", "ellipse", "polygon", "star"]}, "x": _POINT, "y": _POINT,
          "width": _POINT, "height": _POINT, "sides": {"type": "integer"}, "fill": {"type": "string"},
          "stroke": {"type": "string"}, "frame": _PLACE["frame"]},
