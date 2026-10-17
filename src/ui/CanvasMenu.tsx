@@ -9,15 +9,19 @@ import {
   useValue,
   type Editor,
   type TLImageShape,
+  type TLShapeId,
   type TLUiContextMenuProps,
 } from 'tldraw'
 
+import { extraRefsAtom } from '../agent'
 import { uploadImage, viewUrl } from '../comfy'
 import { createGenerator } from '../generate'
 import { toMedia } from '../jobs'
 import { KIND_LABELS, libraryAtom, saveLibrary, type LibraryKind } from '../library'
 import type { GeneratorShape } from '../shapes/GeneratorShape'
+import { chatViewAtom } from './AgentPanel'
 import { renameAtom } from './BatchRename'
+import { importFiles } from './DropHandlers'
 import { exportAtom } from './ExportDialog'
 import { libraryTabAtom } from './LibraryPanel'
 import { framesOnPage } from './FrameToolbar'
@@ -48,6 +52,11 @@ function sendToGenerator(editor: Editor, shape: TLImageShape) {
   if (!src) return
   const id = createGenerator(editor)
   editor.updateShape<GeneratorShape>({ id, type: 'generator', meta: { refs: [src] } })
+}
+
+function sendToChat(ids: TLShapeId[]) {
+  extraRefsAtom.set([...extraRefsAtom.get().filter((id) => !ids.includes(id)), ...ids])
+  if (chatViewAtom.get() === 'closed') chatViewAtom.set('open')
 }
 
 function imageSrcs(editor: Editor): string[] {
@@ -105,6 +114,7 @@ function Content() {
       frame: shapes.some((x) => x.type === 'frame'),
       media: shapes.some((x) => x.type === 'image' || x.type === 'video'),
       image: shapes.length === 1 && shapes[0].type === 'image' ? (shapes[0] as TLImageShape) : null,
+      images: shapes.filter((x) => x.type === 'image').map((x) => x.id),
       ids: shapes.map((x) => x.id),
       locked: editor.getCurrentPageShapes().some((x) => x.isLocked),
       frames: framesOnPage(editor).length,
@@ -114,12 +124,19 @@ function Content() {
   if (!s.count) {
     return (
       <>
+        <TldrawUiMenuGroup id="ca-upload">
+          <TldrawUiMenuItem id="ca-upload-image" label={t('canvasMenu.uploadImage')} onSelect={() => importFiles(editor, 'image/*')} />
+          <TldrawUiMenuItem id="ca-upload-video" label={t('canvasMenu.uploadVideo')} onSelect={() => importFiles(editor, 'video/*')} />
+        </TldrawUiMenuGroup>
         <TldrawUiMenuGroup id="ca-clipboard">
           <Item id="paste" label={t('canvasMenu.paste')} />
           <Item id="select-all" label={t('canvasMenu.selectAll')} />
         </TldrawUiMenuGroup>
         <TldrawUiMenuGroup id="ca-view">
+          <Item id="zoom-in" label={t('common.zoomIn')} />
+          <Item id="zoom-out" label={t('common.zoomOut')} />
           <Item id="zoom-to-fit" label={t('canvasMenu.zoomToFitAll')} />
+          <Item id="zoom-to-100" label={t('shortcuts.zoomTo100')} />
           {s.frames > 0 && <TldrawUiMenuItem id="ca-slideshow" label={t('canvasMenu.playArtboardsFullscreen')} onSelect={() => { slideshowAtom.set({ ids: framesOnPage(editor), index: 0 }) }} />}
           {s.locked && <Item id="unlock-all" label={t('canvasMenu.unlockAll')} />}
         </TldrawUiMenuGroup>
@@ -156,7 +173,10 @@ function Content() {
         <Item id="toggle-lock" label={t('canvasMenu.lockUnlock')} />
       </TldrawUiMenuGroup>
       {s.count === 1 && !s.media && <TldrawUiMenuGroup id="ca-raster"><Item id="flatten-to-image" label={t('canvasMenu.convertToImage')} /></TldrawUiMenuGroup>}
-      {s.media && <TldrawUiMenuGroup id="ca-assets"><LibraryMenu /></TldrawUiMenuGroup>}
+      <TldrawUiMenuGroup id="ca-assets">
+        {s.images.length > 0 && <TldrawUiMenuItem id="ca-to-chat" label={t('canvasMenu.sendToChat')} onSelect={() => sendToChat(s.images)} />}
+        {s.media && <LibraryMenu />}
+      </TldrawUiMenuGroup>
       {(s.image || s.count > 1) && (
         <TldrawUiMenuGroup id="ca-extra">
           {s.image && <TldrawUiMenuItem id="ca-replace" label={t('canvasMenu.replace')} onSelect={() => replaceImage(editor, s.image!)} />}

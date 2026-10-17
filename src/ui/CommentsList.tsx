@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useValue, type Editor } from 'tldraw'
 
 import { imageUnder, touchEdit } from '../actions'
-import { agentModeAtom, draftAtom, sendToAgent } from '../agent'
+import { agentModeAtom, commentNotes, commentsToChat, sendToAgent } from '../agent'
 import { errorText } from '../jobs'
 import { COMMENT, type CommentShape } from '../shapes/CommentShape'
 import { Icons } from './icons'
@@ -36,11 +36,11 @@ export function CommentsList({ editor, onError }: { editor: Editor; onError: (ms
       setDone(c, true)
     }
   }
-  const toChat = () => draftAtom.set([draftAtom.get(), ...open.map((c) => `- ${c.props.text.trim()}`)].filter(Boolean).join('\n'))
   const summarize = () => {
     if (!open.length) return
     agentModeAtom.set('agent')
-    void sendToAgent(editor, t('commentsList.summarize', open.map((c) => `- ${c.props.text.trim()}`).join('\n')), [], null).catch((e) => onError(errorText(e)))
+    const { text, images } = commentNotes(editor, open)
+    void sendToAgent(editor, t('commentsList.summarize', text), images, null).catch((e) => onError(errorText(e)))
   }
 
   return (
@@ -62,7 +62,7 @@ export function CommentsList({ editor, onError }: { editor: Editor; onError: (ms
         </div>
       ))}
       <div className="ca-comments__foot">
-        <button type="button" className="ca-panel__secondary" disabled={!open.length} onClick={toChat}>{t('commentsList.addToChat', open.length)}</button>
+        <button type="button" className="ca-panel__secondary" disabled={!open.length} onClick={() => commentsToChat(editor, open)}>{t('commentsList.addToChat', open.length)}</button>
         <button type="button" className="ca-panel__secondary" disabled={!open.length} onClick={summarize}>{t('commentsList.summarizeAllComments')}</button>
         <button type="button" className="ca-panel__primary" disabled={!open.length} onClick={runAll}>{t('commentsList.runAll')}</button>
       </div>

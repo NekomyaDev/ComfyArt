@@ -20,6 +20,7 @@ import { HtmlShapeUtil, LottieShapeUtil, ModelShapeUtil } from './shapes/EmbedSh
 import { DoodleShapeUtil, DoodleTool } from './shapes/DoodleShape'
 import { TextShapeUtil, TextTool } from './shapes/TextShape'
 import { VectorShapeUtil, VectorTool } from './shapes/VectorShape'
+import { ArtboardShapeUtil } from './shapes/ArtboardShape'
 import { GeneratorShapeUtil } from './shapes/GeneratorShape'
 import { AdjustPanel } from './ui/AdjustPanel'
 import { AgentPanel, chatViewAtom, type ChatView } from './ui/AgentPanel'
@@ -38,6 +39,7 @@ import { ExportDialog } from './ui/ExportDialog'
 import { FrameToolbar, registerFrameRules } from './ui/FrameToolbar'
 import { EditLayers } from './ui/EditLayers'
 import { GenPanel } from './ui/GenPanel'
+import { CropBar } from './ui/CropBar'
 import { ImageToolbar, registerCropRule } from './ui/ImageToolbar'
 import { InfoDialog } from './ui/InfoDialog'
 import { KitEditor } from './ui/KitEditor'
@@ -75,7 +77,7 @@ const SAVE_DELAY = 800
 const CHANNEL = 'comfyart-projects'
 const TAB = uuid()
 const assetUrls = getAssetUrlsByImport()
-const shapeUtils = [GeneratorShapeUtil, CommentShapeUtil, DoodleShapeUtil, TextShapeUtil, VectorShapeUtil, LottieShapeUtil, ModelShapeUtil, HtmlShapeUtil]
+const shapeUtils = [ArtboardShapeUtil, GeneratorShapeUtil, CommentShapeUtil, DoodleShapeUtil, TextShapeUtil, VectorShapeUtil, LottieShapeUtil, ModelShapeUtil, HtmlShapeUtil]
 const tools = [CommentTool, DoodleTool, TextTool, VectorTool]
 const getShapeVisibility = (shape: TLShape) => (shape.meta.hidden ? 'hidden' as const : 'inherit' as const)
 
@@ -161,6 +163,8 @@ export function App({ id }: { id: string }) {
         for (const page of editor.getPages()) {
           if (/^Page \d+$/.test(page.name)) editor.renamePage(page.id, page.name.replace('Page', t('app.page')))
         }
+        const content = editor.getCurrentPageBounds()
+        if (content) editor.zoomToBounds(content, { targetZoom: 1 })
         editor.clearHistory()
         ready = true
         resumeJobs(editor, setError)
@@ -227,6 +231,7 @@ export function App({ id }: { id: string }) {
           />
         )}
         <div className="ca-body">
+          {editor && <SidePanel editor={editor} left onError={setError} />}
           <div className="ca-canvas">
             <Tldraw
               assets={assets}
@@ -242,6 +247,7 @@ export function App({ id }: { id: string }) {
               <SelectionLabel />
               <EditLayers />
               <ImageToolbar onError={setError} />
+              <CropBar />
               <ModePanel onError={setError} />
               <AdjustPanel onError={setError} />
               <InpaintPanel onError={setError} />

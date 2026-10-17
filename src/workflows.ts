@@ -50,6 +50,20 @@ export async function creativeUpscaleGraph(image: string, factor: number, w: num
 export const VIDEO_TARGETS: [string, number][] = [['1080p', 1920], ['2K', 2560], ['4K', 3840]]
 const even = (v: number) => Math.round(v / 2) * 2
 
+export function cutoutVideoGraph(video: string): Built {
+  const graph: PromptGraph = {
+    v1: { class_type: 'LoadVideo', inputs: { file: video } },
+    v2: { class_type: 'GetVideoComponents', inputs: { video: ['v1', 0] } },
+    v3: { class_type: 'LoadBackgroundRemovalModel', inputs: { bg_removal_name: 'birefnet.safetensors' } },
+    v4: { class_type: 'RemoveBackground', inputs: { bg_removal_model: ['v3', 0], image: ['v2', 0] } },
+    v5: { class_type: 'MaskToImage', inputs: { mask: ['v4', 0] } },
+    v6: { class_type: 'ImageBlend', inputs: { image1: ['v2', 0], image2: ['v5', 0], blend_factor: 1, blend_mode: 'multiply' } },
+    v7: { class_type: 'CreateVideo', inputs: { images: ['v6', 0], audio: ['v2', 1], fps: ['v2', 2] } },
+    v8: { class_type: 'SaveVideo', inputs: { video: ['v7', 0], filename_prefix: 'comfyart/video', format: 'auto', codec: 'auto' } },
+  }
+  return { graph, result: 'v8' }
+}
+
 export async function upscaleVideoGraph(video: string, w: number, h: number, long: number): Promise<Built> {
   const k = long / Math.max(w, h)
   const graph: PromptGraph = {
@@ -174,34 +188,35 @@ export async function layersGraph(image: string, layers: number, prompt: string)
 }
 
 const snap32 = (v: number) => Math.max(32, Math.round(v / 32) * 32)
-const H3_AREA = 1344 * 768
+export const VIDEO_AREAS: Record<string, number> = { '768p': 1344 * 768, '1080p': 1920 * 1088 }
+const H3_AREA = VIDEO_AREAS['768p']
 
-export function videoSize(aspect: number): [number, number] {
-  return [snap32(Math.sqrt(H3_AREA * aspect)), snap32(Math.sqrt(H3_AREA / aspect))]
+export function videoSize(aspect: number, area = H3_AREA): [number, number] {
+  return [snap32(Math.sqrt(area * aspect)), snap32(Math.sqrt(area / aspect))]
 }
 
 const MOTION = 'Subtle seamless motion. Keep the composition, text and layout unchanged.'
 
-export async function t2vGraph(prompt: string, aspect: number, duration: number): Promise<Built> {
+export async function t2vGraph(prompt: string, aspect: number, duration: number, area = H3_AREA): Promise<Built> {
   const g = await loadWorkflow('t2v-minimax-h3.api.json')
-  const [w, h] = videoSize(aspect)
+  const [w, h] = videoSize(aspect, area)
   Object.assign(g['131'].inputs, { prompt, width: w, height: h })
   g['133'].inputs.value = duration
   g['129'].inputs.noise_seed = seed()
   return { graph: g, result: '92' }
 }
 
-async function i2vGraph(prompt: string, aspect: number, duration: number): Promise<PromptGraph> {
+async function i2vGraph(prompt: string, aspect: number, duration: number, area = H3_AREA): Promise<PromptGraph> {
   const g = await loadWorkflow('i2v-minimax-h3.api.json')
-  const [w, h] = videoSize(aspect)
+  const [w, h] = videoSize(aspect, area)
   Object.assign(g['105:104'].inputs, { prompt, width: w, height: h })
   g['105:111'].inputs.value = duration
   g['105:15'].inputs.noise_seed = seed()
   return g
 }
 
-export async function imageToVideoGraph(image: string | null, prompt: string, aspect: number, duration: number, last: string | null = null): Promise<Built> {
-  const g = await i2vGraph(prompt || MOTION, aspect, duration)
+export async function imageToVideoGraph(image: string | null, prompt: string, aspect: number, duration: number, last: string | null, area: number): Promise<Built> {
+  const g = await i2vGraph(prompt || MOTION, aspect, duration, area)
   if (image) g['114'].inputs.image = image
   else {
     delete g['114']
@@ -211,6 +226,22 @@ export async function imageToVideoGraph(image: string | null, prompt: string, as
     g.last = { class_type: 'LoadImage', inputs: { image: last } }
     g['105:104'].inputs.last_frame = ['last', 0]
   }
+  return { graph: g, result: '92' }
+}
+
+export async function r2vGraph(images: string[], prompt: string, aspect: number, duration: number, area: number): Promise<Built> {
+  const g = await loadWorkflow('r2v-minimax-h3.api.json')
+  const [w, h] = videoSize(aspect, area)
+  const tags = images.map((_, i) => `<Picture ${i + 1}>`)
+  const text = tags.some((tag) => prompt.includes(tag)) ? prompt : `${prompt}${prompt ? '\n' : ''}Use ${tags.join(', ')} as references.`
+  Object.assign(g['136'].inputs, { prompt: text, width: w, height: h })
+  images.forEach((image, i) => {
+    const id = i ? `r${i}` : '137'
+    g[id] = { class_type: 'LoadImage', inputs: { image } }
+    g['136'].inputs[`ref_images.ref_image_${i}`] = [id, 0]
+  })
+  g['132'].inputs.value = duration
+  g['129'].inputs.noise_seed = seed()
   return { graph: g, result: '92' }
 }
 

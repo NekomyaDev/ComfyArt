@@ -35,10 +35,10 @@ async def test_mcp_is_off_by_default(bot_client):
 async def test_tools_list_matches_the_core_list(bot_client):
     tools = (await (await bot_client.post("/comfyart/mcp", json=_rpc("tools/list"))).json())["result"]["tools"]
     names = {t["name"] for t in tools}
-    assert names == set(CORE_MCP_TOOLS) - {"ask_user"}
+    assert names == set(CORE_MCP_TOOLS) - {"ask_user", "update_plan"}
     chat = chat_store.create_chat(user="default", project="p", provider="codex")
     with_chat = await (await bot_client.post(f"/comfyart/mcp?bot_chat={chat['id']}", json=_rpc("tools/list"))).json()
-    assert "ask_user" in {t["name"] for t in with_chat["result"]["tools"]}
+    assert {"ask_user", "update_plan"} <= {t["name"] for t in with_chat["result"]["tools"]}
 
 
 async def test_canvas_tool_is_relayed_to_the_project_page(bot_client):

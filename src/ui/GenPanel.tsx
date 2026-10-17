@@ -3,14 +3,14 @@ import { useEditor, useValue } from 'tldraw'
 
 import { uploadImage, viewUrl } from '../comfy'
 import { planStoryboard } from '../agent'
-import { baseOf, cardSize, colorsOf, generate, lastFrameOf, MAX_COLORS, MAX_REFS, MAX_STORY_SECONDS, refsOf, scenesOf } from '../generate'
+import { baseOf, colorsOf, generate, lastFrameOf, MAX_COLORS, MAX_REFS, MAX_STORY_SECONDS, MAX_VIDEO_REFS, refsOf, scenesOf, targetSize, videoModeOf } from '../generate'
 import { DEFAULT_STRENGTH, modeOf, modesFor, refModeFor, refModesOf, refStrengthsOf, usableRefs } from '../refModes'
 import { errorText, jobOf } from '../jobs'
 import type { GeneratorShape } from '../shapes/GeneratorShape'
-import { installedModels, isInstalled, isVideo, modelOf } from '../models'
+import { installedModels, isVideo, modelOf } from '../models'
 import { AssetGrid } from './AssetPicker'
 import { ColorPicker } from './ColorPicker'
-import { GenSettings, settingsSummary } from './GenSettings'
+import { ModelPill, SettingsPill } from './GenSettings'
 import { Icons } from './icons'
 import { StoryboardEditor } from './StoryboardEditor'
 import { Popover } from './Popover'
@@ -30,8 +30,6 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
   const panel = useRef<HTMLDivElement>(null)
   const prompt = useRef<HTMLTextAreaElement>(null)
   const size = useElementSize(panel, { w: 540, h: 160 })
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [modelOpen, setModelOpen] = useState(false)
   const [pick, setPick] = useState<{ to: Target; assets: boolean } | null>(null)
   const [modeOpen, setModeOpen] = useState<string | null>(null)
   const [smart, setSmart] = useState(false)
@@ -46,15 +44,16 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
   const p = shape.props
   const update = (patch: Partial<GeneratorShape['props']>) => {
     const next = { ...p, ...patch }
-    if (patch.ratio || patch.cw || patch.ch || patch.resolution) {
-      const [w, h] = next.resolution === 'custom' && !isVideo(next.workflow) ? cardSize(`${next.cw}:${next.ch}`) : cardSize(next.ratio)
+    if (patch.ratio || patch.cw || patch.ch || patch.resolution || patch.workflow) {
+      const [w, h] = targetSize(next)
       Object.assign(next, { w, h })
     }
     editor.updateShape<GeneratorShape>({ id: shape.id, type: shape.type, props: next })
   }
   const video = isVideo(p.workflow)
   const refs = refsOf(shape)
-  const maxRefs = video ? 1 : MAX_REFS
+  const vmode = video ? (Array.isArray(shape.meta.scenes) ? 'story' : videoModeOf(shape)) : null
+  const maxRefs = vmode === 'refs' ? MAX_VIDEO_REFS : video ? 1 : MAX_REFS
   const modes = refModesOf(shape)
   const strengths = refStrengthsOf(shape)
   const colors = colorsOf(shape)
@@ -134,10 +133,11 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
   return (
     <div ref={panel} className="ca-gen" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
       <div className="ca-gen__refs">
-        {refs.map((src) => (
+        {refs.map((src, i) => (
           <span key={src} className="ca-gen__ref" data-off={video || used.includes(src) ? undefined : true} title={video || used.includes(src) ? undefined : unusedReason(src)}>
             <img src={src} alt="" />
             {!video && used.includes(src) && <span className="ca-gen__refnum">{used.indexOf(src) + 1}</span>}
+            {vmode === 'refs' && <span className="ca-gen__refnum">{i + 1}</span>}
             <button type="button" title={t('common.remove')} onClick={() => setRefs(refs.filter((x) => x !== src))}>{Icons.close}</button>
             {!video && !available.length && <span className="ca-gen__refmode">{t('genPanel.refUnused')}</span>}
             {!video && available.length > 0 && (
@@ -170,7 +170,7 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
             )}
           </span>
         ))}
-        {refs.length < maxRefs && (video || available.length > 0) && imagePicker('ref', video ? t('genPanel.firstFrame') : t('genPanel.referenceImage'))}
+        {refs.length < maxRefs && (video || available.length > 0) && imagePicker('ref', video && vmode !== 'refs' ? t('genPanel.firstFrame') : t('genPanel.referenceImage'))}
         {!video && (
           <div className="ca-gen__colors">
             {colors.map((c, i) => (
@@ -186,7 +186,7 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
             )}
           </div>
         )}
-        {!story && (video ? (
+        {vmode !== 'story' && vmode !== 'refs' && (video ? (
           last
             ? <span className="ca-gen__ref"><img src={last} alt="" /><span className="ca-gen__refmode">{t('genPanel.lastFrame')}</span><button type="button" title={t('common.remove')} onClick={() => setMeta({ lastFrame: null })}>{Icons.close}</button></span>
             : imagePicker('last', t('genPanel.lastFrame'))
@@ -199,8 +199,9 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
       </div>
       {video && (
         <div className="ca-panel__chips ca-gen__modes">
-          <button type="button" className="ca-panel__chip" data-on={!story || undefined} onClick={() => setScenes(null)}>{t('genPanel.singleShot')}</button>
-          <button type="button" className="ca-panel__chip" data-on={story || undefined} onClick={() => setScenes(scenes.length ? scenes : [{ prompt: p.prompt, duration: p.duration }])}>{t('genPanel.storyboard')}</button>
+          <button type="button" className="ca-panel__chip" data-on={vmode === 'frames' || undefined} onClick={() => setMeta({ scenes: null, videoMode: null, refs: refs.slice(0, 1) })}>{t('genPanel.firstLastFrame')}</button>
+          <button type="button" className="ca-panel__chip" data-on={vmode === 'refs' || undefined} onClick={() => setMeta({ scenes: null, videoMode: 'refs', lastFrame: null })}>{t('genPanel.referenceToVideo')}</button>
+          <button type="button" className="ca-panel__chip" data-on={story || undefined} onClick={() => setMeta({ videoMode: null, scenes: scenes.length ? scenes : [{ prompt: p.prompt, duration: p.duration }] })}>{t('genPanel.storyboard')}</button>
         </div>
       )}
       {base && !video && (
@@ -221,39 +222,9 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
         }}
       />}
       <div className="ca-gen__foot">
-        <Popover
-          open={settingsOpen}
-          onOpenChange={setSettingsOpen}
-          side="top"
-          trigger={({ open, toggle }) => (
-            <button type="button" className="ca-gen__pill" data-open={open || undefined} onClick={toggle}>
-              {settingsSummary(p, video)}<span className="ca-gen__chev">{Icons.chevron}</span>
-            </button>
-          )}
-        >
-          <GenSettings p={p} video={video} quality={!!model.steps} update={update} />
-        </Popover>
+        <SettingsPill p={p} video={video} quality={!!model.steps} update={update} />
         <div className="ca-gen__spacer" />
-        <Popover
-          open={modelOpen}
-          onOpenChange={setModelOpen}
-          side="top"
-          align="end"
-          trigger={({ open, toggle }) => (
-            <button type="button" className="ca-gen__pill" data-open={open || undefined} onClick={toggle}>
-              {model.label}{!isInstalled(model.id) && <span className="ca-model__tag">{t('modelPrefs.notInstalled')}</span>}<span className="ca-gen__chev">{Icons.chevron}</span>
-            </button>
-          )}
-        >
-          <div className="ca-menu ca-models">
-            {models.map((m) => (
-              <button key={m.id} type="button" className="ca-menu__item" onClick={() => { setModelOpen(false); update({ workflow: m.id }) }}>
-                <span className="ca-menu__grow ca-model"><span>{m.label}{(m.refs || m.control) && <span className="ca-model__tag">{m.refs ? t('genPanel.tagReferences') : t('genPanel.tagStructure')}</span>}</span><span className="ca-model__desc">{m.desc}</span></span>
-                {m.id === model.id && <span className="ca-icon">{Icons.check}</span>}
-              </button>
-            ))}
-          </div>
-        </Popover>
+        <ModelPill models={models} model={model} onPick={(id) => update({ workflow: id })} />
         <button type="button" className="ca-gen__send" disabled={!ready} title={t('common.generate')} onClick={submit}>
           <span className="ca-icon">{Icons.send}</span>
         </button>

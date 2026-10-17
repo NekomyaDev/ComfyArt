@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { useValue, type Editor, type TLImageShape, type TLShapeId } from 'tldraw'
+import { useValue, type Editor, type TLShapeId } from 'tldraw'
 
-import { agentModeAtom, draftAtom, extraRefsAtom, generateDirect, kitsAtom, sendToAgent, srcOf, type AgentMode } from '../agent'
+import { agentModeAtom, directSettingsAtom, draftAtom, extraRefsAtom, generateDirect, kitsAtom, sendToAgent, srcOf, uploadRefs, type AgentMode, type DirectSettings, type RefShape } from '../agent'
 import { placeAsset } from '../assets'
 import { botEnabledAtom, messagesAtom } from '../bot'
-import { uploadImage, viewUrl } from '../comfy'
-import { errorText, placeMedia, toMedia } from '../jobs'
+import { VIDEO_RATIOS } from '../generate'
+import { errorText } from '../jobs'
 import { KIND_LABELS, libraryAtom } from '../library'
+import { agentModels, installedModels, modelOf } from '../models'
+import { GENERATOR, type GeneratorShape, type GeneratorShapeUtil } from '../shapes/GeneratorShape'
 import { loadSkills, saveSkill, skillAtom, type Skill } from '../skills'
 import { AssetGrid } from './AssetPicker'
+import { ModelPill, SettingsPill } from './GenSettings'
 import { schedulesOpenAtom } from '../schedules'
 import { AgentPicker } from './AgentPicker'
 import { Icons } from './icons'
@@ -24,9 +27,11 @@ const MODES: [AgentMode, string, keyof typeof Icons][] = [['agent', 'Agent', 'ag
 const REVIEW_PROMPT = t('composer.canvasReviewUseGetCanvas')
 const SKILL_PROMPT = t('composer.turnTheApproachCompletedIn')
 
-function imageName(editor: Editor, s: TLImageShape) {
+const isRef = (s: { type: string }): s is RefShape => s.type === 'image' || s.type === 'video'
+
+function imageName(editor: Editor, s: RefShape) {
   const asset = s.props.assetId ? editor.getAsset(s.props.assetId) : null
-  return (asset?.type === 'image' && asset.props.name) || t('common.image')
+  return (asset?.type === s.type && asset.props.name) || (s.type === 'video' ? t('common.video') : t('common.image'))
 }
 
 function SkillEditor({ onDone }: { onDone: (s: Skill | null) => void }) {
@@ -52,6 +57,25 @@ function SkillEditor({ onDone }: { onDone: (s: Skill | null) => void }) {
   )
 }
 
+function DirectPills({ editor, video }: { editor: Editor; video: boolean }) {
+  const key = video ? 'video' : 'image'
+  const settings = useValue('direct settings', () => directSettingsAtom.get()[key], [key])
+  const models = useValue('direct models', () => installedModels(video), [video])
+  const workflow = settings.workflow || agentModels(video)[0].id
+  const p: GeneratorShape['props'] = { ...editor.getShapeUtil<GeneratorShapeUtil>(GENERATOR).getDefaultProps(), ratio: video ? VIDEO_RATIOS[0] : '1:1', ...settings, workflow }
+  const model = modelOf(workflow)!
+  const update = (patch: DirectSettings) => {
+    const all = directSettingsAtom.get()
+    directSettingsAtom.set({ ...all, [key]: { ...all[key], ...patch } })
+  }
+  return (
+    <>
+      <SettingsPill p={p} video={video} quality={!!model.steps} update={update} />
+      <ModelPill models={models} model={model} onPick={(id) => update({ workflow: id })} />
+    </>
+  )
+}
+
 export function Composer({ editor, busy, onError }: { editor: Editor; busy: boolean; onError: (msg: string) => void }) {
   const started = useValue('chat started', () => messagesAtom.get().length > 0, [])
   const draft = useValue(draftAtom)
@@ -62,15 +86,16 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
   const extra = useValue(extraRefsAtom)
   const kits = useValue(kitsAtom)
   const library = useValue(libraryAtom)
-  const selected = useValue('selected images', () => editor.getSelectedShapes().filter((s): s is TLImageShape => s.type === 'image'), [editor])
-  const images = useValue('canvas images', () => editor.getCurrentPageShapes().filter((s): s is TLImageShape => s.type === 'image'), [editor])
+  const selected = useValue('selected media', () => editor.getSelectedShapes().filter(isRef), [editor])
+  const images = useValue('canvas media', () => editor.getCurrentPageShapes().filter(isRef), [editor])
   const [menu, setMenu] = useState<'plus' | 'skills' | 'assets' | 'mode' | 'create' | null>(null)
   const [skills, setSkills] = useState<Skill[]>([])
   const file = useRef<HTMLInputElement>(null)
   const [hidden, setHidden] = useState<TLShapeId[]>([])
+  const [drop, setDrop] = useState(false)
 
   const shown = selected.filter((s) => !hidden.includes(s.id))
-  const refs = [...shown, ...extra.map((id) => editor.getShape<TLImageShape>(id)).filter((s): s is TLImageShape => !!s && !shown.some((x) => x.id === s.id))]
+  const refs = [...shown, ...extra.map((id) => editor.getShape(id)).filter((s): s is RefShape => !!s && isRef(s) && !shown.some((x) => x.id === s.id))]
   const slash = /^\/(\S*)$/.exec(draft)
   const at = /(?:^|\s)@(\S*)$/.exec(draft)
 
@@ -92,17 +117,9 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
   }
   const useSkill = (s: Skill) => { skillAtom.set(s); setMenu(null); if (slash) draftAtom.set('') }
 
-  const upload = async (files: FileList | null) => {
-    for (const f of Array.from(files ?? [])) {
-      const ref = await uploadImage(f, f.name)
-      const m = await toMedia(ref, 'image')
-      const center = editor.getViewportPageBounds().center
-      const w = Math.min(m.w, 512)
-      addRef(placeMedia(editor, { ...m, src: viewUrl(ref) }, f.name, center.x - w / 2, center.y - w * m.h / m.w / 2, w))
-    }
-  }
-
   const fail = (e: unknown) => onError(errorText(e))
+  const upload = (files: FileList | null) => uploadRefs(editor, Array.from(files ?? [])).catch(fail)
+  const imageFiles = (list: DataTransfer) => Array.from(list.files).filter((f) => f.type.startsWith('image/'))
   const send = () => {
     const text = draft.trim()
     if (!text || agentOff) return
@@ -120,7 +137,13 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
   const modeInfo = MODES.find(([m]) => m === mode)!
 
   return (
-    <div className="ca-composer">
+    <div
+      className="ca-composer"
+      data-drop={drop || undefined}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDrop(true) } }}
+      onDragLeave={() => setDrop(false)}
+      onDrop={(e) => { setDrop(false); const files = imageFiles(e.dataTransfer); if (files.length) { e.preventDefault(); void uploadRefs(editor, files).catch(fail) } }}
+    >
       {(slash && filtered.length > 0) && (
         <div className="ca-menu ca-composer__suggest">
           {filtered.slice(0, 8).map((s) => (
@@ -140,7 +163,7 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
           ))}
           {mentions.map((s) => (
             <button key={s.id} type="button" className="ca-menu__item" onClick={() => { addRef(s.id); clearAt() }}>
-              <img className="ca-composer__mini" src={srcOf(editor, s) ?? ''} alt="" /><span className="ca-menu__grow">{imageName(editor, s)}</span>
+              {s.type === 'video' ? <span className="ca-icon">{Icons.video}</span> : <img className="ca-composer__mini" src={srcOf(editor, s) ?? ''} alt="" />}<span className="ca-menu__grow">{imageName(editor, s)}</span>
             </button>
           ))}
         </div>
@@ -161,7 +184,7 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
           )}
           {refs.map((r) => (
             <span key={r.id} className="ca-chip ca-chip--image">
-              <img src={srcOf(editor, r) ?? ''} alt="" />
+              {r.type === 'video' ? <video src={srcOf(editor, r) ?? ''} muted preload="metadata" /> : <img src={srcOf(editor, r) ?? ''} alt="" />}
               <button type="button" title={t('common.remove')} onClick={() => removeRef(r.id)}>{Icons.close}</button>
             </span>
           ))}
@@ -172,6 +195,7 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
         value={draft}
         placeholder={t('composer.describeYourDesignNeedsFor')}
         onChange={(e) => draftAtom.set(e.target.value)}
+        onPaste={(e) => { const files = imageFiles(e.clipboardData); if (!files.length) return; e.preventDefault(); e.stopPropagation(); void uploadRefs(editor, files).catch(fail) }}
         onKeyDown={(e) => {
           e.stopPropagation()
           if (isEnter(e) && !e.shiftKey && !slash && !mentions.length && !kitMentions.length) {
@@ -181,7 +205,7 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
         }}
       />
       <div className="ca-composer__foot">
-        <input ref={file} type="file" accept="image/*" multiple hidden onChange={(e) => { void upload(e.target.files).catch((err) => onError(String(err))); e.target.value = '' }} />
+        <input ref={file} type="file" accept="image/*" multiple hidden onChange={(e) => { void upload(e.target.files); e.target.value = '' }} />
         <Popover
           open={menu === 'plus' || menu === 'skills' || menu === 'assets' || menu === 'create'}
           onOpenChange={(o) => setMenu(o ? 'plus' : null)}
@@ -267,6 +291,7 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
             ))}
           </div>
         </Popover>
+        {mode !== 'agent' && <DirectPills editor={editor} video={mode === 'video'} />}
         {mode === 'agent' && !agentOff && <AgentPicker onError={onError} />}
         {mode === 'agent' && <ModelPrefs onError={onError} />}
         <div className="ca-gen__spacer" />

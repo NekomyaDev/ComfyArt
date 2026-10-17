@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { atom, useValue, type Editor, type TLImageShape } from 'tldraw'
 
-import { sendToAgent } from '../agent'
+import { draftAtom, sendToAgent, uploadRefs } from '../agent'
 import { botEnabledAtom, branchFrom, chatIdAtom, chatsAtom, deleteChat, messagesAtom, openChat, providersAtom, stopTurn, type BotMessage } from '../bot'
 import { errorText } from '../jobs'
 import { libraryAtom } from '../library'
 import { loadSkills } from '../skills'
 import { botSettingsOpenAtom } from './AgentPicker'
 import { dockAtom } from './chatDock'
+import { libraryTabAtom } from './LibraryPanel'
+import { sideAtom } from './SidePanel'
 import { AssistantBlocks, textOf, UserMessage } from './ChatMessage'
 import { Composer } from './Composer'
 import { Icons } from './icons'
@@ -19,6 +21,15 @@ import { t } from '../i18n'
 import { copyText } from '../clipboard'
 
 const NEAR_BOTTOM = 80
+
+function pickFiles(use: (files: File[]) => void) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  input.multiple = true
+  input.onchange = () => use(Array.from(input.files ?? []))
+  input.click()
+}
 
 export type ChatView = 'open' | 'max' | 'closed'
 export const chatViewAtom = atom<ChatView>('chat view', 'open')
@@ -145,6 +156,11 @@ export function AgentPanel({ editor, projectId, max, onMax, onCollapse, onError 
             <span className="ca-chat__hello">{Icons.agent}</span>
             <div>{t('agentPanel.describeWhatYouWantTo')}</div>
             <div className="ca-chat__hint">{t('agentPanel.selectImagesOnTheCanvas')}</div>
+            <div className="ca-chat__starts">
+              <button type="button" className="ca-chat__start" onClick={() => pickFiles((files) => void uploadRefs(editor, files).catch(fail))}><span className="ca-icon">{Icons.upload}</span>{t('agentPanel.uploadReference')}</button>
+              <button type="button" className="ca-chat__start" onClick={() => draftAtom.set('/')}><span className="ca-icon">{Icons.skill}</span>{t('agentPanel.startFromSkill')}</button>
+              <button type="button" className="ca-chat__start" onClick={() => { libraryTabAtom.set('brand'); sideAtom.set('assets') }}><span className="ca-icon">{Icons.assets}</span>{t('agentPanel.useBrandKit')}</button>
+            </div>
           </div>
         )}
         {messages.map((m, i) => (m.role === 'user'

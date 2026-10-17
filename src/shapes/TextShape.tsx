@@ -129,7 +129,7 @@ export class TextShapeUtil extends BaseBoxShapeUtil<TextShape> {
   })
 
   override getDefaultProps(): TextShape['props'] {
-    return { w: 1, h: 1, text: '', font: 'Arial', weight: 400, size: 48, color: '#000000', stroke: '', align: 'left', letter: 0, line: 1.3, autoSize: true, decoration: 'none', transform: 'none' }
+    return { w: 1, h: 1, text: '', font: 'Arial', weight: 400, size: 80, color: '#000000', stroke: '', align: 'left', letter: 0, line: 1.3, autoSize: true, decoration: 'none', transform: 'none' }
   }
 
   override canEdit() {

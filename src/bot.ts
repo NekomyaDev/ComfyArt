@@ -58,7 +58,14 @@ export const TOOL_LABELS: Record<string, string> = {
   split_layers: t('common.splitLayers'),
   change_angle: t('common.multiAngle'),
   replace_text: t('common.editText'),
+  edit_region: t('common.inpaint'),
+  erase_region: t('common.eraser'),
+  move_object: t('common.moveObject'),
+  style_transfer: t('common.styleTransfer'),
+  vectorize_image: t('imageToolbar.vectorize'),
   extend_video: t('common.extendVideo'),
+  upscale_video: t('actions.upscaleVideo'),
+  remove_video_background: t('common.removeBackground'),
   wait_generation: t('bot.waitForResults'),
   place_html: t('bot.placeWebPage'),
   create_slides: t('bot.createPpt'),
@@ -71,6 +78,7 @@ export const TOOL_LABELS: Record<string, string> = {
   memory: t('common.memory'),
   skill: t('bot.skill'),
   ask_user: t('bot.askYou'),
+  update_plan: t('bot.plan'),
 }
 
 export const toolName = (name = '') => name.replace(/^mcp__\w+__/, '')

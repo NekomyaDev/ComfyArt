@@ -13,12 +13,9 @@ import { isEnter } from './keys'
 
 const GAP = 12
 const EDGE = 8
-const PROMPT_MODES: Mode[] = ['quick', 'animate', 'text']
+const PROMPT_MODES: Mode[] = ['quick']
 const TITLES: Record<Mode, string> = {
   quick: t('common.quickEdit'), text: t('common.editText'), erase: t('common.eraser'), angles: t('common.multiAngle'), expand: t('common.expand'), animate: t('common.animateImage'), layers: t('imageToolbar.customSplit'), separate: t('imageToolbar.separateRegions'), adjust: t('common.adjust'), effects: t('common.effects'), inpaint: t('common.inpaint'), style: t('common.styleTransfer'), move: t('common.moveObject'), smudge: t('common.smudge'),
-}
-const PLACEHOLDERS: Partial<Record<Mode, string>> = {
-  quick: t('modePanel.howShouldThisImageChange'), animate: t('modePanel.describeTheMotionYouWant'),
 }
 const RATIO_GROUPS: [string, [string, number][]][] = [
   [t('modePanel.general'), [[t('modePanel.free'), 0], [t('modePanel.original'), -1], [t('modePanel.square'), 1], [t('modePanel.landscape'), 16 / 9], [t('modePanel.portrait'), 9 / 16], ['4:3', 4 / 3], ['3:4', 3 / 4]]],
@@ -197,30 +194,8 @@ export function ModePanel({ onError }: { onError: (msg: string) => void }) {
     >
       {below ? (
         <>
-          {mode === 'text' ? (
-            lines === null ? (
-              <div className="ca-chat__hint ca-panel__status">{ocrStatusText(ocrStatus[asset.props.src ?? ''])}</div>
-            ) : lines.length ? (
-              <div className="ca-panel__lines">
-                {lines.map((line, i) => (
-                  <input key={i} className="ca-panel__input" value={edits[i] ?? ''} title={line} data-changed={(edits[i] ?? '').trim() !== line || undefined} onChange={(e) => setEdits(edits.map((x, j) => (j === i ? e.target.value : x)))} onKeyDown={keys} />
-                ))}
-              </div>
-            ) : (
-              <>
-                <div className="ca-chat__hint">{t('modePanel.noTextFound')}</div>
-                <div className="ca-panel__pair">
-                  <input ref={focus} className="ca-panel__input" value={from} placeholder={t('modePanel.originalText')} onChange={(e) => setFrom(e.target.value)} onKeyDown={keys} />
-                  <span className="ca-panel__arrow">→</span>
-                  <input className="ca-panel__input" value={prompt} placeholder={t('modePanel.newText')} onChange={(e) => setPrompt(e.target.value)} onKeyDown={keys} />
-                </div>
-              </>
-            )
-          ) : (
-            <textarea ref={focus} className="ca-panel__prompt" value={prompt} placeholder={PLACEHOLDERS[mode]} onChange={(e) => setPrompt(e.target.value)} onKeyDown={keys} />
-          )}
+          <textarea ref={focus} className="ca-panel__prompt" value={prompt} placeholder={t('modePanel.howShouldThisImageChange')} onChange={(e) => setPrompt(e.target.value)} onKeyDown={keys} />
           <div className="ca-panel__foot">
-            {mode === 'animate' && <button type="button" className="ca-panel__chip" data-on={loop || undefined} title={t('modePanel.firstAndLastFramesMatch')} onClick={() => setLoop(!loop)}>{t('modePanel.loop')}</button>}
             <button type="button" className="ca-panel__primary" disabled={!canSubmit} onClick={submit}>{t('common.generate')}</button>
           </div>
         </>
@@ -235,6 +210,27 @@ export function ModePanel({ onError }: { onError: (msg: string) => void }) {
             )}
           </div>
           {mode === 'erase' && <Slider label={t('modePanel.brush')} value={brush} min={4} max={160} onChange={(v) => brushAtom.set(v)} />}
+          {mode === 'text' && (lines === null ? (
+            <div className="ca-chat__hint ca-panel__status">{ocrStatusText(ocrStatus[asset.props.src ?? ''])}</div>
+          ) : lines.length ? (
+            <div className="ca-panel__lines">
+              {lines.map((line, i) => (
+                <input key={i} className="ca-panel__input" value={edits[i] ?? ''} title={line} data-changed={(edits[i] ?? '').trim() !== line || undefined} onChange={(e) => setEdits(edits.map((x, j) => (j === i ? e.target.value : x)))} onKeyDown={keys} />
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="ca-chat__hint">{t('modePanel.noTextFound')}</div>
+              <input ref={focus} className="ca-panel__input" value={from} placeholder={t('modePanel.originalText')} onChange={(e) => setFrom(e.target.value)} onKeyDown={keys} />
+              <input className="ca-panel__input" value={prompt} placeholder={t('modePanel.newText')} onChange={(e) => setPrompt(e.target.value)} onKeyDown={keys} />
+            </>
+          ))}
+          {mode === 'animate' && (
+            <>
+              <textarea ref={focus} className="ca-panel__prompt ca-panel__prompt--boxed" value={prompt} placeholder={t('modePanel.describeTheMotionYouWant')} onChange={(e) => setPrompt(e.target.value)} onKeyDown={keys} />
+              <label className="ca-panel__row ca-gen__toggle" title={t('modePanel.firstAndLastFramesMatch')}><span>{t('modePanel.loop')}</span><input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} /></label>
+            </>
+          )}
           {mode === 'angles' && (
             <>
               <AnglePreview value={angle} src={asset.props.src ?? null} onChange={setAngle} />

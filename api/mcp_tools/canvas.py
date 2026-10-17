@@ -7,6 +7,7 @@ WAIT_MAX_S = 170
 _ID = {"type": "string", "description": "shape id exactly as get_canvas returns it, e.g. shape:abc"}
 _IDS = {"type": "array", "items": {"type": "string"}}
 _POINT = {"type": "number"}
+_REGION = {"x": _POINT, "y": _POINT, "width": _POINT, "height": _POINT}
 _PLACE = {
     "frame": {"type": "string", "description": "frame id to place the result inside"},
     "near": {"type": "string", "description": "shape id to place the result next to"},
@@ -44,7 +45,7 @@ def _tool(description: str, properties: dict, required: list[str] = (), **relay)
 SPECS: dict[str, dict] = {
     "get_canvas": _tool(
         "List the open project: pages, the current page's frames and shapes (id, type, name or text, "
-        "x/y/width/height, parent, image or video URL, generation prompt), the selection, the linked "
+        "x/y/width/height, parent, image or video URL and its pixel size, generation prompt), the selection, the linked "
         "brand kit and running generations. page selects another page by id or name.",
         {"page": {"type": "string"}}),
     "view_canvas": _tool(
@@ -69,10 +70,12 @@ SPECS: dict[str, dict] = {
         ["prompt"], approval="生成图像"),
     "generate_video": _tool(
         "Start generating a video. Returns ids at once; call wait_generation with them. first_frame / "
-        "last_frame are image shape ids. duration in seconds (5 or 10).",
+        "last_frame are image shape ids. reference_images (up to 9 image shape ids) makes a video that "
+        "follows those characters, products or scenes instead of starting from a frame; mention them in "
+        "the prompt as <Picture 1>, <Picture 2> in the same order. duration in seconds (5, 10 or 15).",
         {"prompt": {"type": "string"}, "model": {"type": "string"}, "ratio": {"type": "string"},
          "duration": {"type": "integer"}, "first_frame": {"type": "string"}, "last_frame": {"type": "string"},
-         **_PLACE},
+         "reference_images": _IDS, **_PLACE},
         ["prompt"], approval="生成视频"),
     "edit_image": _tool(
         "Edit an image shape with an instruction (change, add or remove things, restyle). The result is "
@@ -107,6 +110,37 @@ SPECS: dict[str, dict] = {
         "Replace text rendered inside an image shape: from is the current text, to the new text.",
         {"id": _ID, "from": {"type": "string"}, "to": {"type": "string"}}, ["id", "from", "to"],
         approval="编辑文字"),
+    "edit_region": _tool(
+        "Repaint only a region of an image shape following prompt; the rest stays untouched. x/y/width/"
+        "height are in the image's own pixels (get_canvas pixels gives its size; comments sent by the "
+        "user carry a ready region).",
+        {"id": _ID, **_REGION, "prompt": {"type": "string"}}, ["id", "x", "y", "width", "height", "prompt"],
+        approval="局部重绘"),
+    "erase_region": _tool(
+        "Remove whatever is inside a region of an image shape and fill it with the surrounding "
+        "background. Region in the image's own pixels.",
+        {"id": _ID, **_REGION}, ["id", "x", "y", "width", "height"], approval="擦除"),
+    "move_object": _tool(
+        "Move one object inside an image shape by dx/dy image pixels; the old spot is filled with "
+        "background. Pick the object by object (a short English name like 'apple') or by x/y (a point "
+        "on it, in the image's own pixels).",
+        {"id": _ID, "object": {"type": "string"}, "x": _POINT, "y": _POINT, "dx": _POINT, "dy": _POINT},
+        ["id", "dx", "dy"],
+        approval="移动对象"),
+    "style_transfer": _tool(
+        "Redraw an image shape in another style: style describes it in words, ref is an optional image "
+        "shape id or URL whose style to copy.",
+        {"id": _ID, "style": {"type": "string"}, "ref": {"type": "string"}}, ["id"], approval="风格迁移"),
+    "vectorize_image": _tool(
+        "Trace an image shape into an SVG vector image placed next to it (best for logos, icons, flat "
+        "art). Returns the new shape id at once.",
+        {"id": _ID}, ["id"]),
+    "upscale_video": _tool(
+        "Upscale a video shape to target 1080p, 2K or 4K (long side).",
+        {"id": _ID, "target": {"type": "string", "enum": ["1080p", "2K", "4K"]}}, ["id"], approval="视频放大"),
+    "remove_video_background": _tool(
+        "Cut the main subject out of a video shape onto a black background.",
+        {"id": _ID}, ["id"], approval="视频去背景"),
     "extend_video": _tool(
         "Continue a video shape by duration seconds following prompt.",
         {"id": _ID, "prompt": {"type": "string"}, "duration": {"type": "integer"}}, ["id", "prompt"],

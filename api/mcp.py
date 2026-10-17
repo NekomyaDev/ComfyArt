@@ -6,7 +6,7 @@ from aiohttp import web
 
 from . import chat_store
 from ._common import routes
-from .mcp_tools import TOOLS
+from .mcp_tools import TOOLS, bot_tools
 from .mcp_tools._context import BOT_CHAT_ID, PROJECT
 from .settings import mcp_enabled
 
@@ -44,7 +44,7 @@ def _initialize(params: dict) -> dict:
 
 
 def _tool_visible(name: str) -> bool:
-    return name != "ask_user" or bool(BOT_CHAT_ID.get())
+    return name not in bot_tools.TOOLS or bool(BOT_CHAT_ID.get())
 
 
 def _tools_list() -> dict:

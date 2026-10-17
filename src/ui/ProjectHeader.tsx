@@ -4,24 +4,13 @@ import { useValue, type Editor } from 'tldraw'
 import { libraryAtom } from '../library'
 import { confirmDelete } from '../home/confirmDelete'
 import { newProjectId, openProject, openView, UNTITLED } from '../projects'
+import { importFiles } from './DropHandlers'
 import { historyAtom } from './HistoryDialog'
 import { Icons } from './icons'
 import { memoryOpenAtom } from './MemoryDialog'
 import { Popover } from './Popover'
 import { t } from '../i18n'
 import { isEnter } from './keys'
-
-function importImages(editor: Editor) {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'image/*'
-  input.multiple = true
-  input.onchange = () => {
-    const files = Array.from(input.files ?? [])
-    if (files.length) void editor.putExternalContent({ type: 'files', files, point: editor.getViewportPageBounds().center })
-  }
-  input.click()
-}
 
 function Item({ icon, label, kbd, danger, disabled, run, close }: { icon: ReactNode; label: string; kbd?: string; danger?: boolean; disabled?: boolean; run: () => void; close: () => void }) {
   return (
@@ -61,7 +50,7 @@ export function ProjectHeader({ editor, projectId, children }: { editor: Editor;
           <Item close={close} icon={Icons.trash} label={t('home.deleteCurrentProject')} danger run={() => confirmDelete([projectId], () => openView('projects'))} />
           <div className="ca-menu__sep" />
           <Item close={close} icon={Icons.restore} label={t('historyDialog.canvasHistory')} run={() => historyAtom.set(true)} />
-          <Item close={close} icon={Icons.upload} label={t('projectHeader.importImage')} run={() => importImages(editor)} />
+          <Item close={close} icon={Icons.upload} label={t('projectHeader.importImage')} run={() => importFiles(editor, 'image/*')} />
           <div className="ca-menu__sep" />
           <Item close={close} icon={Icons.undo} label={t('common.undo')} kbd="Ctrl Z" disabled={!canUndo} run={() => editor.undo()} />
           <Item close={close} icon={Icons.redo} label={t('shortcuts.redo')} kbd="Ctrl Shift Z" disabled={!canRedo} run={() => editor.redo()} />

@@ -1,6 +1,11 @@
-import { DURATIONS, QUALITIES, RATIOS, RESOLUTIONS, SHOTS, STYLES, VIDEO_RATIOS } from '../generate'
+import { useState } from 'react'
+
+import { DURATIONS, QUALITIES, RATIOS, RESOLUTIONS, SHOTS, STYLES, VIDEO_RATIOS, VIDEO_RESOLUTIONS } from '../generate'
+import { isInstalled, type ModelDef } from '../models'
 import type { GeneratorShape } from '../shapes/GeneratorShape'
 import { t } from '../i18n'
+import { Icons } from './icons'
+import { Popover } from './Popover'
 
 const COUNTS = [1, 2, 3, 4]
 const RES_LABELS: Record<string, string> = { '1K': '1K', '2K': '2K', custom: t('common.custom') }
@@ -20,12 +25,45 @@ function Chips<T extends string | number>({ value, options, onPick }: { value: T
 }
 
 export function settingsSummary(p: GeneratorShape['props'], video: boolean) {
-  if (video) return `${p.ratio} · ${p.duration}s${p.style ? ` · ${SHOTS.find(([k]) => k === p.style)?.[1]}` : ''}`
+  if (video) return `${p.ratio} · ${p.duration}s · ${VIDEO_RESOLUTIONS.includes(p.resolution) ? p.resolution : VIDEO_RESOLUTIONS[0]}${p.style ? ` · ${SHOTS.find(([k]) => k === p.style)?.[1]}` : ''}`
   const size = p.resolution === 'custom' ? `${p.cw}×${p.ch}` : `${p.resolution} · ${p.ratio}`
   return t('genSettings.summary', size, p.count, p.transparent ? t('genSettings.transparent') : '')
 }
 
-export function GenSettings({ p, video, quality, update }: { p: GeneratorShape['props']; video: boolean; quality: boolean; update: (patch: Partial<GeneratorShape['props']>) => void }) {
+type Update = (patch: Partial<GeneratorShape['props']>) => void
+
+export function SettingsPill({ p, video, quality, update }: { p: GeneratorShape['props']; video: boolean; quality: boolean; update: Update }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen} side="top" trigger={({ open: o, toggle }) => (
+      <button type="button" className="ca-gen__pill" data-open={o || undefined} onClick={toggle}><span className="ca-gen__pilltext">{settingsSummary(p, video)}</span><span className="ca-gen__chev">{Icons.chevron}</span></button>
+    )}>
+      <GenSettings p={p} video={video} quality={quality} update={update} />
+    </Popover>
+  )
+}
+
+export function ModelPill({ models, model, onPick }: { models: ModelDef[]; model: ModelDef; onPick: (id: string) => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen} side="top" align="end" trigger={({ open: o, toggle }) => (
+      <button type="button" className="ca-gen__pill" data-open={o || undefined} onClick={toggle}>
+        <span className="ca-gen__pilltext">{model.label}</span>{!isInstalled(model.id) && <span className="ca-model__tag">{t('modelPrefs.notInstalled')}</span>}<span className="ca-gen__chev">{Icons.chevron}</span>
+      </button>
+    )}>
+      <div className="ca-menu ca-models">
+        {models.map((m) => (
+          <button key={m.id} type="button" className="ca-menu__item" onClick={() => { setOpen(false); onPick(m.id) }}>
+            <span className="ca-menu__grow ca-model"><span>{m.label}{(m.refs || m.control) && <span className="ca-model__tag">{m.refs ? t('genPanel.tagReferences') : t('genPanel.tagStructure')}</span>}</span><span className="ca-model__desc">{m.desc}</span></span>
+            {m.id === model.id && <span className="ca-icon">{Icons.check}</span>}
+          </button>
+        ))}
+      </div>
+    </Popover>
+  )
+}
+
+export function GenSettings({ p, video, quality, update }: { p: GeneratorShape['props']; video: boolean; quality: boolean; update: Update }) {
   const dim = (key: 'cw' | 'ch', v: number) => v >= 64 && v <= 4096 && update({ [key]: v })
   return (
     <div className="ca-menu ca-gen__settings">
@@ -53,6 +91,12 @@ export function GenSettings({ p, video, quality, update }: { p: GeneratorShape['
               </button>
             ))}
           </div>
+        </>
+      )}
+      {video && (
+        <>
+          <div className="ca-gen__label">{t('genSettings.resolution')}</div>
+          <Chips value={VIDEO_RESOLUTIONS.includes(p.resolution) ? p.resolution : VIDEO_RESOLUTIONS[0]} options={VIDEO_RESOLUTIONS.map((r) => [r, r] as [string, string])} onPick={(r) => update({ resolution: r })} />
         </>
       )}
       <div className="ca-gen__label">{video ? t('common.duration') : t('genSettings.count')}</div>

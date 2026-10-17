@@ -41,7 +41,8 @@ const versions = createShapePropsMigrationIds(VECTOR, { AddStrokeGradient: 1 })
 
 export const vectorKindAtom = atom<VectorKind>('vector kind', 'rect')
 
-const DEFAULT_SIZE = 200
+const CLICK_W = 320
+const RECT_H = 200
 const MIN_DRAG = 4
 
 function points(kind: string, w: number, h: number, sides: number): string {
@@ -80,8 +81,8 @@ export class VectorShapeUtil extends BaseBoxShapeUtil<VectorShape> {
 
   override getDefaultProps(): VectorShape['props'] {
     return {
-      w: DEFAULT_SIZE, h: DEFAULT_SIZE, kind: 'rect', fill: '#D9D9D9', radius: 0, sides: 5,
-      fillType: 'solid', fill2: '#FFFFFF', angle: 90, stroke: '', strokeWidth: 4, strokeAlign: 'center', dash: 'solid',
+      w: CLICK_W, h: RECT_H, kind: 'rect', fill: '#CCCCCC', radius: 0, sides: 5,
+      fillType: 'solid', fill2: '#FFFFFF', angle: 90, stroke: '#333333', strokeWidth: 2, strokeAlign: 'center', dash: 'solid',
     }
   }
 
@@ -172,7 +173,8 @@ export class VectorTool extends StateNode {
     this.track()
     const shape = editor.getShape<VectorShape>(this.draft.id)
     if (shape && Math.max(shape.props.w, shape.props.h) < MIN_DRAG) {
-      editor.updateShape<VectorShape>({ id: shape.id, type: VECTOR, x: this.draft.x - DEFAULT_SIZE / 2, y: this.draft.y - DEFAULT_SIZE / 2, props: { w: DEFAULT_SIZE, h: DEFAULT_SIZE } })
+      const h = shape.props.kind === 'rect' ? RECT_H : CLICK_W
+      editor.updateShape<VectorShape>({ id: shape.id, type: VECTOR, x: this.draft.x - CLICK_W / 2, y: this.draft.y - h / 2, props: { w: CLICK_W, h } })
     }
     const id = this.draft.id
     this.draft = null

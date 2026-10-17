@@ -1,21 +1,31 @@
 import { zipSync } from 'fflate'
 import { useLayoutEffect, useRef, useState } from 'react'
-import { useActions, useEditor, type Box, type Editor, type TLFrameShape, type TLShape, type TLShapeId } from 'tldraw'
+import { useActions, useEditor, type Box, type Editor, type JsonObject, type TLFrameShape, type TLShape, type TLShapeId } from 'tldraw'
 
 import { createGenerator } from '../generate'
 import { mediaAsset } from '../jobs'
 import { download } from '../psd'
+import { artboardStyle, type ArtboardStyle } from '../shapes/ArtboardShape'
 import type { GeneratorShape } from '../shapes/GeneratorShape'
+import { ColorPicker } from './ColorPicker'
 import { exportAtom } from './ExportDialog'
 import { slideshowAtom } from './Slideshow'
 import { Icons } from './icons'
+import { Popover } from './Popover'
 import { useOnlySelected, useSelectionRect } from './selection'
+import { Num, Section } from './StyleToolbars'
 import { t } from '../i18n'
 
 const GAP = 22
 const EDGE = 8
 const PAD = 24
 const GEN_LONG = 1536
+const SIZE_PRESETS: [string, number, number][] = [
+  ['Instagram', 1080, 1080], [t('frameToolbar.instagramPortrait'), 1080, 1350], [t('frameToolbar.story'), 1080, 1920],
+  [t('frameToolbar.youtubeThumbnail'), 1280, 720], [t('frameToolbar.presentation'), 1920, 1080],
+  [t('frameToolbar.desktopWeb'), 1440, 1024], [t('frameToolbar.mobile'), 390, 844],
+  ['A4', 2480, 3508], [t('frameToolbar.a4Landscape'), 3508, 2480],
+]
 
 type Sizing = 'fixed' | 'hug'
 const sizingOf = (frame: TLFrameShape, axis: 'w' | 'h') => ((frame.meta[axis === 'w' ? 'wMode' : 'hMode'] as Sizing | undefined) ?? 'fixed')
@@ -156,6 +166,7 @@ export function FrameToolbar({ onError }: { onError: (msg: string) => void }) {
   const rect = useSelectionRect()
   const bar = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
+  const [presets, setPresets] = useState(false)
   useLayoutEffect(() => {
     if (bar.current && bar.current.offsetWidth !== width) setWidth(bar.current.offsetWidth)
   })
@@ -176,6 +187,8 @@ export function FrameToolbar({ onError }: { onError: (msg: string) => void }) {
       {sizingOf(frame, axis) === 'fixed' ? t('frameToolbar.fixed') : t('frameToolbar.fit')}
     </button>
   )
+  const style = artboardStyle(frame)
+  const setStyle = (patch: ArtboardStyle) => editor.updateShape<TLFrameShape>({ id: frame.id, type: 'frame', meta: { ...frame.meta, style: { ...style, ...patch } as JsonObject } })
   const play = () => {
     const frames = framesOnPage(editor)
     slideshowAtom.set({ ids: frames, index: Math.max(0, frames.indexOf(frame.id)) })
@@ -189,6 +202,26 @@ export function FrameToolbar({ onError }: { onError: (msg: string) => void }) {
       <label className="ca-num"><span>H</span><input type="number" value={Math.round(frame.props.h)} disabled={sizingOf(frame, 'h') === 'hug'} onChange={(e) => size('h', Number(e.target.value))} onKeyDown={(e) => e.stopPropagation()} /></label>
       {sizing('h')}
       <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('frameToolbar.lockAspectRatio')} data-on={!!ratio || undefined} onClick={lock}><span className="ca-icon">{ratio ? Icons.lock : Icons.unlock}</span></button>
+      <Popover
+        open={presets}
+        onOpenChange={setPresets}
+        trigger={({ open, toggle }) => <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('frameToolbar.sizePresets')} data-open={open || undefined} onClick={toggle}><span className="ca-icon">{Icons.chevron}</span></button>}
+      >
+        <div className="ca-menu">
+          {SIZE_PRESETS.map(([label, w, h]) => (
+            <button key={label} type="button" className="ca-menu__item" onClick={() => { setPresets(false); editor.updateShape<TLFrameShape>({ id: frame.id, type: 'frame', props: { w, h }, meta: { ...frame.meta, ratio: ratio ? w / h : null } }) }}>
+              <span className="ca-menu__grow">{label}</span><span className="ca-menu__key">{w} × {h}</span>
+            </button>
+          ))}
+        </div>
+      </Popover>
+      <Section title={t('frameToolbar.style')} icon={<span className="ca-tools__dot" style={{ background: style.fill || '#FFFFFF', borderRadius: Math.min(style.radius ?? 0, 6) }} />}>
+        <div className="ca-style__row">
+          <ColorPicker value={style.fill ?? ''} title={t('styleToolbars.fill')} allowNone onChange={(c) => setStyle({ fill: c })} />
+          <ColorPicker value={style.stroke ?? ''} title={t('styleToolbars.strokeColor')} allowNone onChange={(c) => setStyle({ stroke: c })} />
+          <Num label={t('styleToolbars.cornerRadius')} value={style.radius ?? 0} onChange={(v) => setStyle({ radius: v })} />
+        </div>
+      </Section>
       <div className="ca-bar__sep" />
       <div className="ca-panel__chips" title={t('frameToolbar.layout')}>
         <button type="button" className="ca-panel__chip" data-on={isAuto(frame) || undefined} onClick={() => setMeta({ layout: 'auto' })}>{t('common.auto')}</button>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { atom, useValue, type Editor, type TLShapeId } from 'tldraw'
 
+import { exportImage } from '../shapes/ArtboardShape'
 import { Icons } from './icons'
 import { t } from '../i18n'
 
@@ -18,7 +19,7 @@ export function Slideshow({ editor }: { editor: Editor }) {
     if (!id) return
     let alive = true
     let made: string | null = null
-    void editor.toImage([id], { format: 'png', scale: SCALE, background: true }).then(({ blob }) => {
+    void exportImage(editor, [id], { format: 'png', scale: SCALE, background: true }).then(({ blob }) => {
       if (!alive) return
       made = URL.createObjectURL(blob)
       setUrl(made)

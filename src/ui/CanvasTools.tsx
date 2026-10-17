@@ -7,7 +7,7 @@ import { sideAtom, type Side } from './SidePanel'
 import { t } from '../i18n'
 
 const DEFAULT_BG = '#F5F5F5'
-const DEFAULT_DARK_BG = '#1A1A1C'
+const DEFAULT_DARK_BG = '#1A1A1A'
 
 function Background() {
   const editor = useEditor()

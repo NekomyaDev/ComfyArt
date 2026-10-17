@@ -22,9 +22,12 @@ export function reveal(editor: Editor, src: string) {
 export function Thumb({ editor, src, onOpen }: { editor: Editor; src: string; onOpen?: () => void }) {
   const video = /\.(mp4|webm|mov)(&|$)/.test(src)
   return (
-    <button type="button" className="ca-chat__thumb" onClick={() => { onOpen?.(); reveal(editor, src) }}>
-      {video ? <video src={src} muted preload="metadata" /> : <img src={src} alt="" />}
-    </button>
+    <span className="ca-chat__thumbwrap">
+      <button type="button" className="ca-chat__thumb" onClick={() => { onOpen?.(); reveal(editor, src) }}>
+        {video ? <video src={src} muted preload="metadata" /> : <img src={src} alt="" />}
+      </button>
+      <a className="ca-chat__dl" href={src} download={new URL(src, location.origin).searchParams.get('filename') ?? ''} title={t('common.download')}>{Icons.download}</a>
+    </span>
   )
 }
 

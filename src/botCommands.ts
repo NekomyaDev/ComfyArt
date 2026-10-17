@@ -3,18 +3,21 @@ import { createShapeId, react, type Editor, type TLFrameShape, type TLImageShape
 import * as actions from './actions'
 import { api } from './comfy'
 import { placeHtml } from './embeds'
-import { createGenerator, DURATIONS, generate, genInfoOf, RATIOS, VIDEO_RATIOS } from './generate'
+import { createGenerator, DURATIONS, generate, genInfoOf, MAX_VIDEO_REFS, RATIOS, VIDEO_RATIOS } from './generate'
 import { type ErrorSink, errorText, jobOf, mediaAsset, resultsAtom } from './jobs'
 import { describeItem, itemImages, libraryAtom, linkedKit } from './library'
 import { correct, forget, memoryAtom, remember } from './memory'
 import { agentModels } from './models'
 import { buildSlides } from './slides'
+import { exportImage } from './shapes/ArtboardShape'
 import { COMMENT } from './shapes/CommentShape'
 import { HTML, type HtmlShape } from './shapes/EmbedShapes'
 import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import { TEXT, type TextShape } from './shapes/TextShape'
 import { VECTOR, type VectorShape } from './shapes/VectorShape'
 import { loadSkills, saveSkill } from './skills'
+import { vectorize } from './vectorize'
+import { VIDEO_TARGETS, type Crop } from './workflows'
 import { onComfyEvent } from './ws'
 import { t } from './i18n'
 import { uuid } from './id'
@@ -38,6 +41,18 @@ function imageOf(editor: Editor, id: unknown): TLImageShape {
   return shape as TLImageShape
 }
 
+function videoOf(editor: Editor, id: unknown): TLVideoShape {
+  const shape = shapeOf(editor, id)
+  if (shape.type !== 'video') throw new Error(`${shape.id} is a ${shape.type}, not a video`)
+  return shape as TLVideoShape
+}
+
+function regionOf(args: Args): Crop {
+  const r = { x: Number(args.x) || 0, y: Number(args.y) || 0, w: Number(args.width), h: Number(args.height) }
+  if (!(r.w > 0 && r.h > 0)) throw new Error('width and height must be positive image pixels')
+  return r
+}
+
 function mediaSrc(editor: Editor, shape: TLShape): string | null {
   return mediaAsset(editor, shape)?.props.src ?? null
 }
@@ -53,13 +68,14 @@ function describe(editor: Editor, shape: TLShape) {
   const parent = editor.getShape(shape.parentId as TLShapeId)
   const gen = genInfoOf(shape)
   const job = jobOf(shape)
+  const media = mediaAsset(editor, shape)
   return {
     id: shape.id,
     type: shape.type === GENERATOR ? (job ? 'generating' : 'generator') : shape.type,
     name: nameOf(editor, shape) || undefined,
     x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.w), height: Math.round(b.h),
     ...(parent?.type === 'frame' ? { frame: parent.id } : {}),
-    ...(mediaSrc(editor, shape) ? { url: mediaSrc(editor, shape) } : {}),
+    ...(media?.props.src ? { url: media.props.src, pixels: `${media.props.w}x${media.props.h}` } : {}),
     ...(gen?.prompt ? { prompt: gen.prompt.slice(0, 300) } : {}),
     ...(shape.type === GENERATOR ? { prompt: (shape as GeneratorShape).props.prompt.slice(0, 300) } : {}),
   }
@@ -117,9 +133,11 @@ function startGenerator(editor: Editor, video: boolean, args: Args, onError: Err
   const props = video
     ? { prompt: String(args.prompt), workflow: model.id, ratio: args.ratio ?? ratios[0], duration: DURATIONS.includes(args.duration) ? args.duration : DURATIONS[0] }
     : { prompt: String(args.prompt), workflow: model.id, ratio: args.ratio ?? '1:1', count: Math.min(4, Math.max(1, Number(args.count) || 1)) }
-  const refs = video ? refUrls(editor, args.first_frame ? [args.first_frame] : []) : refUrls(editor, args.refs)
+  const references = video && Array.isArray(args.reference_images) && args.reference_images.length > 0
+  const refs = !video ? refUrls(editor, args.refs) : references ? refUrls(editor, args.reference_images).slice(0, MAX_VIDEO_REFS) : refUrls(editor, args.first_frame ? [args.first_frame] : [])
   const meta = {
     quiet: true,
+    ...(references ? { videoMode: 'refs' } : {}),
     ...(refs.length ? { refs } : {}),
     ...(!video && args.base ? { base: refUrls(editor, [args.base])[0], strength: Number(args.base_strength) || 60 } : {}),
     ...(video && args.last_frame ? { lastFrame: refUrls(editor, [args.last_frame])[0] } : {}),
@@ -204,12 +222,12 @@ const HANDLERS: Record<string, Handler> = {
     const shapes = toPageShapes(editor, ids)
     const bounds = shapes.map((s) => editor.getShapePageBounds(s)!).reduce((a, b) => a.union(b))
     const maxPx = Math.min(2048, Number(args.max_px) || VIEW_MAX_PX)
-    const { blob, width, height } = await editor.toImage(ids, { format: 'png', background: true, scale: Math.min(1, maxPx / Math.max(bounds.w, bounds.h)) })
+    const { blob, width, height } = await exportImage(editor, ids, { format: 'png', background: true, scale: Math.min(1, maxPx / Math.max(bounds.w, bounds.h)) })
     return { width, height, bounds: { x: Math.round(bounds.x), y: Math.round(bounds.y), width: Math.round(bounds.w), height: Math.round(bounds.h) }, png: await blobBase64(blob) }
   },
   list_models: () => ({
     image: agentModels(false).map((m) => ({ id: m.id, label: m.label, desc: m.desc, accepts_refs: !!m.refs, ratios: RATIOS })),
-    video: agentModels(true).map((m) => ({ id: m.id, label: m.label, desc: m.desc, accepts_first_frame: true, ratios: VIDEO_RATIOS, durations: DURATIONS })),
+    video: agentModels(true).map((m) => ({ id: m.id, label: m.label, desc: m.desc, accepts_first_frame: true, max_reference_images: MAX_VIDEO_REFS, ratios: VIDEO_RATIOS, durations: DURATIONS })),
   }),
   brand_kits: (editor) => {
     const linked = linkedKit(editor.getDocumentSettings().meta.brandKit)
@@ -233,11 +251,21 @@ const HANDLERS: Record<string, Handler> = {
   split_layers: (editor, args, onError) => started(editor, actions.splitLayers(editor, imageOf(editor, args.id), Math.min(8, Math.max(2, Number(args.layers) || 4)), String(args.prompt ?? ''), onError)),
   change_angle: (editor, args, onError) => started(editor, actions.angles(editor, imageOf(editor, args.id), Number(args.horizontal) || 0, Number(args.vertical) || 0, Number(args.zoom) || 1, onError)),
   replace_text: (editor, args, onError) => started(editor, actions.editText(editor, imageOf(editor, args.id), [[String(args.from), String(args.to)]], onError)),
-  extend_video: (editor, args, onError) => {
-    const shape = shapeOf(editor, args.id)
-    if (shape.type !== 'video') throw new Error(`${shape.id} is not a video`)
-    return started(editor, actions.extendVideo(editor, shape as TLVideoShape, String(args.prompt), DURATIONS.includes(args.duration) ? args.duration : DURATIONS[0], onError))
+  edit_region: (editor, args, onError) => started(editor, actions.editRegion(editor, imageOf(editor, args.id), regionOf(args), String(args.prompt), onError)),
+  erase_region: (editor, args, onError) => started(editor, actions.eraseRegion(editor, imageOf(editor, args.id), regionOf(args), onError)),
+  move_object: (editor, args, onError) => {
+    if (!args.object && (args.x == null || args.y == null)) throw new Error('give object (what to move) or x/y (a point on it, image pixels)')
+    const target = args.object ? { text: String(args.object) } : { x: Number(args.x), y: Number(args.y) }
+    return started(editor, actions.moveTarget(editor, imageOf(editor, args.id), target, Number(args.dx) || 0, Number(args.dy) || 0, onError))
   },
+  style_transfer: (editor, args, onError) => started(editor, actions.styleTransfer(editor, imageOf(editor, args.id), String(args.style ?? ''), args.ref ? refUrls(editor, [args.ref])[0] : null, onError)),
+  vectorize_image: async (editor, args) => ({ id: await vectorize(editor, imageOf(editor, args.id)) }),
+  extend_video: (editor, args, onError) => started(editor, actions.extendVideo(editor, videoOf(editor, args.id), String(args.prompt), DURATIONS.includes(args.duration) ? args.duration : DURATIONS[0], onError)),
+  upscale_video: (editor, args, onError) => {
+    const long = (VIDEO_TARGETS.find(([label]) => label === args.target) ?? VIDEO_TARGETS[0])[1]
+    return started(editor, actions.upscaleVideo(editor, videoOf(editor, args.id), long, onError))
+  },
+  remove_video_background: (editor, args, onError) => started(editor, actions.cutoutVideo(editor, videoOf(editor, args.id), onError)),
   wait_generation: (editor, args) => waitResults(editor, (args.ids ?? []).map(String), Number(args.timeout_s) || 60),
   place_html: (editor, args) => {
     const id = placeHtml(editor, String(args.html), String(args.name ?? t('botCommands.webPage')))
@@ -276,7 +304,7 @@ const HANDLERS: Record<string, Handler> = {
     const center = editor.getViewportPageBounds().center
     editor.createShape<VectorShape>({
       id, type: VECTOR, x: Number(args.x ?? center.x), y: Number(args.y ?? center.y),
-      props: { kind: args.kind, w: Number(args.width) || 200, h: Number(args.height) || 200, ...(args.fill ? { fill: String(args.fill) } : {}), ...(args.stroke ? { stroke: String(args.stroke) } : {}), ...(args.sides ? { sides: Number(args.sides) } : {}) },
+      props: { kind: args.kind, w: Number(args.width) || 200, h: Number(args.height) || 200, ...(args.fill ? { fill: String(args.fill) } : {}), stroke: args.stroke ? String(args.stroke) : '', ...(args.sides ? { sides: Number(args.sides) } : {}) },
     })
     if (args.frame) editor.reparentShapes([id], shapeOf(editor, args.frame).id)
     return { id }

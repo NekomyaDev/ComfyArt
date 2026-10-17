@@ -111,6 +111,33 @@ async def maybe_ask_run_approval(action: str) -> dict | None:
                     "answered — nothing ran; ask the user whether to run it"}
 
 
+async def update_plan(args: dict) -> dict:
+    steps = args.get("steps")
+    if not isinstance(steps, list) or not steps:
+        raise ValueError("steps must be a non-empty array")
+    return {"ok": True}
+
+
+PLAN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "steps": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string"},
+                    "status": {"type": "string", "enum": ["pending", "active", "done"]},
+                },
+                "required": ["text", "status"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["steps"],
+    "additionalProperties": False,
+}
+
 ASK_USER_SCHEMA = {
     "type": "object",
     "properties": {
@@ -149,5 +176,16 @@ TOOLS: dict[str, dict] = {
         ),
         "inputSchema": ASK_USER_SCHEMA,
         "handler": ask_user,
+    },
+    "update_plan": {
+        "description": (
+            "Show the user your plan for a task with several steps as a "
+            "checklist in the chat. Call it before starting with every step "
+            "pending (or the first active), then again with the full list "
+            "whenever a step becomes active or done. Skip it for one-step "
+            "requests."
+        ),
+        "inputSchema": PLAN_SCHEMA,
+        "handler": update_plan,
     },
 }

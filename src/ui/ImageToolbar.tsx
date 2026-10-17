@@ -18,13 +18,14 @@ import { UpscaleMenu } from './UpscaleMenu'
 import { useSelectedImage, useSelectionRect } from './selection'
 import { t } from '../i18n'
 import { copyText } from '../clipboard'
+import { isEnter } from './keys'
 
 const GAP = 22
 const EDGE = 8
 const AUTO_LAYERS = 4
 const BAR_KEY = 'comfyart.toolbar'
-const DEFAULT_PINNED = ['quick', 'upscale', 'cutout', 'erase', 'layers', 'text', 'angles', 'animate']
-const ALL_TOOLS = ['quick', 'upscale', 'layers', 'cutout', 'erase', 'text', 'angles', 'animate', 'expand', 'inpaint', 'style', 'move', 'ocr', 'crop', 'adjust', 'effects', 'smudge', 'vectorize', 'flipH', 'flipV', 'rotate', 'regenerate', 'remix', 'copyPrompt', 'info', 'preview', 'export']
+const DEFAULT_PINNED = ['quick', 'upscale', 'cutout', 'erase']
+const ALL_TOOLS = ['quick', 'upscale', 'cutout', 'erase', 'layers', 'text', 'angles', 'animate', 'move', 'expand', 'adjust', 'crop', 'vectorize', 'transform', 'inpaint', 'style', 'ocr', 'effects', 'smudge', 'regenerate', 'remix', 'copyPrompt', 'info', 'preview', 'export']
 
 interface BarPrefs { pinned: string[]; names: boolean; seen: string[] }
 
@@ -71,6 +72,26 @@ function Item({ icon, label, onClick }: { icon: ReactNode; label: string; onClic
     <button type="button" className="ca-menu__item" onClick={onClick}>
       <span className="ca-icon">{icon}</span><span>{label}</span>
     </button>
+  )
+}
+
+function TransformMenu({ editor, shape }: { editor: Editor; shape: TLImageShape }) {
+  const deg = Math.round((((shape.rotation * 180) / Math.PI) % 360 + 360) % 360)
+  const [text, setText] = useState(String(deg))
+  useEffect(() => setText(String(deg)), [deg])
+  const rotateTo = (d: number) => editor.rotateShapesBy([shape.id], (d * Math.PI) / 180 - shape.rotation)
+  const commit = () => (Number.isFinite(Number(text)) && text.trim() ? rotateTo(Number(text)) : setText(String(deg)))
+  return (
+    <div className="ca-menu ca-transform">
+      <button type="button" className="ca-bar__btn" title={t('common.flipHorizontal')} onClick={() => editor.flipShapes([shape.id], 'horizontal')}><span className="ca-icon">{Icons.flipH}</span></button>
+      <button type="button" className="ca-bar__btn" title={t('common.flipVertical')} onClick={() => editor.flipShapes([shape.id], 'vertical')}><span className="ca-icon">{Icons.flipV}</span></button>
+      <button type="button" className="ca-bar__btn" title={t('imageToolbar.rotateLeft')} onClick={() => rotateTo(deg - 90)}><span className="ca-icon ca-transform__ccw">{Icons.rotate}</span></button>
+      <button type="button" className="ca-bar__btn" title={t('canvasMenu.rotate90')} onClick={() => rotateTo(deg + 90)}><span className="ca-icon">{Icons.rotate}</span></button>
+      <div className="ca-bar__sep" />
+      <label className="ca-crop__field" title={t('imageToolbar.angle')}>
+        <input className="ca-crop__input" value={text} inputMode="numeric" onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { e.stopPropagation(); if (isEnter(e)) commit() }} />°
+      </label>
+    </div>
   )
 }
 
@@ -171,9 +192,7 @@ export function ImageToolbar({ onError }: { onError: (msg: string) => void }) {
     { id: 'effects', icon: Icons.effects, label: t('common.effects'), run: mode$('effects') },
     { id: 'smudge', icon: Icons.doodle, label: t('common.smudge'), run: mode$('smudge') },
     { id: 'vectorize', icon: Icons.polygon, label: t('imageToolbar.vectorize'), run: () => void vectorize(editor, shape).catch((e) => onError(String(e))) },
-    { id: 'flipH', icon: Icons.flipH, label: t('common.flipHorizontal'), run: () => editor.flipShapes([shape.id], 'horizontal') },
-    { id: 'flipV', icon: Icons.flipV, label: t('common.flipVertical'), run: () => editor.flipShapes([shape.id], 'vertical') },
-    { id: 'rotate', icon: Icons.rotate, label: t('canvasMenu.rotate90'), run: () => editor.rotateShapesBy([shape.id], Math.PI / 2) },
+    { id: 'transform', icon: Icons.rotate, label: t('imageToolbar.flipAndRotate'), menu: <TransformMenu editor={editor} shape={shape} /> },
     { id: 'regenerate', icon: Icons.replace, label: t('common.regenerate'), run: () => void regenerate(editor, shape, onError), when: !!genInfo?.prompt },
     { id: 'remix', icon: Icons.genImage, label: t('imageToolbar.remix'), run: () => remix(editor, shape), when: !!genInfo?.prompt },
     { id: 'copyPrompt', icon: Icons.skill, label: t('imageToolbar.copyPrompt'), run: () => void copyText(genInfo!.prompt!), when: !!genInfo?.prompt },
@@ -181,7 +200,7 @@ export function ImageToolbar({ onError }: { onError: (msg: string) => void }) {
     { id: 'preview', icon: Icons.preview, label: t('canvasMenu.viewLarger'), run: () => lightboxAtom.set(shape.id) },
     { id: 'export', icon: Icons.export, label: t('canvasMenu.export'), run: () => exportAtom.set([shape.id]) },
   ]
-  const usable = tools.filter((t) => t.when !== false)
+  const usable = tools.filter((t) => t.when !== false).sort((a, b) => ALL_TOOLS.indexOf(a.id) - ALL_TOOLS.indexOf(b.id))
   const pinned = usable.filter((t) => prefs.pinned.includes(t.id))
   const unpinned = usable.filter((t) => !prefs.pinned.includes(t.id))
   const barTool = (t: Tool) => (t.menu
@@ -196,7 +215,7 @@ export function ImageToolbar({ onError }: { onError: (msg: string) => void }) {
   return (
     <div ref={bar} className="ca-bar ca-toolbar" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>
       {pinned.map(barTool)}
-      <Popover open={menu === 'more'} onOpenChange={toggle('more')} align="end" trigger={({ open, toggle: flip }) => <Btn icon={Icons.more} hint={t('imageToolbar.more')} open={open} onClick={flip} />}>
+      <Popover open={menu === 'more'} onOpenChange={toggle('more')} align="end" contentKey={customize ? 'customize' : inMore ?? ''} trigger={({ open, toggle: flip }) => <Btn icon={Icons.more} hint={t('imageToolbar.more')} open={open} onClick={flip} />}>
         {customize ? (
           <div className="ca-menu ca-customize">
             <div className="ca-gen__label">{t('imageToolbar.chooseToolsToShowOn')}</div>

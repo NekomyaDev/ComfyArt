@@ -45,4 +45,5 @@ export async function vectorize(editor: Editor, shape: TLImageShape) {
   const b = editor.getShapePageBounds(shape)!
   const id = placeMedia(editor, { ref, src: viewUrl(ref), w: c.width, h: c.height, kind: 'image' }, t('vectorize.vector', asset.props.name), b.maxX + GAP, b.y, b.w)
   editor.select(id)
+  return id
 }

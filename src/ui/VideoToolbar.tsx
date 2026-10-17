@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useEditor, type TLVideoShape } from 'tldraw'
 
 import * as actions from '../actions'
-import { DURATIONS } from '../generate'
+import { DURATIONS, genInfoOf, remix } from '../generate'
 import { VIDEO_TARGETS } from '../workflows'
 import { Icons } from './icons'
 import { Popover } from './Popover'
@@ -128,6 +128,14 @@ export function VideoToolbar({ onError }: { onError: Err }) {
           })}
         </div>
       </Popover>
+      <button type="button" className="ca-bar__btn" onClick={() => actions.cutoutVideo(editor, shape, onError)}>
+        <span className="ca-icon">{Icons.cutout}</span><span>{t('common.removeBackground')}</span>
+      </button>
+      {genInfoOf(shape)?.prompt && (
+        <button type="button" className="ca-bar__btn" onClick={() => remix(editor, shape)}>
+          <span className="ca-icon">{Icons.genVideo}</span><span>{t('imageToolbar.remix')}</span>
+        </button>
+      )}
       <div className="ca-bar__sep" />
       <a className="ca-bar__btn" href={src} download={name} title={t('common.download')}>
         <span className="ca-icon">{Icons.download}</span>

@@ -7,7 +7,7 @@ import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import { agentModels, isVideo, modelOf } from './models'
 import { applyRefs, PALETTE_MODE, refHints, refModesOf, refStrengthsOf, usableRefs } from './refModes'
 import { paletteImage, palettePrompt } from './palette'
-import { annotated, imageToVideoGraph, storyboardGraph, t2vGraph, videoSize, type Built, type Scene } from './workflows'
+import { annotated, imageToVideoGraph, r2vGraph, storyboardGraph, t2vGraph, VIDEO_AREAS, videoSize, type Built, type Scene } from './workflows'
 import { t } from './i18n'
 
 export const RESOLUTIONS = ['1K', '2K', 'custom']
@@ -32,10 +32,14 @@ export const STYLES: [string, string, string][] = [
 ]
 export const RATIOS = ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '4:5', '5:4', '21:9']
 export const VIDEO_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9']
-export const DURATIONS = [5, 10]
+export const DURATIONS = [5, 10, 15]
+export const VIDEO_RESOLUTIONS = Object.keys(VIDEO_AREAS)
+export const MAX_VIDEO_REFS = 9
+
+export type VideoMode = 'frames' | 'refs'
+export const videoModeOf = (shape: GeneratorShape): VideoMode => (shape.meta.videoMode === 'refs' ? 'refs' : 'frames')
 
 const SHORT_SIDE: Record<string, number> = { '1K': 1024, '2K': 2048 }
-const CARD_LONG = 512
 const GAP = 40
 const [PROMPT, LATENT, RESULT] = ['6', '5', '9']
 
@@ -52,15 +56,10 @@ const snap16 =(v: number) => Math.round(v / 16) * 16
 
 export function targetSize({ ratio, resolution, workflow, cw, ch }: GeneratorShape['props']): [number, number] {
   const r = ratioOf(ratio)
-  if (isVideo(workflow)) return videoSize(r)
+  if (isVideo(workflow)) return videoSize(r, VIDEO_AREAS[resolution] ?? VIDEO_AREAS['768p'])
   if (resolution === 'custom') return [snap16(cw), snap16(ch)]
   const short = SHORT_SIDE[resolution] ?? 1024
   return r >= 1 ? [snap16(short * r), short] : [short, snap16(short / r)]
-}
-
-export function cardSize(ratio: string): [number, number] {
-  const r = ratioOf(ratio)
-  return r >= 1 ? [CARD_LONG, CARD_LONG / r] : [CARD_LONG * r, CARD_LONG]
 }
 
 function freeSpot(editor: Editor, w: number, h: number): [number, number] {
@@ -78,9 +77,9 @@ function freeSpot(editor: Editor, w: number, h: number): [number, number] {
 export function createGenerator(editor: Editor, video = false, props: Partial<GeneratorShape['props']> = {}, focus = true): TLShapeId {
   const id = createShapeId()
   const ratio = props.ratio ?? (video ? VIDEO_RATIOS[0] : '1:1')
-  const [w, h] = cardSize(ratio)
-  const [x, y] = freeSpot(editor, w, h)
   const workflow = props.workflow || agentModels(video)[0].id
+  const [w, h] = targetSize({ ...editor.getShapeUtil<GeneratorShape>(GENERATOR).getDefaultProps(), ...props, ratio, workflow })
+  const [x, y] = freeSpot(editor, w, h)
   editor.createShape({ id, type: GENERATOR, x, y, props: { ...props, w, h, ratio, workflow } })
   if (focus) {
     editor.setCurrentTool('select')
@@ -140,10 +139,12 @@ async function generateGraph(shape: GeneratorShape): Promise<Built> {
     if (scenes.length) {
       return storyboardGraph(scenes.map((sc) => ({ ...sc, prompt: [sc.prompt, suffix].filter(Boolean).join(', ') })), ratioOf(ratio), refs[0] ? annotated(refs[0]) : null)
     }
+    const area = VIDEO_AREAS[shape.props.resolution] ?? VIDEO_AREAS['768p']
+    if (videoModeOf(shape) === 'refs' && refs.length) return r2vGraph(refs.map(annotated), prompt, ratioOf(ratio), duration, area)
     const last = lastFrameOf(shape)
     return refs.length || last
-      ? imageToVideoGraph(refs[0] ? annotated(refs[0]) : null, prompt, ratioOf(ratio), duration, last ? annotated(last) : null)
-      : t2vGraph(prompt, ratioOf(ratio), duration)
+      ? imageToVideoGraph(refs[0] ? annotated(refs[0]) : null, prompt, ratioOf(ratio), duration, last ? annotated(last) : null, area)
+      : t2vGraph(prompt, ratioOf(ratio), duration, area)
   }
   const [width, height] = targetSize(shape.props)
   if (!model) throw new Error('unknown image model')

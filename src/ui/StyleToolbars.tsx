@@ -31,7 +31,7 @@ function Chips({ value, options, onPick }: { value: string; options: [string, st
   )
 }
 
-function Section({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+export function Section({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
     <Popover
@@ -84,7 +84,7 @@ function Pick<T extends string | number>({ value, options, label, onPick, width 
   )
 }
 
-function Num({ value, label, onChange, min = 0 }: { value: number; label: string; onChange: (v: number) => void; min?: number }) {
+export function Num({ value, label, onChange, min = 0 }: { value: number; label: string; onChange: (v: number) => void; min?: number }) {
   return (
     <label className="ca-num">
       <span>{label}</span>

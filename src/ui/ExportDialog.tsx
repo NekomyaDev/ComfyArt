@@ -4,6 +4,7 @@ import { atom, useValue, type Editor, type TLShapeId } from 'tldraw'
 import { errorText } from '../jobs'
 import { exportPptx } from '../pptx'
 import { download } from '../psd'
+import { exportImage } from '../shapes/ArtboardShape'
 import { Icons } from './icons'
 import { t } from '../i18n'
 
@@ -58,10 +59,10 @@ export function ExportDialog({ editor, onError }: { editor: Editor; onError: (ms
       if (format === 'pptx' || format === 'pptx-text') {
         await exportPptx(editor, ids, format === 'pptx-text', scale, name)
       } else if (format === 'pdf') {
-        const { blob, width, height } = await editor.toImage(ids, { format: 'jpeg', scale, background: true })
+        const { blob, width, height } = await exportImage(editor, ids, { format: 'jpeg', scale, background: true })
         download(pdfFromJpeg(new Uint8Array(await blob.arrayBuffer()), Math.round(width), Math.round(height)), `${name}.pdf`)
       } else {
-        const { blob } = await editor.toImage(ids, { format, scale, background: background || format === 'jpeg' })
+        const { blob } = await exportImage(editor, ids, { format, scale, background: background || format === 'jpeg' })
         download(blob, `${name}.${format === 'jpeg' ? 'jpg' : format}`)
       }
       close()

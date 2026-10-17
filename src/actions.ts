@@ -5,7 +5,7 @@ import { queuePrompt, uploadImage, viewUrl, waitForImages } from './comfy'
 import type { CommentShape } from './shapes/CommentShape'
 import { resultsAtom, spawnHolder, startJob, type ErrorSink, type MediaKind } from './jobs'
 import { notify } from './notices'
-import { animateGraph, annotated, anglesGraph, creativeUpscaleGraph, cutoutGraph, editGraph, eraseGraph, expandGraph, extendGraph, layersGraph, moveGraph, samGraph, styleGraph, upscaleVideoGraph, touchGraph, upscaleGraph, type Built, type Crop } from './workflows'
+import { animateGraph, annotated, anglesGraph, creativeUpscaleGraph, cutoutGraph, cutoutVideoGraph, editGraph, eraseGraph, expandGraph, extendGraph, layersGraph, moveGraph, samGraph, styleGraph, upscaleVideoGraph, touchGraph, upscaleGraph, type Built, type Crop } from './workflows'
 import { t } from './i18n'
 
 export interface Pads { l: number; t: number; r: number; b: number }
@@ -73,7 +73,10 @@ export const animate = (e: Editor, s: TLImageShape, prompt: string, err: ErrorSi
 export const upscaleVideo = (e: Editor, s: TLVideoShape, long: number, err: ErrorSink) =>
   run(e, s, t('actions.upscaleVideo'), err, (src) => upscaleVideoGraph(src.image, src.w, src.h, long), { kind: 'video' })
 
-export const extendVideo = (e: Editor, s: TLVideoShape, prompt: string, duration: number, err: ErrorSink) =>
+export const cutoutVideo = (e: Editor, s: TLVideoShape, err: ErrorSink) =>
+  run(e, s, t('common.removeBackground'), err, async (src) => cutoutVideoGraph(src.image), { kind: 'video' })
+
+export const extendVideo =(e: Editor, s: TLVideoShape, prompt: string, duration: number, err: ErrorSink) =>
   run(e, s, t('common.extendVideo'), err, (src) => extendGraph(src.image, src.w, src.h, prompt, duration), { kind: 'video' })
 
 export const styleTransfer = (e: Editor, s: TLImageShape, style: string, ref: string | null, err: ErrorSink) =>
@@ -110,11 +113,14 @@ export async function maskFile(w: number, h: number, paint: (ctx: CanvasRenderin
   return `${ref.subfolder ? `${ref.subfolder}/` : ''}${ref.filename} [${ref.type}]`
 }
 
+const eraseWith = (e: Editor, s: TLImageShape, err: ErrorSink, paint: (ctx: CanvasRenderingContext2D, src: Source) => void) =>
+  run(e, s, t('common.eraser'), err, async (src) => eraseGraph(src.image, await maskFile(src.w, src.h, (ctx) => paint(ctx, src))))
+
 export const erase = (e: Editor, s: TLImageShape, strokes: Stroke[], err: ErrorSink) =>
-  run(e, s, t('common.eraser'), err, async (src) => {
-    const mask = await maskFile(src.w, src.h, (ctx) => drawStrokes(ctx, strokes, src.w, src.h))
-    return eraseGraph(src.image, mask)
-  })
+  eraseWith(e, s, err, (ctx, src) => drawStrokes(ctx, strokes, src.w, src.h))
+
+export const eraseRegion = (e: Editor, s: TLImageShape, r: Crop, err: ErrorSink) =>
+  eraseWith(e, s, err, (ctx) => ctx.fillRect(r.x, r.y, r.w, r.h))
 
 const TOUCH_PAD = 0.25
 const TOUCH_MIN = 384
@@ -146,6 +152,22 @@ export function inpaint(e: Editor, shape: TLImageShape, mask: HTMLCanvasElement,
   return holder
 }
 
+export function editRegion(e: Editor, shape: TLImageShape, region: Crop, prompt: string, err: ErrorSink) {
+  const src = source(e, shape)
+  if (!src) return
+  const crop = cropAround(region, src.w, src.h)
+  const feather = Math.max(4, Math.min(crop.w, crop.h) * 0.04)
+  const holder = spawnHolder(e, shape)
+  void startJob(e, holder, (async () => {
+    const mask = await maskFile(crop.w, crop.h, (ctx) => {
+      ctx.filter = `blur(${feather}px)`
+      ctx.fillRect(region.x - crop.x, region.y - crop.y, region.w, region.h)
+    })
+    return touchGraph(src.image, crop, mask, prompt)
+  })(), { name: t('actions.localEdit', src.name) }, err)
+  return holder
+}
+
 export function moveObject(e: Editor, shape: TLImageShape, mask: HTMLCanvasElement, dx: number, dy: number, err: ErrorSink) {
   const src = source(e, shape)
   const bounds = maskBounds(mask)
@@ -157,6 +179,22 @@ export function moveObject(e: Editor, shape: TLImageShape, mask: HTMLCanvasEleme
   void startJob(e, holder, (async () => {
     const file = await maskFile(src.w, src.h, (ctx) => ctx.drawImage(mask, 0, 0, src.w, src.h))
     return moveGraph(src.image, file, from, to)
+  })(), { name: t('actions.moveObject', src.name) }, err)
+  return holder
+}
+
+export function moveTarget(e: Editor, shape: TLImageShape, target: { text: string } | { x: number; y: number }, dx: number, dy: number, err: ErrorSink) {
+  const src = source(e, shape)
+  if (!src) return
+  const holder = spawnHolder(e, shape)
+  void startJob(e, holder, (async () => {
+    const sam = samGraph(src.image, target)
+    const [ref] = await waitForImages(await queuePrompt(sam.graph), sam.result)
+    const mask = lumaToAlpha(await loadImage(viewUrl(ref)), src.w, src.h)
+    const from = maskBounds(mask)
+    if (!from) throw new Error(t('actions.noObjectFound'))
+    const file = await maskFile(src.w, src.h, (ctx) => ctx.drawImage(mask, 0, 0))
+    return moveGraph(src.image, file, from, { x: Math.round(from.x + dx), y: Math.round(from.y + dy) })
   })(), { name: t('actions.moveObject', src.name) }, err)
   return holder
 }
@@ -226,21 +264,27 @@ export function imageUnder(editor: Editor, box: Box): TLImageShape | null {
   return hits.at(-1) ?? null
 }
 
-export function touchEdit(e: Editor, comment: CommentShape, err: ErrorSink) {
+export function commentTarget(e: Editor, comment: CommentShape) {
   const box = e.getShapePageBounds(comment)!
   const shape = imageUnder(e, box)
-  if (!shape) return
-  const src = source(e, shape)
-  if (!src) return
+  const src = shape && source(e, shape)
+  if (!shape || !src) return null
   const b = e.getShapePageBounds(shape)!
   const k = src.w / b.w
-  const { kind, path } = comment.props
   const mark = markOf(comment)
-  const marked = kind === 'point' && !!mark && typeof mark === 'object' ? mark : null
+  const marked = comment.props.kind === 'point' && !!mark && typeof mark === 'object' ? mark : null
   const side = Math.min(src.w, src.h) * TOUCH_POINT
-  const region = marked ? marked.box : kind === 'point'
+  const region: Crop = marked ? marked.box : comment.props.kind === 'point'
     ? { x: (box.center.x - b.x) * k - side / 2, y: (box.center.y - b.y) * k - side / 2, w: side, h: side }
     : { x: (box.x - b.x) * k, y: (box.y - b.y) * k, w: box.w * k, h: box.h * k }
+  return { shape, src, marked, region }
+}
+
+export function touchEdit(e: Editor, comment: CommentShape, err: ErrorSink) {
+  const target = commentTarget(e, comment)
+  if (!target) return
+  const { shape, src, marked, region } = target
+  const { kind, path } = comment.props
   const crop = cropAround(region, src.w, src.h)
   const [cw, ch] = [crop.w, crop.h]
   const feather = Math.max(4, Math.min(cw, ch) * 0.04)

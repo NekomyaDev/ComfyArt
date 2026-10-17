@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Box, createShapeId, useEditor, useValue } from 'tldraw'
 
 import { extraPointsOf, imageUnder, markObject, markOf, touchEdit } from '../actions'
-import { draftAtom } from '../agent'
+import { commentsToChat } from '../agent'
 import { COMMENT, COMMENT_SIZE, type CommentShape } from '../shapes/CommentShape'
 import { Icons } from './icons'
 import { useElementSize, useOnlySelected, useSelectionRect } from './selection'
@@ -101,7 +101,7 @@ export function CommentPanel({ onError }: { onError: (msg: string) => void }) {
           type="button"
           className="ca-panel__secondary"
           disabled={!value.trim()}
-          onClick={() => draftAtom.set(`${draftAtom.get()}${draftAtom.get() ? '\n' : ''}${value.trim()}`)}
+          onClick={() => commentsToChat(editor, [shape])}
         >
           {t('libraryPanel.addToChat')}
         </button>

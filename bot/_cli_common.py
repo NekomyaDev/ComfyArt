@@ -36,7 +36,11 @@ AGENT_GUIDE = (
     "images.\n"
     "- Edit an existing image by shape id: edit_image, upscale_image, "
     "remove_background, expand_image, split_layers, change_angle, "
-    "replace_text, animate_image; extend_video for videos.\n"
+    "replace_text, animate_image, edit_region / erase_region (a region in "
+    "image pixels), move_object, style_transfer, vectorize_image; extend_video, "
+    "upscale_video, remove_video_background for videos.\n"
+    "- For a task with several steps, show the plan with update_plan and "
+    "keep it current as steps finish.\n"
     "- Layout: create_frame for artboards, add_text, add_shape, update_shapes "
     "to move, resize or restyle, delete_shapes, focus to show the user. "
     "place_html puts a complete web page you write on the canvas; "
@@ -70,7 +74,14 @@ CORE_MCP_TOOLS = [
     "split_layers",
     "change_angle",
     "replace_text",
+    "edit_region",
+    "erase_region",
+    "move_object",
+    "style_transfer",
+    "vectorize_image",
     "extend_video",
+    "upscale_video",
+    "remove_video_background",
     "wait_generation",
     "place_html",
     "create_slides",
@@ -83,6 +94,7 @@ CORE_MCP_TOOLS = [
     "memory",
     "skill",
     "ask_user",
+    "update_plan",
 ]
 
 COMFY_MCP_ALLOWED_TOOLS = [

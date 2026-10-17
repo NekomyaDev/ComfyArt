@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { Editor } from 'tldraw'
 
 import { answerAsk, outputsOf, toolLabel, toolName, type BotBlock, type BotMessage } from '../bot'
@@ -11,7 +11,7 @@ import { Thumb } from './TaskDetails'
 import { t } from '../i18n'
 import { copyText } from '../clipboard'
 
-const GEN_TOOLS = new Set(['generate_image', 'generate_video', 'edit_image', 'animate_image', 'upscale_image', 'remove_background', 'expand_image', 'split_layers', 'change_angle', 'replace_text', 'extend_video', 'create_slides'])
+const GEN_TOOLS = new Set(['generate_image', 'generate_video', 'edit_image', 'animate_image', 'upscale_image', 'remove_background', 'expand_image', 'split_layers', 'change_angle', 'replace_text', 'edit_region', 'erase_region', 'move_object', 'style_transfer', 'extend_video', 'upscale_video', 'remove_video_background', 'create_slides'])
 
 export function textOf(m: BotMessage): string {
   return m.blocks.filter((b) => b.type === 'text').map((b) => b.text ?? '').join('').trim()
@@ -25,9 +25,9 @@ function summary(b: BotBlock): string {
   return String(input.prompt ?? input.text ?? input.name ?? input.title ?? '').slice(0, 80)
 }
 
-function Step({ editor, use, result }: { editor: Editor; use: BotBlock; result?: BotBlock }) {
+function Step({ editor, use, result, thumbs = true }: { editor: Editor; use: BotBlock; result?: BotBlock; thumbs?: boolean }) {
   const [open, setOpen] = useState(false)
-  const outputs = result ? outputsOf([result]) : []
+  const outputs = result && thumbs ? outputsOf([result]) : []
   const state = !result ? t('chatMessage.inProgress') : result.status === 'error' ? t('chatMessage.failed') : result.duration_ms != null ? `${(result.duration_ms / 1000).toFixed(1)}s` : ''
   return (
     <div className="ca-chat__tool" data-error={result?.status === 'error' || undefined}>
@@ -97,20 +97,74 @@ function Task({ editor, b }: { editor: Editor; b: BotBlock }) {
   )
 }
 
+function Plan({ b, live }: { b: BotBlock; live: boolean }) {
+  const steps: { text?: string; status?: string }[] = Array.isArray(b.input?.steps) ? b.input.steps : []
+  const done = steps.filter((s) => s.status === 'done').length
+  return (
+    <div className="ca-plan" data-live={live || undefined}>
+      <div className="ca-plan__head"><span>{t('bot.plan')}</span><span className="ca-chat__status">{done}/{steps.length}</span></div>
+      {steps.map((s, i) => (
+        <div key={i} className="ca-plan__step" data-status={s.status}>
+          <span className="ca-plan__mark">{s.status === 'done' && Icons.check}</span>
+          <span>{s.text}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+type Pair = { use: BotBlock; result?: BotBlock; i: number }
+
+function StepGroup({ editor, steps }: { editor: Editor; steps: Pair[] }) {
+  const [open, setOpen] = useState(false)
+  const failed = steps.filter((s) => s.result?.status === 'error').length
+  return (
+    <div className="ca-chat__tool" data-open={open || undefined}>
+      <button type="button" className="ca-chat__step" onClick={() => setOpen(!open)}>
+        <span className="ca-icon">{failed ? Icons.close : Icons.check}</span>
+        <span>{t('chatMessage.usedTools', steps.length)}</span>
+        <span className="ca-chat__arg">{[...new Set(steps.map((s) => toolLabel(s.use.name)))].join(t('common.listSep'))}</span>
+        <span className="ca-chat__chev ca-icon">{Icons.chevron}</span>
+      </button>
+      {open && <div className="ca-chat__group">{steps.map((s) => <Step key={s.i} editor={editor} use={s.use} result={s.result} thumbs={false} />)}</div>}
+    </div>
+  )
+}
+
 export function AssistantBlocks({ editor, m }: { editor: Editor; m: BotMessage }) {
   const results = new Map(m.blocks.filter((b) => b.type === 'tool_result' && b.id).map((b) => [b.id, b]))
-  return (
-    <>
-      {m.blocks.map((b, i) => {
-        if (b.type === 'text') return <Markdown key={i} text={b.text ?? ''} />
-        if (b.type === 'tool_use') return <Step key={i} editor={editor} use={b} result={b.id ? results.get(b.id) : m.blocks[i + 1]?.type === 'tool_result' ? m.blocks[i + 1] : undefined} />
-        if (b.type === 'ask') return <Ask key={b.ask_id ?? i} b={b} />
-        if (b.type === 'task') return <Task key={i} editor={editor} b={b} />
-        if (b.type === 'notice') return <div key={i} className="ca-chat__notice" data-level={b.level}>{b.text}</div>
-        return null
-      })}
-    </>
-  )
+  const resultOf = (b: BotBlock, i: number) => (b.id ? results.get(b.id) : m.blocks[i + 1]?.type === 'tool_result' ? m.blocks[i + 1] : undefined)
+  const isPlan = (b: BotBlock) => b.type === 'tool_use' && toolName(b.name) === 'update_plan'
+  const plan = m.blocks.filter(isPlan).at(-1)
+  const done = m.status !== 'streaming'
+  const outputs = done ? outputsOf(m.blocks.filter((b) => b.type !== 'task')) : []
+  const items: ReactNode[] = []
+  let run: Pair[] = []
+  const flush = () => {
+    if (run.length > 1) items.push(<StepGroup key={`g${run[0].i}`} editor={editor} steps={run} />)
+    else if (run.length) items.push(<Step key={run[0].i} editor={editor} use={run[0].use} result={run[0].result} thumbs={false} />)
+    run = []
+  }
+  let planShown = false
+  m.blocks.forEach((b, i) => {
+    if (isPlan(b)) {
+      if (planShown) return
+      planShown = true
+      flush()
+      items.push(<Plan key={`p${i}`} b={plan!} live={!done} />)
+    } else if (b.type === 'tool_use' && done) run.push({ use: b, result: resultOf(b, i), i })
+    else if (b.type !== 'tool_result') {
+      flush()
+      if (b.type === 'text') items.push(<Markdown key={i} text={b.text ?? ''} />)
+      if (b.type === 'tool_use') items.push(<Step key={i} editor={editor} use={b} result={resultOf(b, i)} />)
+      if (b.type === 'ask') items.push(<Ask key={b.ask_id ?? i} b={b} />)
+      if (b.type === 'task') items.push(<Task key={i} editor={editor} b={b} />)
+      if (b.type === 'notice') items.push(<div key={i} className="ca-chat__notice" data-level={b.level}>{b.text}</div>)
+    }
+  })
+  flush()
+  if (outputs.length) items.push(<div key="results" className="ca-chat__thumbs ca-chat__results">{outputs.map((s) => <Thumb key={s} editor={editor} src={s} />)}</div>)
+  return <>{items}</>
 }
 
 export function UserMessage({ editor, m, onBranch }: { editor: Editor; m: BotMessage; onBranch?: () => void }) {

@@ -7,6 +7,18 @@ import { isPdf, placePdf } from '../pdf'
 
 const GAP = 20
 
+export function importFiles(editor: Editor, accept: string) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = accept
+  input.multiple = true
+  input.onchange = () => {
+    const files = Array.from(input.files ?? [])
+    if (files.length) void editor.putExternalContent({ type: 'files', files, point: editor.getViewportPageBounds().center })
+  }
+  input.click()
+}
+
 function lineUp(editor: Editor, shapes: TLShape[]) {
   const boxes = shapes.map((s) => ({ s, b: editor.getShapePageBounds(s)! })).sort((a, b) => a.b.x - b.b.x)
   const mid = boxes[0].b.y + Math.max(...boxes.map(({ b }) => b.h)) / 2
