@@ -40,6 +40,7 @@ import { EditLayers } from './ui/EditLayers'
 import { GenPanel } from './ui/GenPanel'
 import { ImageToolbar, registerCropRule } from './ui/ImageToolbar'
 import { InfoDialog } from './ui/InfoDialog'
+import { KitEditor } from './ui/KitEditor'
 import { NoticeCenter } from './ui/NoticeCenter'
 import { loadNotices } from './notices'
 import { startScheduler } from './schedules'
@@ -263,6 +264,7 @@ export function App({ id }: { id: string }) {
         </div>
       </div>
       <Shortcuts />
+      <KitEditor onError={setError} />
       <Confirm />
       {editor && <BatchRename editor={editor} />}
       {editor && <Lightbox editor={editor} />}
