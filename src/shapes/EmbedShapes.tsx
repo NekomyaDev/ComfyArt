@@ -1,22 +1,27 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BaseBoxShapeUtil, HTMLContainer, T, useEditor, useValue, type RecordProps, type TLShape, type TLShapeId } from 'tldraw'
+import { Icons } from '../ui/icons'
 import { t } from '../i18n'
 
 export const LOTTIE = 'ca-lottie'
 export const MODEL = 'ca-model'
 export const HTML = 'ca-html'
+export const AUDIO = 'ca-audio'
+export const AUDIO_SIZE: [number, number] = [680, 168]
 
 declare module 'tldraw' {
   export interface TLGlobalShapePropsMap {
     [LOTTIE]: { w: number; h: number; src: string; name: string }
     [MODEL]: { w: number; h: number; src: string; name: string; ext: string; spin: boolean; bg: string }
     [HTML]: { w: number; h: number; html: string; name: string }
+    [AUDIO]: { w: number; h: number; src: string; name: string }
   }
 }
 
 export type LottieShape = TLShape<typeof LOTTIE>
 export type ModelShape = TLShape<typeof MODEL>
 export type HtmlShape = TLShape<typeof HTML>
+export type AudioShape = TLShape<typeof AUDIO>
 
 function boxPath(shape: TLShape) {
   const { w, h } = shape.props as { w: number; h: number }
@@ -148,6 +153,58 @@ export class ModelShapeUtil extends BaseBoxShapeUtil<ModelShape> {
   override canEdit() { return true }
   override component(shape: ModelShape) {
     return <HTMLContainer className="ca-embed" style={{ pointerEvents: this.editor.getEditingShapeId() === shape.id ? 'all' : 'none' }}><ModelView shape={shape} /></HTMLContainer>
+  }
+  override getIndicatorPath(shape: TLShape) { return boxPath(shape) }
+}
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+
+function AudioView({ shape }: { shape: AudioShape }) {
+  const audio = useRef<HTMLAudioElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const [time, setTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const stop = (e: React.PointerEvent) => e.stopPropagation()
+  const toggle = () => {
+    const a = audio.current
+    if (a) void (a.paused ? a.play() : a.pause())
+  }
+  return (
+    <div className="ca-audio">
+      <audio
+        ref={audio}
+        src={shape.props.src}
+        preload="metadata"
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+      />
+      <button type="button" className="ca-audio__play" onPointerDown={stop} onClick={toggle}>{playing ? Icons.pause : Icons.play}</button>
+      <div className="ca-audio__body">
+        <div className="ca-audio__name">{shape.props.name}</div>
+        <input
+          className="ca-audio__seek"
+          type="range"
+          min={0}
+          max={duration || 1}
+          step={0.01}
+          value={time}
+          onPointerDown={stop}
+          onChange={(e) => { if (audio.current) audio.current.currentTime = Number(e.target.value) }}
+        />
+        <div className="ca-audio__time">{clock(time)} / {clock(Math.round(duration))}</div>
+      </div>
+    </div>
+  )
+}
+
+export class AudioShapeUtil extends BaseBoxShapeUtil<AudioShape> {
+  static override type = AUDIO
+  static override props: RecordProps<AudioShape> = { w: T.number, h: T.number, src: T.string, name: T.string }
+  override getDefaultProps(): AudioShape['props'] { return { w: AUDIO_SIZE[0], h: AUDIO_SIZE[1], src: '', name: t('common.audio') } }
+  override component(shape: AudioShape) {
+    return <HTMLContainer className="ca-embed"><AudioView shape={shape} /></HTMLContainer>
   }
   override getIndicatorPath(shape: TLShape) { return boxPath(shape) }
 }

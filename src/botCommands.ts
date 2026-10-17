@@ -1,18 +1,22 @@
 import { createShapeId, react, type Editor, type TLFrameShape, type TLImageShape, type TLShape, type TLShapeId, type TLVideoShape } from 'tldraw'
 
 import * as actions from './actions'
+import { generateAudio, imageTo3d, VOICES } from './assetGen'
+import { editElements } from './elements'
+import { bakeToImage, createMockup } from './mockup'
 import { api } from './comfy'
 import { placeHtml } from './embeds'
 import { createGenerator, DURATIONS, generate, genInfoOf, MAX_VIDEO_REFS, RATIOS, VIDEO_RATIOS } from './generate'
-import { type ErrorSink, errorText, jobOf, mediaAsset, resultsAtom } from './jobs'
+import { type ErrorSink, errorText, fileSrc, jobOf, mediaAsset, resultsAtom } from './jobs'
 import { describeItem, itemImages, libraryAtom, linkedKit } from './library'
 import { correct, forget, memoryAtom, remember } from './memory'
 import { agentModels } from './models'
 import { buildSlides } from './slides'
 import { exportImage } from './shapes/ArtboardShape'
 import { COMMENT } from './shapes/CommentShape'
-import { HTML, type HtmlShape } from './shapes/EmbedShapes'
+import { AUDIO, HTML, type HtmlShape } from './shapes/EmbedShapes'
 import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
+import { MOCKUP, type MockupShape } from './shapes/MockupShape'
 import { TEXT, type TextShape } from './shapes/TextShape'
 import { VECTOR, type VectorShape } from './shapes/VectorShape'
 import { loadSkills, saveSkill } from './skills'
@@ -53,10 +57,6 @@ function regionOf(args: Args): Crop {
   return r
 }
 
-function mediaSrc(editor: Editor, shape: TLShape): string | null {
-  return mediaAsset(editor, shape)?.props.src ?? null
-}
-
 function nameOf(editor: Editor, shape: TLShape): string {
   if (shape.type === 'frame') return (shape as TLFrameShape).props.name
   if (shape.type === TEXT) return (shape as TextShape).props.text.slice(0, 200)
@@ -75,7 +75,7 @@ function describe(editor: Editor, shape: TLShape) {
     name: nameOf(editor, shape) || undefined,
     x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.w), height: Math.round(b.h),
     ...(parent?.type === 'frame' ? { frame: parent.id } : {}),
-    ...(media?.props.src ? { url: media.props.src, pixels: `${media.props.w}x${media.props.h}` } : {}),
+    ...(media?.props.src ? { url: media.props.src, pixels: `${media.props.w}x${media.props.h}` } : fileSrc(editor, shape) ? { url: fileSrc(editor, shape) } : {}),
     ...(gen?.prompt ? { prompt: gen.prompt.slice(0, 300) } : {}),
     ...(shape.type === GENERATOR ? { prompt: (shape as GeneratorShape).props.prompt.slice(0, 300) } : {}),
   }
@@ -116,7 +116,7 @@ function refUrls(editor: Editor, refs: unknown): string[] {
   if (!Array.isArray(refs)) return []
   return refs.map((r) => {
     if (typeof r === 'string' && /^(\/|https?:)/.test(r)) return r
-    const src = mediaSrc(editor, shapeOf(editor, r))
+    const src = fileSrc(editor, shapeOf(editor, r))
     if (!src) throw new Error(`${r} has no image`)
     return src
   })
@@ -158,7 +158,7 @@ function started(editor: Editor, holder: TLShapeId | undefined) {
 
 function shapesWithSrc(editor: Editor, srcs: string[]): string[] {
   const all = editor.store.query.records('shape').get()
-  return srcs.flatMap((src) => all.filter((s) => mediaSrc(editor, s) === src).map((s) => s.id))
+  return srcs.flatMap((src) => all.filter((s) => fileSrc(editor, s) === src).map((s) => s.id))
 }
 
 function waitResults(editor: Editor, ids: string[], timeout: number) {
@@ -266,6 +266,35 @@ const HANDLERS: Record<string, Handler> = {
     return started(editor, actions.upscaleVideo(editor, videoOf(editor, args.id), long, onError))
   },
   remove_video_background: (editor, args, onError) => started(editor, actions.cutoutVideo(editor, videoOf(editor, args.id), onError)),
+  generate_music: (editor, args, onError) => started(editor, generateAudio(editor, { kind: 'music', prompt: String(args.prompt), lyrics: String(args.lyrics ?? ''), seconds: Math.min(240, Math.max(5, Number(args.duration) || 30)) }, onError, true)),
+  generate_sound_effect: (editor, args, onError) => started(editor, generateAudio(editor, { kind: 'sfx', prompt: String(args.prompt), seconds: Math.min(47, Math.max(1, Number(args.duration) || 8)) }, onError, true)),
+  text_to_speech: (editor, args, onError) => {
+    if (args.reference) {
+      const shape = shapeOf(editor, args.reference)
+      if (shape.type !== AUDIO) throw new Error(`${shape.id} is not an audio shape`)
+      return started(editor, generateAudio(editor, { kind: 'clone', text: String(args.text), reference: fileSrc(editor, shape)! }, onError, true))
+    }
+    if (args.voice && !VOICES.includes(args.voice)) throw new Error(`voice must be one of ${VOICES.join(', ')}`)
+    return started(editor, generateAudio(editor, { kind: 'speech', text: String(args.text), voice: args.voice ?? VOICES[0] }, onError, true))
+  },
+  edit_elements: (editor, args, onError) => started(editor, editElements(editor, imageOf(editor, args.id), onError)),
+  create_mockup: (editor, args, onError) => started(editor, createMockup(editor, imageOf(editor, args.id), onError)),
+  place_design: async (editor, args) => {
+    const shape = shapeOf(editor, args.id)
+    if (shape.type !== MOCKUP) throw new Error(`${shape.id} is not a mockup — make one with create_mockup`)
+    const p = (shape as MockupShape).props
+    const num = (v: unknown, fallback: number) => (v == null ? fallback : Number(v))
+    editor.updateShape<MockupShape>({
+      id: shape.id as MockupShape['id'], type: MOCKUP,
+      props: {
+        ...(args.design ? { design: refUrls(editor, [args.design])[0] } : {}),
+        x: num(args.x, p.x), y: num(args.y, p.y), scale: num(args.scale, p.scale),
+        rotation: (num(args.rotation, (p.rotation * 180) / Math.PI) * Math.PI) / 180, warp: num(args.warp, p.warp),
+      },
+    })
+    return args.bake ? { image: await bakeToImage(editor, editor.getShape<MockupShape>(shape.id as MockupShape['id'])!) } : { updated: shape.id }
+  },
+  image_to_3d: (editor, args, onError) => started(editor, imageTo3d(editor, imageOf(editor, args.id), onError)),
   wait_generation: (editor, args) => waitResults(editor, (args.ids ?? []).map(String), Number(args.timeout_s) || 60),
   place_html: (editor, args) => {
     const id = placeHtml(editor, String(args.html), String(args.name ?? t('botCommands.webPage')))
@@ -333,7 +362,7 @@ const HANDLERS: Record<string, Handler> = {
         if (u.width != null && 'w' in current.props) props.w = Number(u.width)
         if (u.height != null && 'h' in current.props) props.h = Number(u.height)
         if (u.name != null && current.type === 'frame') props.name = String(u.name)
-        if (u.text != null && current.type === TEXT) props.text = String(u.text)
+        if (u.text != null && current.type === TEXT) Object.assign(props, { text: String(u.text), rich: null })
         if (u.color != null && current.type === TEXT) props.color = String(u.color)
         if (u.color != null && current.type === VECTOR) props.fill = String(u.color)
         editor.updateShape({

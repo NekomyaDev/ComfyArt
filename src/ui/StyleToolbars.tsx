@@ -1,9 +1,11 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { useEditor, useValue, type TLShapeId } from 'tldraw'
+import { useEditor, useValue, type TLImageShape, type TLShapeId } from 'tldraw'
 
+import { thumbUrl } from '../comfy'
 import { download } from '../psd'
+import { richEditorAtom, richVersionAtom } from '../richText'
 import { TEXT, type TextShape } from '../shapes/TextShape'
-import { VECTOR, type VectorShape } from '../shapes/VectorShape'
+import { BLEND_MODES, VECTOR, type GradientStop, type VectorShape } from '../shapes/VectorShape'
 import { ColorPicker } from './ColorPicker'
 import { FontPicker } from './FontPicker'
 import { Icons } from './icons'
@@ -19,7 +21,7 @@ const SIZE_NAMES: Record<number, string> = { 12: t('styleToolbars.small'), 16: t
 const ALIGNS: [string, keyof typeof Icons][] = [['left', 'alignLeft'], ['center', 'alignCenterH'], ['right', 'alignRight']]
 const DECORATIONS: [string, string][] = [['none', t('common.none')], ['underline', t('styleToolbars.underline')], ['line-through', t('styleToolbars.strikethrough')]]
 const CASES: [string, string][] = [['none', t('styleToolbars.asTyped')], ['uppercase', t('styleToolbars.uppercase')], ['lowercase', t('styleToolbars.lowercase')], ['capitalize', t('styleToolbars.capitalize')]]
-const FILLS: [string, string][] = [['solid', t('styleToolbars.solid')], ['linear', t('styleToolbars.linear')], ['radial', t('styleToolbars.radial')]]
+const FILLS: [string, string][] = [['solid', t('styleToolbars.solid')], ['linear', t('styleToolbars.linear')], ['radial', t('styleToolbars.radial')], ['image', t('common.image')]]
 const STROKE_ALIGNS: [string, string][] = [['inside', t('styleToolbars.inside')], ['center', t('styleToolbars.center')], ['outside', t('styleToolbars.outside')]]
 const DASHES: [string, string][] = [['solid', t('nativeStyleBar.solid')], ['dashed', t('nativeStyleBar.dashed')], ['dotted', t('nativeStyleBar.dotted')]]
 
@@ -112,13 +114,26 @@ export function TextToolbar({ onError }: { onError: (msg: string) => void }) {
   const [fontOpen, setFontOpen] = useState(false)
   const [more, setMore] = useState(false)
   const editing = useValue('text editing', () => !!shape && editor.getEditingShapeId() === shape.id, [editor, shape?.id])
-  if (!shape || !rect || editing) return null
+  const rich = useValue(richEditorAtom)
+  useValue(richVersionAtom)
+  if (!shape || !rect) return null
   const p = shape.props
   const set = (patch: Partial<TextShape['props']>) => editor.updateShape<TextShape>({ id: shape.id, type: TEXT, props: patch })
+  const run = editing && rich && !rich.state.selection.empty ? rich : null
+  const marks = run?.getAttributes('textStyle') ?? {}
+  const color = marks.color ?? p.color
+  const font = String(marks.fontFamily ?? p.font).replace(/"/g, '')
+  const size = parseFloat(marks.fontSize) || p.size
+  const weight = run ? (run.isActive('bold') ? 700 : p.weight) : p.weight
+  const setColor = (c: string) => (run ? run.chain().focus().setColor(c).run() : set({ color: c }))
+  const setFont = (f: string) => (run ? run.chain().focus().setFontFamily(`"${f}"`).run() : set({ font: f }))
+  const setSize = (s: number) => (run ? run.chain().focus().setFontSize(`${s}px`).run() : set({ size: s }))
+  const setWeight = (w: number) => (run ? run.chain().focus()[w >= 600 ? 'setBold' : 'unsetBold']().run() : set({ weight: w }))
+  const toggle = (mark: 'Bold' | 'Italic' | 'Underline') => rich?.chain().focus()[`toggle${mark}`]().run()
 
   return (
-    <div ref={bar} className="ca-bar ca-toolbar" style={style} onPointerDown={(e) => e.stopPropagation()}>
-      <ColorPicker value={p.color} title={t('styleToolbars.textColor')} onChange={(c) => c && set({ color: c })} />
+    <div ref={bar} className="ca-bar ca-toolbar" style={style} onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => { if (editing && !(e.target instanceof HTMLInputElement)) e.preventDefault() }}>
+      <ColorPicker value={color} title={t('styleToolbars.textColor')} onChange={(c) => c && setColor(c)} />
       <ColorPicker
         value={p.stroke}
         title={t('styleToolbars.stroke')}
@@ -136,14 +151,21 @@ export function TextToolbar({ onError }: { onError: (msg: string) => void }) {
         onOpenChange={setFontOpen}
         trigger={({ open, toggle }) => (
           <button type="button" className="ca-bar__btn ca-pick" style={{ minWidth: 130 }} data-open={open || undefined} onClick={toggle}>
-            <span className="ca-menu__grow ca-pick__font" style={{ fontFamily: `"${p.font}"` }}>{p.font}</span><span className="ca-icon ca-pick__chev">{Icons.chevron}</span>
+            <span className="ca-menu__grow ca-pick__font" style={{ fontFamily: `"${font}"` }}>{font}</span><span className="ca-icon ca-pick__chev">{Icons.chevron}</span>
           </button>
         )}
       >
-        <FontPicker value={[p.font]} onError={onError} onPick={([f]) => { setFontOpen(false); set({ font: f }) }} />
+        <FontPicker value={[font]} onError={onError} onPick={([f]) => { setFontOpen(false); setFont(f) }} />
       </Popover>
-      <Pick value={p.weight} width={100} label={WEIGHTS.find(([w]) => w === p.weight)?.[1] ?? p.weight} options={WEIGHTS} onPick={(w) => set({ weight: w })} />
-      <Pick value={p.size} width={64} label={p.size} options={SIZES.map((s) => [s, SIZE_NAMES[s] ? `${s} · ${SIZE_NAMES[s]}` : String(s)])} onPick={(s) => set({ size: s })} />
+      <Pick value={weight} width={100} label={WEIGHTS.find(([w]) => w === weight)?.[1] ?? weight} options={WEIGHTS} onPick={setWeight} />
+      <Pick value={size} width={64} label={Math.round(size)} options={SIZES.map((s) => [s, SIZE_NAMES[s] ? `${s} · ${SIZE_NAMES[s]}` : String(s)])} onPick={setSize} />
+      {editing && rich && (
+        <>
+          <button type="button" className="ca-bar__btn ca-bar__btn--icon ca-rich__mark" title={t('styleToolbars.bold')} data-on={rich.isActive('bold') || undefined} onClick={() => toggle('Bold')}><b>B</b></button>
+          <button type="button" className="ca-bar__btn ca-bar__btn--icon ca-rich__mark" title={t('styleToolbars.italic')} data-on={rich.isActive('italic') || undefined} onClick={() => toggle('Italic')}><i>I</i></button>
+          <button type="button" className="ca-bar__btn ca-bar__btn--icon ca-rich__mark" title={t('styleToolbars.underline')} data-on={rich.isActive('underline') || undefined} onClick={() => toggle('Underline')}><u>U</u></button>
+        </>
+      )}
       <div className="ca-bar__sep" />
       <Pick value={p.align} label={<span className="ca-icon">{Icons[ALIGNS.find(([a]) => a === p.align)?.[1] ?? 'alignLeft']}</span>} options={ALIGNS.map(([a]) => [a, { left: t('multiToolbar.alignLeft'), center: t('styleToolbars.center'), right: t('multiToolbar.alignRight') }[a]!] as [string, string])} onPick={(a) => set({ align: a })} />
       <Popover
@@ -172,6 +194,54 @@ export function TextToolbar({ onError }: { onError: (msg: string) => void }) {
   )
 }
 
+const MAX_STOPS = 6
+
+function fillPreview(p: VectorShape['props']) {
+  const stops = [...p.stops].sort((a, b) => a.offset - b.offset).map((s) => `${s.color} ${Math.round(s.offset * 100)}%`).join(', ')
+  if (p.fillType === 'linear') return `linear-gradient(${p.angle + 90}deg, ${stops})`
+  if (p.fillType === 'radial') return `radial-gradient(${stops})`
+  if (p.fillType === 'image' && p.image) return `center / cover url("${p.image}")`
+  return p.fill
+}
+
+function FillEditor({ editor, p, set }: { editor: ReturnType<typeof useEditor>; p: VectorShape['props']; set: (patch: Partial<VectorShape['props']>) => void }) {
+  const images = useValue('fill images', () => editor.getCurrentPageShapes().flatMap((s) => {
+    const a = s.type === 'image' && (s as TLImageShape).props.assetId ? editor.getAsset((s as TLImageShape).props.assetId!) : null
+    return a?.type === 'image' && a.props.src ? [a.props.src] : []
+  }).filter((src, i, all) => all.indexOf(src) === i).slice(-15), [editor])
+  const setStop = (i: number, patch: Partial<GradientStop>) => set({ stops: p.stops.map((s, j) => (j === i ? { ...s, ...patch } : s)) })
+  return (
+    <>
+      <Chips value={p.fillType} options={FILLS} onPick={(v) => set({ fillType: v })} />
+      {p.fillType === 'solid' && <div className="ca-style__row"><ColorPicker value={p.fill} title={t('common.color')} alpha onChange={(c) => c && set({ fill: c })} /></div>}
+      {(p.fillType === 'linear' || p.fillType === 'radial') && (
+        <>
+          {p.stops.map((s, i) => (
+            <div key={i} className="ca-style__row">
+              <ColorPicker value={s.color} title={t('styleToolbars.stopColor')} alpha onChange={(c) => c && setStop(i, { color: c })} />
+              <Num label={t('styleToolbars.position')} value={s.offset * 100} onChange={(v) => setStop(i, { offset: Math.min(100, v) / 100 })} />
+              {p.stops.length > 2 && <button type="button" className="ca-panel__icon" title={t('common.delete')} onClick={() => set({ stops: p.stops.filter((_, j) => j !== i) })}>{Icons.close}</button>}
+            </div>
+          ))}
+          <div className="ca-style__row">
+            {p.stops.length < MAX_STOPS && <button type="button" className="ca-panel__chip" onClick={() => set({ stops: [...p.stops, { offset: 0.5, color: p.stops.at(-1)?.color ?? p.fill }] })}>{t('styleToolbars.addStop')}</button>}
+            {p.fillType === 'linear' && <Num label={t('styleToolbars.angle')} value={p.angle} min={-360} onChange={(v) => set({ angle: v })} />}
+          </div>
+        </>
+      )}
+      {p.fillType === 'image' && (
+        <div className="ca-mockpanel__grid">
+          {images.map((src) => <button key={src} type="button" className="ca-mockpanel__cell" data-on={p.image === src || undefined} onClick={() => set({ image: src })}><img src={thumbUrl(src)} alt="" /></button>)}
+        </div>
+      )}
+      <div className="ca-gen__label">{t('styleToolbars.blendMode')}</div>
+      <select className="ca-panel__input" value={p.blend} onChange={(e) => set({ blend: e.target.value })} onKeyDown={(e) => e.stopPropagation()}>
+        {BLEND_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+      </select>
+    </>
+  )
+}
+
 export function ShapeToolbar() {
   const editor = useEditor()
   const shape = useOnlySelected<VectorShape>(VECTOR)
@@ -190,17 +260,12 @@ export function ShapeToolbar() {
 
   return (
     <div ref={bar} className="ca-bar ca-toolbar" style={style} onPointerDown={(e) => e.stopPropagation()}>
-      <Section title={t('styleToolbars.fill')} icon={<span className="ca-tools__dot" style={{ background: p.fillType === 'solid' ? p.fill : `linear-gradient(${p.angle + 90}deg, ${p.fill}, ${p.fill2})` }} />}>
-        <Chips value={p.fillType} options={FILLS} onPick={(v) => set({ fillType: v })} />
-        <div className="ca-style__row">
-          <ColorPicker value={p.fill} title={p.fillType === 'solid' ? t('common.color') : t('styleToolbars.startColor')} onChange={(c) => c && set({ fill: c })} />
-          {p.fillType !== 'solid' && <ColorPicker value={p.fill2} title={t('styleToolbars.endColor')} onChange={(c) => c && set({ fill2: c })} />}
-          {p.fillType === 'linear' && <Num label={t('styleToolbars.angle')} value={p.angle} min={-360} onChange={(v) => set({ angle: v })} />}
-        </div>
+      <Section title={t('styleToolbars.fill')} icon={<span className="ca-tools__dot" style={{ background: fillPreview(p) }} />}>
+        <FillEditor editor={editor} p={p} set={set} />
       </Section>
       <Section title={t('styleToolbars.stroke')} icon={<span className="ca-tools__ring" style={{ borderColor: p.stroke || 'var(--ca-muted)' }} />}>
         <div className="ca-style__row">
-          <ColorPicker value={p.stroke} title={t('styleToolbars.strokeColor')} allowNone onChange={(c) => set({ stroke: c })} />
+          <ColorPicker value={p.stroke} title={t('styleToolbars.strokeColor')} allowNone alpha onChange={(c) => set({ stroke: c })} />
           <Num label={t('doodleBar.size')} value={p.strokeWidth} min={1} onChange={(v) => set({ strokeWidth: v })} />
         </div>
         <div className="ca-gen__label">{t('styleToolbars.position')}</div>

@@ -1,6 +1,9 @@
-import { AssetRecordType, type Editor, type TLImageShape } from 'tldraw'
+import { AssetRecordType, type Editor, type JsonObject, type TLAssetId, type TLImageShape } from 'tldraw'
 
+import type { Adjust } from './adjust'
 import { uploadImage, viewUrl } from './comfy'
+
+export interface Adjusted { source: TLAssetId; adjust: Adjust }
 
 function assetOf(editor: Editor, shape: TLImageShape) {
   const asset = shape.props.assetId ? editor.getAsset(shape.props.assetId) : null
@@ -11,10 +14,27 @@ export function originalOf(shape: TLImageShape): string | null {
   return (shape.meta.original as string | undefined) ?? null
 }
 
+export const adjustedOf = (shape: TLImageShape) => (shape.meta.adjusted as Adjusted | undefined) ?? null
+
+export function sourceAsset(editor: Editor, shape: TLImageShape) {
+  const id = adjustedOf(shape)?.source
+  const source = id ? editor.getAsset(id) : null
+  return source?.type === 'image' && source.props.src ? source : assetOf(editor, shape)
+}
+
+async function uploadCanvas(editor: Editor, canvas: HTMLCanvasElement, name: string) {
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/png'))
+  if (!blob) throw new Error('export failed')
+  const ref = await uploadImage(blob, `${name || 'image'}.png`.replace(/(\.png)+$/, '.png'))
+  const assetId = AssetRecordType.createId()
+  editor.createAssets([{ id: assetId, typeName: 'asset', type: 'image', props: { name, src: viewUrl(ref), w: canvas.width, h: canvas.height, mimeType: 'image/png', isAnimated: false }, meta: {} }])
+  return assetId
+}
+
 function setSource(editor: Editor, shape: TLImageShape, src: string, w: number, h: number, name: string, original: string | null) {
   const assetId = AssetRecordType.createId()
   editor.createAssets([{ id: assetId, typeName: 'asset', type: 'image', props: { name, src, w, h, mimeType: 'image/png', isAnimated: false }, meta: {} }])
-  editor.updateShape<TLImageShape>({ id: shape.id, type: 'image', props: { assetId, crop: null }, meta: { ...shape.meta, original } })
+  editor.updateShape<TLImageShape>({ id: shape.id, type: 'image', props: { assetId, crop: null }, meta: { ...shape.meta, adjusted: null, original } })
 }
 
 export async function replacePixels(editor: Editor, shape: TLImageShape, canvas: HTMLCanvasElement) {
@@ -25,6 +45,18 @@ export async function replacePixels(editor: Editor, shape: TLImageShape, canvas:
   const ref = await uploadImage(blob, `${asset.props.name || 'image'}.png`.replace(/(\.png)+$/, '.png'))
   const current = editor.getShape<TLImageShape>(shape.id) ?? shape
   setSource(editor, current, viewUrl(ref), canvas.width, canvas.height, asset.props.name, originalOf(current) ?? asset.props.src)
+}
+
+export async function applyAdjust(editor: Editor, shape: TLImageShape, adjust: Adjust | null, render: () => HTMLCanvasElement) {
+  const source = sourceAsset(editor, shape)
+  if (!source) return
+  if (!adjust) {
+    editor.updateShape<TLImageShape>({ id: shape.id, type: 'image', props: { assetId: source.id }, meta: { ...shape.meta, adjusted: null } })
+    return
+  }
+  const assetId = await uploadCanvas(editor, render(), source.props.name)
+  const current = editor.getShape<TLImageShape>(shape.id) ?? shape
+  editor.updateShape<TLImageShape>({ id: shape.id, type: 'image', props: { assetId }, meta: { ...current.meta, adjusted: { source: source.id, adjust } as unknown as JsonObject } })
 }
 
 export function restoreOriginal(editor: Editor, shape: TLImageShape) {

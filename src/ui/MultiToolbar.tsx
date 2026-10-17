@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useActions, useEditor, useValue, type Editor, type TLShape } from 'tldraw'
 
+import { booleanOp, type BoolOp } from '../booleans'
 import { errorText, mediaAsset } from '../jobs'
 import { download, downloadUrl, exportPsd } from '../psd'
+import { VECTOR } from '../shapes/VectorShape'
 import { exportAtom } from './ExportDialog'
 import { Icons } from './icons'
 import { modeAtom } from './mode'
@@ -14,7 +16,8 @@ const GAP = 22
 const EDGE = 8
 const ARRANGE_GAP = 40
 
-type Menu = 'align' | 'distribute' | 'download' | null
+type Menu = 'align' | 'distribute' | 'download' | 'boolean' | null
+const BOOL_OPS: [BoolOp, keyof typeof Icons, string][] = [['unite', 'unite', t('multiToolbar.union')], ['subtract', 'subtract', t('multiToolbar.subtract')], ['intersect', 'intersect', t('multiToolbar.intersect')], ['exclude', 'exclude', t('multiToolbar.exclude')]]
 
 export function arrange(editor: Editor, shapes: TLShape[]) {
   const boxes = shapes.map((s) => ({ s, b: editor.getShapePageBounds(s)! })).sort((a, b) => a.b.y - b.b.y || a.b.x - b.b.x)
@@ -85,6 +88,13 @@ export function MultiToolbar({ onError }: { onError: (msg: string) => void }) {
       <Btn icon={Icons.grid} label={t('multiToolbar.tidyUp')} onClick={() => arrange(editor, shapes)} />
       <Btn icon={Icons.box} label={t('canvasMenu.group')} onClick={() => editor.groupShapes(ids)} />
       <Btn icon={Icons.merge} label={t('canvasMenu.mergeLayers')} onClick={() => actions['flatten-to-image']?.onSelect('toolbar')} />
+      {shapes.every((s) => s.type === VECTOR) && (
+        <Popover open={menu === 'boolean'} onOpenChange={pick('boolean')} trigger={({ open, toggle }) => <Btn icon={Icons.unite} title={t('multiToolbar.boolean')} open={open} onClick={toggle} />}>
+          <div className="ca-menu ca-iconmenu">
+            {BOOL_OPS.map(([op, icon, label]) => <Btn key={op} icon={Icons[icon]} title={label} onClick={act(() => booleanOp(editor, ids, op))} />)}
+          </div>
+        </Popover>
+      )}
       <div className="ca-bar__sep" />
       <Popover open={menu === 'align'} onOpenChange={pick('align')} trigger={({ open, toggle }) => <Btn icon={Icons.alignLeft} title={t('multiToolbar.align')} open={open} onClick={toggle} />}>
         <div className="ca-menu ca-iconmenu">

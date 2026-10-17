@@ -37,8 +37,12 @@ AGENT_GUIDE = (
     "- Edit an existing image by shape id: edit_image, upscale_image, "
     "remove_background, expand_image, split_layers, change_angle, "
     "replace_text, animate_image, edit_region / erase_region (a region in "
-    "image pixels), move_object, style_transfer, vectorize_image; extend_video, "
+    "image pixels), move_object, style_transfer, vectorize_image, "
+    "edit_elements (text in a picture becomes editable text), create_mockup + "
+    "place_design (print a design onto a product photo); extend_video, "
     "upscale_video, remove_video_background for videos.\n"
+    "- Audio and 3D: generate_music, generate_sound_effect, text_to_speech "
+    "(voiceover, or voice cloning from an audio shape), image_to_3d.\n"
     "- For a task with several steps, show the plan with update_plan and "
     "keep it current as steps finish.\n"
     "- Layout: create_frame for artboards, add_text, add_shape, update_shapes "
@@ -82,6 +86,13 @@ CORE_MCP_TOOLS = [
     "extend_video",
     "upscale_video",
     "remove_video_background",
+    "generate_music",
+    "generate_sound_effect",
+    "text_to_speech",
+    "edit_elements",
+    "create_mockup",
+    "place_design",
+    "image_to_3d",
     "wait_generation",
     "place_html",
     "create_slides",

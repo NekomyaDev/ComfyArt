@@ -3,6 +3,9 @@ import { atom, useEditor, useValue, type Editor, type TLImageShape } from 'tldra
 
 import * as actions from '../actions'
 import { extractText } from '../agent'
+import { imageTo3d } from '../assetGen'
+import { editElements } from '../elements'
+import { createMockup } from '../mockup'
 import { genInfoOf, regenerate, remix } from '../generate'
 import { originalOf, restoreOriginal } from '../imageOps'
 import { errorText } from '../jobs'
@@ -25,7 +28,7 @@ const EDGE = 8
 const AUTO_LAYERS = 4
 const BAR_KEY = 'comfyart.toolbar'
 const DEFAULT_PINNED = ['quick', 'upscale', 'cutout', 'erase']
-const ALL_TOOLS = ['quick', 'upscale', 'cutout', 'erase', 'layers', 'text', 'angles', 'animate', 'move', 'expand', 'adjust', 'crop', 'vectorize', 'transform', 'inpaint', 'style', 'ocr', 'effects', 'smudge', 'regenerate', 'remix', 'copyPrompt', 'info', 'preview', 'export']
+const ALL_TOOLS = ['quick', 'upscale', 'cutout', 'erase', 'layers', 'text', 'angles', 'animate', 'move', 'expand', 'adjust', 'crop', 'vectorize', 'elements', 'mockup', 'to3d', 'transform', 'inpaint', 'style', 'ocr', 'effects', 'smudge', 'regenerate', 'remix', 'copyPrompt', 'info', 'preview', 'export']
 
 interface BarPrefs { pinned: string[]; names: boolean; seen: string[] }
 
@@ -192,6 +195,9 @@ export function ImageToolbar({ onError }: { onError: (msg: string) => void }) {
     { id: 'effects', icon: Icons.effects, label: t('common.effects'), run: mode$('effects') },
     { id: 'smudge', icon: Icons.doodle, label: t('common.smudge'), run: mode$('smudge') },
     { id: 'vectorize', icon: Icons.polygon, label: t('imageToolbar.vectorize'), run: () => void vectorize(editor, shape).catch((e) => onError(String(e))) },
+    { id: 'elements', icon: Icons.textTool, label: t('imageToolbar.editElements'), run: () => editElements(editor, shape, onError) },
+    { id: 'mockup', icon: Icons.box, label: t('mockup.title'), run: () => createMockup(editor, shape, onError) },
+    { id: 'to3d', icon: Icons.cube, label: t('imageToolbar.imageTo3d'), run: () => imageTo3d(editor, shape, onError) },
     { id: 'transform', icon: Icons.rotate, label: t('imageToolbar.flipAndRotate'), menu: <TransformMenu editor={editor} shape={shape} /> },
     { id: 'regenerate', icon: Icons.replace, label: t('common.regenerate'), run: () => void regenerate(editor, shape, onError), when: !!genInfo?.prompt },
     { id: 'remix', icon: Icons.genImage, label: t('imageToolbar.remix'), run: () => remix(editor, shape), when: !!genInfo?.prompt },

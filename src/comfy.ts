@@ -122,7 +122,7 @@ async function waitForOutput<T>(promptId: string, node: string, pick: (out: Reco
 
 export function waitForImages(promptId: string, node: string): Promise<ImageRef[]> {
   return waitForOutput(promptId, node, (out) => {
-    const items = [...(out.images ?? []), ...(out.videos ?? []), ...(out.gifs ?? [])]
+    const items = [...(out.images ?? []), ...(out.videos ?? []), ...(out.gifs ?? []), ...(out.audio ?? []), ...(out['3d'] ?? [])]
     return items.length ? items as ImageRef[] : null
   })
 }

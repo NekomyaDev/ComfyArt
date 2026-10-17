@@ -62,7 +62,7 @@ export function targetSize({ ratio, resolution, workflow, cw, ch }: GeneratorSha
   return r >= 1 ? [snap16(short * r), short] : [short, snap16(short / r)]
 }
 
-function freeSpot(editor: Editor, w: number, h: number): [number, number] {
+export function freeSpot(editor: Editor, w: number, h: number): [number, number] {
   const center = editor.getViewportPageBounds().center
   const boxes = editor.getCurrentPageShapes().map((s) => editor.getShapePageBounds(s)!).filter(Boolean)
   let [x, y] = [center.x - w / 2, center.y - h / 2]

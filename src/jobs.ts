@@ -5,7 +5,7 @@ import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import type { Built } from './workflows'
 import { t } from './i18n'
 
-export type MediaKind = 'image' | 'video'
+export type MediaKind = 'image' | 'video' | 'audio' | 'model'
 
 export interface Job {
   id: string
@@ -44,6 +44,11 @@ export function mediaAsset(editor: Editor, shape: TLShape | undefined): MediaAss
   return (asset?.type === 'image' || asset?.type === 'video') && asset.props.src ? asset as MediaAsset : null
 }
 
+export function fileSrc(editor: Editor, shape: TLShape | undefined): string | null {
+  const src = mediaAsset(editor, shape)?.props.src ?? (shape?.props as { src?: unknown } | undefined)?.src
+  return typeof src === 'string' && src ? src : null
+}
+
 export function jobOf(shape: TLShape): Job | null {
   return (shape.meta?.job as Job | undefined) ?? null
 }
@@ -67,6 +72,7 @@ function mediaSize(src: string, kind: MediaKind): Promise<[number, number]> {
 
 export async function toMedia(ref: ImageRef, kind: MediaKind): Promise<Media> {
   const src = viewUrl(ref)
+  if (kind === 'audio' || kind === 'model') return { ref, src, w: 0, h: 0, kind }
   const [w, h] = ref.metadata?.width && ref.metadata?.height && kind === 'image'
     ? [ref.metadata.width, ref.metadata.height]
     : await mediaSize(src, kind)
@@ -126,7 +132,7 @@ const defaultPlacer: Placer = async (editor, holder, media, job) => {
     editor.deleteShape(holder.id)
     for (const m of media) {
       const id = placeMedia(editor, m, job.name, x, holder.y, w, holder.parentId)
-      editor.updateShape({ id, type: m.kind, meta: { gen: gen as any } })
+      editor.updateShape({ id, type: editor.getShape(id)!.type, meta: { gen: gen as any } })
       ids.push(id)
       x += w + GAP
     }

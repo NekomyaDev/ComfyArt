@@ -145,6 +145,44 @@ SPECS: dict[str, dict] = {
         "Continue a video shape by duration seconds following prompt.",
         {"id": _ID, "prompt": {"type": "string"}, "duration": {"type": "integer"}}, ["id", "prompt"],
         approval="视频延长"),
+    "generate_music": _tool(
+        "Generate a piece of music as an audio element on the canvas. prompt: English style tags (genre, "
+        "mood, instruments, tempo, vocal type). lyrics optional (use [verse]/[chorus] lines; omit for an "
+        "instrumental). duration in seconds (default 30). Returns ids for wait_generation.",
+        {"prompt": {"type": "string"}, "lyrics": {"type": "string"}, "duration": {"type": "integer"}},
+        ["prompt"], approval="生成配乐"),
+    "generate_sound_effect": _tool(
+        "Generate a short sound effect (an audio element) from an English description. duration in "
+        "seconds (default 8, max 47). Returns ids for wait_generation.",
+        {"prompt": {"type": "string"}, "duration": {"type": "integer"}}, ["prompt"], approval="生成音效"),
+    "text_to_speech": _tool(
+        "Read text aloud as an audio element. voice is a built-in voice id (zf_/zm_ Chinese female/male, "
+        "af_/am_ American, bf_/bm_ British, jf_/jm_ Japanese; default zf_xiaoxiao), or pass reference "
+        "(an audio shape id) to clone that recording's voice. Returns ids for wait_generation.",
+        {"text": {"type": "string"}, "voice": {"type": "string"}, "reference": _ID}, ["text"], approval="生成配音"),
+    "edit_elements": _tool(
+        "Turn the text inside an image shape into editable text: OCR finds each line, the text is erased "
+        "from the picture, and a new artboard holds the clean background plus one editable text shape "
+        "per line (same position, size, color). Then change the texts with update_shapes. Returns ids "
+        "for wait_generation; the returned shape is the background image inside the new artboard.",
+        {"id": _ID}, ["id"], approval="编辑元素"),
+    "create_mockup": _tool(
+        "Turn a product photo (image shape) into a mockup: its surface (depth, outline, shading) is "
+        "analysed so a design can be printed onto it. Returns ids for wait_generation; the placed shape "
+        "is the mockup. Then call place_design.",
+        {"id": _ID}, ["id"], approval="制作样机"),
+    "place_design": _tool(
+        "Print a design onto a mockup shape. design: an image shape id or URL. x/y: design center as "
+        "0-1 of the mockup width/height; scale: design width as a fraction of the mockup width; "
+        "rotation in degrees; warp 0-1 (how much the design follows the surface). bake=true also "
+        "places the result as a normal image and returns its id.",
+        {"id": _ID, "design": {"type": "string"}, "x": _POINT, "y": _POINT, "scale": _POINT,
+         "rotation": _POINT, "warp": _POINT, "bake": {"type": "boolean"}},
+        ["id"]),
+    "image_to_3d": _tool(
+        "Turn an image shape (best: one object on a plain background) into a textured 3D model placed next "
+        "to it. Takes a few minutes. Returns ids for wait_generation.",
+        {"id": _ID}, ["id"], approval="转 3D"),
     "place_html": _tool(
         "Place a web page on the canvas: html is one complete self-contained HTML document you wrote "
         "(inline CSS/JS, images by absolute URL). width/height in canvas units.",

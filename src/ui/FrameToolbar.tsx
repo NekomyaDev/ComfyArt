@@ -2,6 +2,7 @@ import { zipSync } from 'fflate'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useActions, useEditor, type Box, type Editor, type JsonObject, type TLFrameShape, type TLShape, type TLShapeId } from 'tldraw'
 
+import { rerender } from '../elements'
 import { createGenerator } from '../generate'
 import { mediaAsset } from '../jobs'
 import { download } from '../psd'
@@ -229,6 +230,7 @@ export function FrameToolbar({ onError }: { onError: (msg: string) => void }) {
       </div>
       <button type="button" className="ca-bar__btn" onClick={() => actions['fit-frame-to-content']?.onSelect('toolbar')}><span className="ca-icon">{Icons.expand}</span><span>{t('frameToolbar.hugContents')}</span></button>
       <button type="button" className="ca-bar__btn" onClick={() => generateInto(editor, frame)}><span className="ca-icon">{Icons.genImage}</span><span>{t('common.generate')}</span></button>
+      {!!frame.meta.elements && <button type="button" className="ca-bar__btn" onClick={() => rerender(editor, frame, onError)}><span className="ca-icon">{Icons.replace}</span><span>{t('elements.rerender')}</span></button>}
       <div className="ca-bar__sep" />
       <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('frameToolbar.playFullscreen')} onClick={play}><span className="ca-icon">{Icons.play}</span></button>
       <button type="button" className="ca-bar__btn ca-bar__btn--icon" title={t('frameToolbar.batchDownload')} onClick={() => void downloadChildren(editor, frame).catch((e) => onError(String(e)))}><span className="ca-icon">{Icons.download}</span></button>

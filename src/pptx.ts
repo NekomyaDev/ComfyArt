@@ -1,6 +1,8 @@
 import PptxGenJS from 'pptxgenjs'
 import { getColorValue, renderPlaintextFromRichText, type Box, type Editor, type TLImageShape, type TLNoteShape, type TLShape, type TLShapeId } from 'tldraw'
 
+import { alphaOf } from './palette'
+import type { RichDoc } from './richText'
 import { TEXT, type TextShape } from './shapes/TextShape'
 import { VECTOR, type VectorShape } from './shapes/VectorShape'
 
@@ -45,6 +47,30 @@ const dataUrl = (blob: Blob) => new Promise<string>((resolve) => {
 })
 
 const hex = (color: string) => color.replace('#', '').slice(0, 6).toUpperCase()
+const transparency = (color: string) => Math.round((1 - alphaOf(color)) * 100)
+
+function textRuns(doc: RichDoc, k: number): PptxGenJS.TextProps[] {
+  const paragraphs = doc.content ?? []
+  return paragraphs.flatMap((para, i) => {
+    const nodes = para.content ?? [{ type: 'text', text: '' }]
+    return nodes.map((n, j) => {
+      const style = n.marks?.find((m) => m.type === 'textStyle')?.attrs ?? {}
+      const size = parseFloat(style.fontSize)
+      return {
+        text: n.type === 'hardBreak' ? '\n' : n.text ?? '',
+        options: {
+          ...(style.color ? { color: hex(style.color) } : {}),
+          ...(style.fontFamily ? { fontFace: String(style.fontFamily).replace(/['"]/g, '') } : {}),
+          ...(size ? { fontSize: size * k * PT_PER_IN } : {}),
+          ...(n.marks?.some((m) => m.type === 'bold') ? { bold: true } : {}),
+          ...(n.marks?.some((m) => m.type === 'italic') ? { italic: true } : {}),
+          ...(n.marks?.some((m) => m.type === 'underline') ? { underline: { style: 'sng' as const } } : {}),
+          ...(j === nodes.length - 1 && i < paragraphs.length - 1 ? { breakLine: true } : {}),
+        },
+      }
+    })
+  })
+}
 
 async function render(editor: Editor, ids: TLShapeId[], scale: number) {
   return dataUrl((await editor.toImage(ids, { format: 'png', scale, background: false })).blob)
@@ -61,7 +87,7 @@ async function addObject(editor: Editor, pptx: PptxGenJS, slide: Slide, s: TLSha
   }
   if (s.type === TEXT) {
     const p = (s as TextShape).props
-    return slide.addText(p.text, {
+    return slide.addText(p.rich ? textRuns(p.rich, k) : p.text, {
       ...at, fontFace: p.font.split(',')[0].replace(/['"]/g, '').trim(), fontSize: p.size * k * PT_PER_IN,
       color: hex(p.color), bold: p.weight >= 600, align: p.align as 'left' | 'center' | 'right', valign: 'top', margin: 0, fit: 'none',
     })
@@ -76,12 +102,12 @@ async function addObject(editor: Editor, pptx: PptxGenJS, slide: Slide, s: TLSha
   }
   if (s.type === VECTOR) {
     const p = (s as VectorShape).props
-    if ((p.kind === 'rect' || p.kind === 'ellipse') && p.fillType === 'solid' && p.dash === 'solid') {
+    if ((p.kind === 'rect' || p.kind === 'ellipse') && p.fillType === 'solid' && p.dash === 'solid' && p.blend === 'normal') {
       const shape = p.kind === 'ellipse' ? pptx.ShapeType.ellipse : p.radius ? pptx.ShapeType.roundRect : pptx.ShapeType.rect
       return slide.addShape(shape, {
         ...at,
-        ...(p.fill ? { fill: { color: hex(p.fill) } } : { fill: { type: 'none' } as never }),
-        ...(p.stroke && p.strokeWidth ? { line: { color: hex(p.stroke), width: p.strokeWidth * k * PT_PER_IN } } : {}),
+        ...(p.fill ? { fill: { color: hex(p.fill), transparency: transparency(p.fill) } } : { fill: { type: 'none' } as never }),
+        ...(p.stroke && p.strokeWidth ? { line: { color: hex(p.stroke), transparency: transparency(p.stroke), width: p.strokeWidth * k * PT_PER_IN } } : {}),
         ...(p.kind === 'rect' && p.radius ? { rectRadius: Math.min(0.5, p.radius / Math.min(p.w, p.h)) } : {}),
       })
     }

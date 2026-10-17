@@ -2,9 +2,10 @@ import { unzipSync } from 'fflate'
 import { createShapeId, type Editor, type VecLike } from 'tldraw'
 
 import { uploadImage, viewUrl } from './comfy'
-import { HTML, LOTTIE, MODEL } from './shapes/EmbedShapes'
+import { AUDIO, AUDIO_SIZE, HTML, LOTTIE, MODEL } from './shapes/EmbedShapes'
 
 export const MODEL_EXTS = ['glb', 'gltf', 'obj', 'fbx', 'stl', 'ply']
+const AUDIO_EXTS = ['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus']
 const LOTTIE_LONG = 480
 const MODEL_SIZE = 480
 const HTML_SIZE: [number, number] = [960, 640]
@@ -59,6 +60,13 @@ export async function placeEmbed(editor: Editor, file: File, at?: VecLike): Prom
     const [w, h] = [(data.w ?? LOTTIE_LONG) * k, (data.h ?? LOTTIE_LONG) * k]
     const id = createShapeId()
     editor.createShape({ id, type: LOTTIE, ...spot(editor, w, h, at), props: { w, h, src: viewUrl(ref), name: file.name } })
+    finish(editor, id)
+    return true
+  }
+  if (AUDIO_EXTS.includes(ext)) {
+    const ref = await uploadImage(file, file.name)
+    const id = createShapeId()
+    editor.createShape({ id, type: AUDIO, ...spot(editor, AUDIO_SIZE[0], AUDIO_SIZE[1], at), props: { src: viewUrl(ref), name: file.name } })
     finish(editor, id)
     return true
   }

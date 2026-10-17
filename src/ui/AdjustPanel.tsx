@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useEditor, useValue, type TLImageShape } from 'tldraw'
 
 import { adjustedCanvas, autoAdjust, loadImage, NO_ADJUST, type Adjust } from '../adjust'
-import { replacePixels } from '../imageOps'
+import { adjustedOf, applyAdjust, sourceAsset } from '../imageOps'
 import { errorText } from '../jobs'
 import { ColorPicker } from './ColorPicker'
 import { exitMode, modeAtom } from './mode'
@@ -52,10 +52,10 @@ export function AdjustPanel({ onError }: { onError: (msg: string) => void }) {
   const [tab, setTab] = useState(0)
   const [compare, setCompare] = useState(false)
   const active = mode === 'adjust' || mode === 'effects'
-  const src = shape?.props.assetId ? editor.getAsset(shape.props.assetId)?.props.src : null
+  const src = shape ? sourceAsset(editor, shape)?.props.src : null
 
   useEffect(() => {
-    setAdjust(NO_ADJUST)
+    setAdjust(shape ? { ...NO_ADJUST, ...adjustedOf(shape)?.adjust } : NO_ADJUST)
     setImg(null)
     if (mode !== 'adjust' || !src) return
     let alive = true
@@ -63,14 +63,21 @@ export function AdjustPanel({ onError }: { onError: (msg: string) => void }) {
     return () => { alive = false }
   }, [mode, src, onError])
 
+  const crop = shape?.props.crop
+  const flip = `${shape?.props.flipX ? -1 : 1},${shape?.props.flipY ? -1 : 1}`
   useEffect(() => {
     if (!img || !preview.current) return
     const out = adjustedCanvas(img, adjust, PREVIEW_SIDE)
+    const [x0, y0, x1, y1] = crop ? [crop.topLeft.x, crop.topLeft.y, crop.bottomRight.x, crop.bottomRight.y] : [0, 0, 1, 1]
+    const [sx, sy, sw, sh] = [x0 * out.width, y0 * out.height, (x1 - x0) * out.width, (y1 - y0) * out.height]
+    const [fx, fy] = flip.split(',').map(Number)
     const c = preview.current
-    c.width = out.width
-    c.height = out.height
-    c.getContext('2d')!.drawImage(out, 0, 0)
-  }, [img, adjust])
+    c.width = Math.max(1, Math.round(sw))
+    c.height = Math.max(1, Math.round(sh))
+    const ctx = c.getContext('2d')!
+    ctx.setTransform(fx, 0, 0, fy, fx < 0 ? c.width : 0, fy < 0 ? c.height : 0)
+    ctx.drawImage(out, sx, sy, sw, sh, 0, 0, c.width, c.height)
+  }, [img, adjust, crop, flip])
 
   useEffect(() => {
     if (!active) return
@@ -94,7 +101,7 @@ export function AdjustPanel({ onError }: { onError: (msg: string) => void }) {
     if (!img) return
     setBusy(true)
     try {
-      await replacePixels(editor, shape, adjustedCanvas(img, adjust))
+      await applyAdjust(editor, shape, KEYS.some((k) => adjust[k]) ? adjust : null, () => adjustedCanvas(img, adjust))
       exitMode()
     } catch (e) {
       onError(errorText(e))
@@ -153,7 +160,7 @@ export function AdjustPanel({ onError }: { onError: (msg: string) => void }) {
           {mode === 'adjust' ? (
             <>
               <button type="button" className="ca-panel__secondary" onClick={() => setAdjust(NO_ADJUST)}>{t('adjustPanel.reset')}</button>
-              <button type="button" className="ca-panel__primary" disabled={busy || KEYS.every((k) => !adjust[k])} onClick={() => void apply()}>{busy ? t('adjustPanel.processing') : t('adjustPanel.apply')}</button>
+              <button type="button" className="ca-panel__primary" disabled={busy || KEYS.every((k) => adjust[k] === (adjustedOf(shape)?.adjust[k] ?? 0))} onClick={() => void apply()}>{busy ? t('adjustPanel.processing') : t('adjustPanel.apply')}</button>
             </>
           ) : (
             <button type="button" className="ca-panel__primary" onClick={exitMode}>{t('common.done')}</button>

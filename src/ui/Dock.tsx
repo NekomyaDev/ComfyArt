@@ -5,8 +5,10 @@ import { createGenerator } from '../generate'
 import { imageUnder } from '../actions'
 import { COMMENT, COMMENT_SIZE, commentKindAtom, type CommentKind } from '../shapes/CommentShape'
 import { DOODLE } from '../shapes/DoodleShape'
+import { PEN } from '../shapes/PenTool'
 import { TEXT } from '../shapes/TextShape'
 import { VECTOR, vectorKindAtom } from '../shapes/VectorShape'
+import { audioDialogAtom } from './AudioDialog'
 import { DoodleBar } from './DoodleBar'
 import { NativeStyleBar } from './NativeStyleBar'
 import { Icons } from './icons'
@@ -15,7 +17,7 @@ import { shortcutsAtom } from './Shortcuts'
 import { t } from '../i18n'
 
 const INSERTS: [string, string, keyof typeof Icons, string, string?][] = [
-  ['text', t('common.text'), 'textTool', 'T'], ['rect', t('common.rectangle'), 'rect', 'R'], ['ellipse', t('dock.circle'), 'ellipse', 'O'], ['polygon', t('dock.polygon'), 'polygon', ''], ['star', t('dock.star'), 'star', ''],
+  ['text', t('common.text'), 'textTool', 'T'], ['rect', t('common.rectangle'), 'rect', 'R'], ['ellipse', t('dock.circle'), 'ellipse', 'O'], ['polygon', t('dock.polygon'), 'polygon', ''], ['star', t('dock.star'), 'star', ''], ['pen', t('dock.pen'), 'pen', 'P'],
   ['line', t('dock.line'), 'minus', 'L'], ['arrow', t('dock.arrow'), 'link', 'Shift L'], ['note', t('dock.stickyNote'), 'page', 'N'], ['frame', t('common.artboard'), 'frame', 'F'],
 ]
 
@@ -54,7 +56,7 @@ export function Dock() {
         editor.select(id)
       },
       d: () => editor.setCurrentTool(DOODLE),
-      p: () => editor.setCurrentTool(DOODLE),
+      p: () => editor.setCurrentTool(PEN),
       t: () => editor.setCurrentTool(TEXT),
       r: () => { vectorKindAtom.set('rect'); editor.setCurrentTool(VECTOR) },
       o: () => { vectorKindAtom.set('ellipse'); editor.setCurrentTool(VECTOR) },
@@ -82,9 +84,10 @@ export function Dock() {
     setInsert(false)
     if (id === 'text') editor.setCurrentTool(TEXT)
     else if (id === 'rect' || id === 'ellipse' || id === 'polygon' || id === 'star') { vectorKindAtom.set(id); editor.setCurrentTool(VECTOR) }
+    else if (id === 'pen') editor.setCurrentTool(PEN)
     else editor.setCurrentTool(id)
   }
-  const inserting = tool === TEXT || tool === VECTOR || ['line', 'arrow', 'note', 'frame'].includes(tool)
+  const inserting = tool === TEXT || tool === VECTOR || tool === PEN || ['line', 'arrow', 'note', 'frame'].includes(tool)
 
   return (
     <div className="ca-dock" onPointerDown={(e) => e.stopPropagation()}>
@@ -126,7 +129,7 @@ export function Dock() {
           type="file"
           multiple
           hidden
-          accept="image/*,video/*,.pdf,.json,.lottie,.html,.htm,.glb,.gltf,.obj,.fbx,.stl,.ply"
+          accept="image/*,video/*,.pdf,.json,.lottie,.html,.htm,.glb,.gltf,.obj,.fbx,.stl,.ply,.mp3,.wav,.flac,.ogg,.m4a,.opus"
           onChange={(e) => { const files = Array.from(e.target.files ?? []); if (files.length) void editor.putExternalContent({ type: 'files', files, point: editor.getViewportPageBounds().center }); e.target.value = '' }}
         />
         <div className="ca-bar__sep" />
@@ -151,6 +154,9 @@ export function Dock() {
               </button>
               <button type="button" className="ca-menu__item" onClick={gen(true)}>
                 <span className="ca-icon">{Icons.genVideo}</span><span className="ca-menu__grow">{t('dock.videoGeneration')}</span><span className="ca-menu__key">S</span>
+              </button>
+              <button type="button" className="ca-menu__item" onClick={() => { setMenu(false); audioDialogAtom.set(true) }}>
+                <span className="ca-icon">{Icons.music}</span><span className="ca-menu__grow">{t('audio.generateAudio')}</span>
               </button>
             </div>
           </Popover>

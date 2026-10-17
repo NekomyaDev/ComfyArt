@@ -4,7 +4,7 @@ import { atom, useEditor, useValue, type TLShape } from 'tldraw'
 import { uploadImage } from '../comfy'
 import { errorText, placeMedia, toMedia } from '../jobs'
 import { download, downloadUrl } from '../psd'
-import { HTML, LOTTIE, MODEL, snapshots, type HtmlShape, type ModelShape } from '../shapes/EmbedShapes'
+import { AUDIO, HTML, LOTTIE, MODEL, snapshots, type HtmlShape, type ModelShape } from '../shapes/EmbedShapes'
 import { ColorPicker } from './ColorPicker'
 import { Icons } from './icons'
 import { useSelectionRect } from './selection'
@@ -12,7 +12,7 @@ import { t } from '../i18n'
 
 const GAP = 22
 const EDGE = 8
-const EMBEDS = [LOTTIE, MODEL, HTML]
+const EMBEDS = [LOTTIE, MODEL, HTML, AUDIO]
 
 export const htmlPreviewAtom = atom<string | null>('html preview', null)
 
@@ -72,7 +72,7 @@ export function EmbedToolbar({ onError }: { onError: (msg: string) => void }) {
       {shape.type === HTML && (
         <button type="button" className="ca-bar__btn" onClick={() => htmlPreviewAtom.set((shape as HtmlShape).props.html)}><span className="ca-icon">{Icons.preview}</span><span>{t('embedToolbar.preview')}</span></button>
       )}
-      {shape.type !== LOTTIE && (
+      {shape.type !== LOTTIE && shape.type !== AUDIO && (
         <button type="button" className="ca-bar__btn" data-on={editing || undefined} onClick={() => (editing ? editor.setEditingShape(null) : editor.setEditingShape(shape.id))}>
           <span className="ca-icon">{Icons.hand}</span><span>{editing ? t('embedToolbar.exitInteraction') : t('embedToolbar.interact')}</span>
         </button>

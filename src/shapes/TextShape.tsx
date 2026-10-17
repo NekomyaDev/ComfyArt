@@ -10,12 +10,13 @@ import {
   T,
   useEditor,
   useValue,
+  type JsonObject,
   type RecordProps,
   type TLResizeInfo,
   type TLShape,
 } from 'tldraw'
+import { docFromText, hasMarks, plainOf, RichInput, RichView } from '../richText'
 import { t } from '../i18n'
-import { isEnter } from '../ui/keys'
 
 export const TEXT = 'ca-text'
 
@@ -36,13 +37,14 @@ declare module 'tldraw' {
       autoSize: boolean
       decoration: string
       transform: string
+      rich: JsonObject | null
     }
   }
 }
 
 export type TextShape = TLShape<typeof TEXT>
 
-const versions = createShapePropsMigrationIds(TEXT, { AddDecoration: 1 })
+const versions = createShapePropsMigrationIds(TEXT, { AddDecoration: 1, AddRich: 2 })
 
 export function textStyle(p: TextShape['props']): React.CSSProperties {
   return {
@@ -85,20 +87,15 @@ function Text({ shape }: { shape: TextShape }) {
 
   return (
     <HTMLContainer className="ca-text" style={{ overflow: 'visible', pointerEvents: editing ? 'all' : undefined }}>
-      <div ref={box} className="ca-text__box" style={{ ...style, visibility: editing ? 'hidden' : undefined }}>{p.text.endsWith('\n') || !p.text ? `${p.text}​` : p.text}</div>
+      <div ref={box} className="ca-text__box" style={{ ...style, visibility: editing ? 'hidden' : undefined }}>
+        {p.rich ? <RichView doc={p.rich} /> : p.text.endsWith('\n') || !p.text ? `${p.text}​` : p.text}
+      </div>
       {editing && (
-        <textarea
-          autoFocus
-          className="ca-text__input"
+        <RichInput
+          doc={p.rich ?? docFromText(p.text)}
           style={style}
-          value={p.text}
-          onFocus={(e) => e.currentTarget.select()}
-          onChange={(e) => editor.updateShape<TextShape>({ id: shape.id, type: TEXT, props: { text: e.target.value } })}
-          onPointerDown={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            e.stopPropagation()
-            if (e.key === 'Escape' || (isEnter(e) && (e.ctrlKey || e.metaKey))) editor.setEditingShape(null)
-          }}
+          onChange={(doc) => editor.updateShape<TextShape>({ id: shape.id, type: TEXT, props: { text: plainOf(doc), rich: hasMarks(doc) ? doc as JsonObject : null } })}
+          onExit={() => editor.setEditingShape(null)}
         />
       )}
     </HTMLContainer>
@@ -122,14 +119,18 @@ export class TextShapeUtil extends BaseBoxShapeUtil<TextShape> {
     autoSize: T.boolean,
     decoration: T.string,
     transform: T.string,
+    rich: T.jsonValue.nullable() as T.Validator<JsonObject | null>,
   }
 
   static override migrations = createShapePropsMigrationSequence({
-    sequence: [{ id: versions.AddDecoration, up: (props) => Object.assign(props, { decoration: 'none', transform: 'none' }) }],
+    sequence: [
+      { id: versions.AddDecoration, up: (props) => Object.assign(props, { decoration: 'none', transform: 'none' }) },
+      { id: versions.AddRich, up: (props) => { props.rich = null } },
+    ],
   })
 
   override getDefaultProps(): TextShape['props'] {
-    return { w: 1, h: 1, text: '', font: 'Arial', weight: 400, size: 80, color: '#000000', stroke: '', align: 'left', letter: 0, line: 1.3, autoSize: true, decoration: 'none', transform: 'none' }
+    return { w: 1, h: 1, text: '', font: 'Arial', weight: 400, size: 80, color: '#000000', stroke: '', align: 'left', letter: 0, line: 1.3, autoSize: true, decoration: 'none', transform: 'none', rich: null }
   }
 
   override canEdit() {

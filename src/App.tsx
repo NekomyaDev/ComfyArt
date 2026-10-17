@@ -16,12 +16,14 @@ import { takeHandoff } from './home/handoff'
 import { markDark, themeAtom } from './theme'
 import { overrides } from './overrides'
 import { CommentShapeUtil, CommentTool } from './shapes/CommentShape'
-import { HtmlShapeUtil, LottieShapeUtil, ModelShapeUtil } from './shapes/EmbedShapes'
+import { AudioShapeUtil, HtmlShapeUtil, LottieShapeUtil, ModelShapeUtil } from './shapes/EmbedShapes'
 import { DoodleShapeUtil, DoodleTool } from './shapes/DoodleShape'
 import { TextShapeUtil, TextTool } from './shapes/TextShape'
+import { PenTool } from './shapes/PenTool'
 import { VectorShapeUtil, VectorTool } from './shapes/VectorShape'
 import { ArtboardShapeUtil } from './shapes/ArtboardShape'
 import { GeneratorShapeUtil } from './shapes/GeneratorShape'
+import { MockupShapeUtil } from './shapes/MockupShape'
 import { AdjustPanel } from './ui/AdjustPanel'
 import { AgentPanel, chatViewAtom, type ChatView } from './ui/AgentPanel'
 import { dockAtom } from './ui/chatDock'
@@ -35,7 +37,10 @@ import { DropHandlers } from './ui/DropHandlers'
 import { EmbedToolbar, HtmlPreview } from './ui/EmbedToolbar'
 import { Effects } from './ui/Effects'
 import { HistoryDialog } from './ui/HistoryDialog'
+import { AudioDialog } from './ui/AudioDialog'
 import { ExportDialog } from './ui/ExportDialog'
+import { MockupPanel } from './ui/MockupPanel'
+import { PathEditor } from './ui/PathEditor'
 import { FrameToolbar, registerFrameRules } from './ui/FrameToolbar'
 import { EditLayers } from './ui/EditLayers'
 import { GenPanel } from './ui/GenPanel'
@@ -77,8 +82,8 @@ const SAVE_DELAY = 800
 const CHANNEL = 'comfyart-projects'
 const TAB = uuid()
 const assetUrls = getAssetUrlsByImport()
-const shapeUtils = [ArtboardShapeUtil, GeneratorShapeUtil, CommentShapeUtil, DoodleShapeUtil, TextShapeUtil, VectorShapeUtil, LottieShapeUtil, ModelShapeUtil, HtmlShapeUtil]
-const tools = [CommentTool, DoodleTool, TextTool, VectorTool]
+const shapeUtils = [ArtboardShapeUtil, GeneratorShapeUtil, CommentShapeUtil, DoodleShapeUtil, TextShapeUtil, VectorShapeUtil, LottieShapeUtil, ModelShapeUtil, HtmlShapeUtil, AudioShapeUtil, MockupShapeUtil]
+const tools = [CommentTool, DoodleTool, TextTool, VectorTool, PenTool]
 const getShapeVisibility = (shape: TLShape) => (shape.meta.hidden ? 'hidden' as const : 'inherit' as const)
 
 const components: TLComponents = {
@@ -248,6 +253,8 @@ export function App({ id }: { id: string }) {
               <EditLayers />
               <ImageToolbar onError={setError} />
               <CropBar />
+              <MockupPanel onError={setError} />
+              <PathEditor />
               <ModePanel onError={setError} />
               <AdjustPanel onError={setError} />
               <InpaintPanel onError={setError} />
@@ -285,6 +292,7 @@ export function App({ id }: { id: string }) {
       <SkillsDialog onError={setError} />
       {editor && <HistoryDialog editor={editor} projectId={id} onError={setError} />}
       {editor && <ExportDialog editor={editor} onError={setError} />}
+      {editor && <AudioDialog editor={editor} onError={setError} />}
       {error && <div className="ca-error" onClick={() => setError('')}>{error}</div>}
       {stale && (
         <div className="ca-stale">

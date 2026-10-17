@@ -1,16 +1,18 @@
 import { atom, useValue, type Editor } from 'tldraw'
 
 import { chatIdAtom, chatsAtom, messagesAtom, outputsOf, providersAtom, toolLabel, type BotBlock } from '../bot'
-import { mediaAsset } from '../jobs'
+import { fileSrc } from '../jobs'
 import { Icons } from './icons'
 import { t } from '../i18n'
+
+const AUDIO_FILES = ['flac', 'mp3', 'wav', 'ogg', 'opus', 'm4a']
 
 export const detailsAtom = atom<string | null>('task details', null)
 
 export function reveal(editor: Editor, src: string) {
   for (const page of editor.getPages()) {
     for (const id of editor.getPageShapeIds(page.id)) {
-      if (mediaAsset(editor, editor.getShape(id))?.props.src !== src) continue
+      if (fileSrc(editor, editor.getShape(id)) !== src) continue
       editor.setCurrentPage(page.id)
       editor.select(id)
       editor.zoomToSelection({ animation: { duration: 200 } })
@@ -20,11 +22,12 @@ export function reveal(editor: Editor, src: string) {
 }
 
 export function Thumb({ editor, src, onOpen }: { editor: Editor; src: string; onOpen?: () => void }) {
-  const video = /\.(mp4|webm|mov)(&|$)/.test(src)
+  const ext = /\.(\w+)(&|$)/.exec(src)?.[1]?.toLowerCase() ?? ''
+  const icon = AUDIO_FILES.includes(ext) ? Icons.music : ext === 'glb' ? Icons.cube : null
   return (
     <span className="ca-chat__thumbwrap">
-      <button type="button" className="ca-chat__thumb" onClick={() => { onOpen?.(); reveal(editor, src) }}>
-        {video ? <video src={src} muted preload="metadata" /> : <img src={src} alt="" />}
+      <button type="button" className="ca-chat__thumb" data-icon={!!icon || undefined} onClick={() => { onOpen?.(); reveal(editor, src) }}>
+        {icon ? <span className="ca-icon">{icon}</span> : ['mp4', 'webm', 'mov'].includes(ext) ? <video src={src} muted preload="metadata" /> : <img src={src} alt="" />}
       </button>
       <a className="ca-chat__dl" href={src} download={new URL(src, location.origin).searchParams.get('filename') ?? ''} title={t('common.download')}>{Icons.download}</a>
     </span>

@@ -48,3 +48,5 @@ export async function paletteImage(colors: string[]): Promise<Blob> {
   }
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('palette render failed'))), 'image/png'))
 }
+
+export const alphaOf = (color: string) => (color.length === 9 ? parseInt(color.slice(7), 16) / 255 : 1)

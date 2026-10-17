@@ -20,7 +20,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-function pixels(img: HTMLImageElement, w: number, h: number): Uint8ClampedArray {
+export function pixels(img: HTMLImageElement, w: number, h: number): Uint8ClampedArray {
   const c = document.createElement('canvas')
   c.width = w
   c.height = h
@@ -65,7 +65,7 @@ function canvasOf(data: Uint8ClampedArray, w: number, h: number): HTMLCanvasElem
   return c
 }
 
-function grow(data: Uint8ClampedArray, w: number, h: number, px: number): HTMLCanvasElement {
+export function grow(data: Uint8ClampedArray, w: number, h: number, px: number): HTMLCanvasElement {
   const c = document.createElement('canvas')
   c.width = w
   c.height = h
@@ -78,7 +78,7 @@ function grow(data: Uint8ClampedArray, w: number, h: number, px: number): HTMLCa
   return c
 }
 
-async function cropLayer(data: Uint8ClampedArray, w: number, h: number) {
+export async function cropLayer(data: Uint8ClampedArray, w: number, h: number) {
   let [l, t, r, b] = [w, h, -1, -1]
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -159,7 +159,7 @@ function parseAnnotated(a: string) {
   return { filename: m?.[2] ?? a, subfolder: m?.[1] ?? '', type: m?.[3] ?? 'input' }
 }
 
-interface RegionLayer { media: Media; x: number; y: number }
+export interface RegionLayer { media: Media; x: number; y: number }
 
 registerPlacer('regions', async (editor, holder, [bg], job) => {
   const layers = (job.extra?.layers ?? []) as RegionLayer[]
