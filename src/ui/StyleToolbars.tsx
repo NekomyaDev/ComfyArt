@@ -1,11 +1,11 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useEditor, useValue, type TLShapeId } from 'tldraw'
 
-import { brandFonts } from '../library'
 import { download } from '../psd'
 import { TEXT, type TextShape } from '../shapes/TextShape'
 import { VECTOR, type VectorShape } from '../shapes/VectorShape'
 import { ColorPicker } from './ColorPicker'
+import { FontPicker } from './FontPicker'
 import { Icons } from './icons'
 import { Popover } from './Popover'
 import { useOnlySelected, useSelectionRect } from './selection'
@@ -13,7 +13,6 @@ import { t } from '../i18n'
 
 const GAP = 22
 const EDGE = 8
-const FONTS = ['Arial', 'Helvetica', 'Inter', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 'Impact', 'Microsoft YaHei', 'PingFang SC', 'SimHei', 'SimSun', 'KaiTi', 'FangSong']
 const WEIGHTS: [number, string][] = [[100, 'Thin'], [300, 'Light'], [400, 'Regular'], [500, 'Medium'], [600, 'SemiBold'], [700, 'Bold'], [900, 'Black']]
 const SIZES = [12, 14, 16, 20, 24, 32, 40, 48, 64, 80, 96, 128, 160, 200]
 const SIZE_NAMES: Record<number, string> = { 12: t('styleToolbars.small'), 16: t('common.default'), 20: t('styleToolbars.regular'), 32: t('styleToolbars.large'), 48: t('styleToolbars.xLarge'), 64: t('styleToolbars.xxLarge'), 96: t('styleToolbars.huge') }
@@ -105,23 +104,12 @@ async function downloadShape(editor: ReturnType<typeof useEditor>, id: TLShapeId
   download(blob, `${name}.png`)
 }
 
-function useFonts() {
-  const brand = useValue('brand fonts', brandFonts, [])
-  const [local, setLocal] = useState<string[]>([])
-  const fonts = [...new Set([...brand, ...FONTS, ...local])]
-  const query = (window as unknown as { queryLocalFonts?: () => Promise<{ family: string }[]> }).queryLocalFonts
-  const loadLocal = query ? async () => {
-    setLocal((await query()).map((f) => f.family))
-  } : null
-  return { fonts, loadLocal }
-}
-
 export function TextToolbar({ onError }: { onError: (msg: string) => void }) {
   const editor = useEditor()
   const shape = useOnlySelected<TextShape>(TEXT)
   const rect = useSelectionRect()
   const { bar, style } = useBar(rect)
-  const { fonts, loadLocal } = useFonts()
+  const [fontOpen, setFontOpen] = useState(false)
   const [more, setMore] = useState(false)
   const editing = useValue('text editing', () => !!shape && editor.getEditingShapeId() === shape.id, [editor, shape?.id])
   if (!shape || !rect || editing) return null
@@ -143,13 +131,17 @@ export function TextToolbar({ onError }: { onError: (msg: string) => void }) {
         )}
       />
       <div className="ca-bar__sep" />
-      <Pick
-        value={p.font}
-        width={130}
-        label={<span style={{ fontFamily: p.font }}>{p.font}</span>}
-        options={[...fonts.map((f) => [f, f] as [string, string]), ...(loadLocal ? [['__local', t('styleToolbars.loadLocalFonts')] as [string, string]] : [])]}
-        onPick={(f) => (f === '__local' ? loadLocal?.().catch((e) => onError(String(e))) : set({ font: f }))}
-      />
+      <Popover
+        open={fontOpen}
+        onOpenChange={setFontOpen}
+        trigger={({ open, toggle }) => (
+          <button type="button" className="ca-bar__btn ca-pick" style={{ minWidth: 130 }} data-open={open || undefined} onClick={toggle}>
+            <span className="ca-menu__grow ca-pick__font" style={{ fontFamily: `"${p.font}"` }}>{p.font}</span><span className="ca-icon ca-pick__chev">{Icons.chevron}</span>
+          </button>
+        )}
+      >
+        <FontPicker value={[p.font]} onError={onError} onPick={([f]) => { setFontOpen(false); set({ font: f }) }} />
+      </Popover>
       <Pick value={p.weight} width={100} label={WEIGHTS.find(([w]) => w === p.weight)?.[1] ?? p.weight} options={WEIGHTS} onPick={(w) => set({ weight: w })} />
       <Pick value={p.size} width={64} label={p.size} options={SIZES.map((s) => [s, SIZE_NAMES[s] ? `${s} · ${SIZE_NAMES[s]}` : String(s)])} onPick={(s) => set({ size: s })} />
       <div className="ca-bar__sep" />

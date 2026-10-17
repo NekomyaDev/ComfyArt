@@ -11,6 +11,7 @@ import { openProject, newProjectId } from '../projects'
 import { AssetGrid } from './AssetPicker'
 import { ColorPicker } from './ColorPicker'
 import { confirmAtom } from './Confirm'
+import { FontPicker } from './FontPicker'
 import { Icons } from './icons'
 import { isEnter } from './keys'
 import { Popover } from './Popover'
@@ -83,9 +84,7 @@ export function KitEditor({ onError }: { onError: (msg: string) => void }) {
   const [busy, setBusy] = useState(false)
   const [drag, setDrag] = useState(false)
   const [pick, setPick] = useState(false)
-  const [fontMenu, setFontMenu] = useState(false)
-  const [fontName, setFontName] = useState('')
-  const [local, setLocal] = useState<string[]>([])
+  const [fontMenu, setFontMenu] = useState<'menu' | 'library' | null>(null)
   const files = useRef<HTMLInputElement>(null)
   const logos = useRef<HTMLInputElement>(null)
   const refs = useRef<HTMLInputElement>(null)
@@ -138,9 +137,7 @@ export function KitEditor({ onError }: { onError: (msg: string) => void }) {
     const added: FontFile[] = await Promise.all(list.map(async (f) => ({ family: f.name.replace(/\.(ttf|otf|woff2?)$/i, ''), src: viewUrl(await uploadImage(f, f.name)) })))
     update((x) => ({ ...x, fontFiles: [...(x.fontFiles ?? []), ...added], fonts: [...new Set([...x.fonts, ...added.map((a) => a.family)])] }))
   }
-  const toggleFont = (family: string) => update((x) => ({ ...x, fonts: x.fonts.includes(family) ? x.fonts.filter((f) => f !== family) : [...x.fonts, family] }))
   const removeFont = (family: string) => update((x) => ({ ...x, fonts: x.fonts.filter((f) => f !== family), fontFiles: (x.fontFiles ?? []).filter((f) => f.family !== family) }))
-  const localFonts = (window as unknown as { queryLocalFonts?: () => Promise<{ family: string }[]> }).queryLocalFonts
   const remove = () => confirmAtom.set({
     title: t('libraryPanel.deleteItem', KIND_LABELS[item.kind]),
     desc: t('libraryPanel.itemWillBeRemoved', item.name || t('kitEditor.untitled', KIND_LABELS[item.kind])),
@@ -216,12 +213,15 @@ export function KitEditor({ onError }: { onError: (msg: string) => void }) {
             <Section
               title={t('libraryPanel.fonts')}
               add={(
-                <Popover open={fontMenu} onOpenChange={setFontMenu} align="end" trigger={({ toggle }) => <button type="button" className="ca-kit__add" onClick={toggle}><span className="ca-icon">{Icons.plus}</span>{t('common.add')}</button>}>
-                  <div className="ca-menu ca-kit__fontmenu">
-                    <button type="button" className="ca-menu__item" onClick={() => { setFontMenu(false); fontFiles.current?.click() }}><span className="ca-icon">{Icons.upload}</span><span className="ca-menu__grow">{t('libraryPanel.uploadFontFile')}</span></button>
-                    {localFonts && <button type="button" className="ca-menu__item" onClick={() => { setFontMenu(false); void localFonts().then((l) => setLocal([...new Set(l.map((f) => f.family))])).catch(fail) }}><span className="ca-icon">{Icons.textTool}</span><span className="ca-menu__grow">{t('libraryPanel.chooseFromLocalFonts')}</span></button>}
-                    <input className="ca-panel__input" value={fontName} placeholder={t('libraryPanel.fontPlaceholder')} onChange={(e) => setFontName(e.target.value)} onKeyDown={(e) => { if (isEnter(e) && fontName.trim()) { toggleFont(fontName.trim()); setFontName(''); setFontMenu(false) } }} />
-                  </div>
+                <Popover open={!!fontMenu} onOpenChange={(o) => setFontMenu(o ? 'menu' : null)} align="end" contentKey={fontMenu ?? ''} trigger={({ toggle }) => <button type="button" className="ca-kit__add" onClick={toggle}><span className="ca-icon">{Icons.plus}</span>{t('common.add')}</button>}>
+                  {fontMenu === 'library'
+                    ? <FontPicker value={item.fonts} multiple onError={onError} onCancel={() => setFontMenu(null)} onPick={(list) => { setFontMenu(null); update((x) => ({ ...x, fonts: [...new Set([...x.fonts, ...list])] })) }} />
+                    : (
+                      <div className="ca-menu">
+                        <button type="button" className="ca-menu__item" onClick={() => setFontMenu('library')}><span className="ca-icon">{Icons.textTool}</span><span className="ca-menu__grow">{t('kitEditor.fromFontLibrary')}</span></button>
+                        <button type="button" className="ca-menu__item" onClick={() => { setFontMenu(null); fontFiles.current?.click() }}><span className="ca-icon">{Icons.upload}</span><span className="ca-menu__grow">{t('libraryPanel.uploadFontFile')}</span></button>
+                      </div>
+                    )}
                 </Popover>
               )}
             >
@@ -234,11 +234,6 @@ export function KitEditor({ onError }: { onError: (msg: string) => void }) {
                   </div>
                 ))}
               </div>
-              {local.length > 0 && (
-                <div className="ca-lib__fonts">
-                  {local.map((f) => <button key={f} type="button" className="ca-panel__chip" style={{ fontFamily: `"${f}"` }} data-on={item.fonts.includes(f) || undefined} onClick={() => toggleFont(f)}>{f}</button>)}
-                </div>
-              )}
               <input ref={fontFiles} type="file" accept=".ttf,.otf,.woff,.woff2" multiple hidden onChange={(e) => picked(e.target, (l) => void addFontFiles(l).catch(fail))} />
             </Section>
           )}
