@@ -4,7 +4,7 @@ description: "免费开源的 AI 设计画布，完全跑在你自己的 ComfyUI
 mode: "wide"
 ---
 
-ComfyArt 是一块完全跑在你自己 ComfyUI 上的 **AI 设计画布**：用来做海报、社交媒体图、PPT 和短视频的无限画布，一个能直接在画布上动手的设计 Agent，所有图像和视频模型都在你自己的显卡上运行。
+ComfyArt 是一块完全跑在你自己 ComfyUI 上的 **AI 设计画布**：用来做海报、社交媒体图、PPT、样机、短视频和音频的无限画布，一个能直接在画布上动手的设计 Agent，所有图像、视频、音频和 3D 模型都在你自己的显卡上运行。
 
 <Frame>
   <img src="/images/preview-zh.gif" alt="ComfyArt 演示" />
@@ -22,20 +22,32 @@ ComfyArt 是一块完全跑在你自己 ComfyUI 上的 **AI 设计画布**：用
 ## 功能一览
 
 <CardGroup cols={3}>
+  <Card title="首页与项目" icon="house" href="/zh/guides/home">
+    从一句提示词或一个技能开始，管理项目，切换语言、主题和布局。
+  </Card>
   <Card title="画布" icon="object-group" href="/zh/guides/canvas">
-    页面、画板、图层、文字和形状、评论、历史，导出 PNG、PDF 和 PPTX。
+    页面、画板和尺寸预设、图层、评论、历史，导出 PNG、PDF 和 PPTX。
+  </Card>
+  <Card title="文字、形状与路径" icon="pen-nib" href="/zh/guides/design">
+    富文本、字体选择器、渐变和图片填充、钢笔工具和布尔运算。
   </Card>
   <Card title="生成" icon="wand-magic-sparkles" href="/zh/guides/generate">
     图像和视频生成器，支持参考图、配色、底图和分镜。
   </Card>
   <Card title="图像工具" icon="image" href="/zh/guides/image-tools">
-    快速编辑、放大、拆分图层、去背景、橡皮擦、编辑文字、多角度、局部重绘等。
+    快捷编辑、放大、去背景、裁剪、无损调整、图层拆分、局部重绘等。
+  </Card>
+  <Card title="编辑元素与样机" icon="layer-group" href="/zh/guides/elements-mockups">
+    把一张平面海报还原成可编辑的文字和图层；把设计印到产品照片上。
   </Card>
   <Card title="视频" icon="film" href="/zh/guides/video">
-    图片动起来，生成和延长视频，剪辑，放大到 4K。
+    让图片动起来，用首尾帧或最多 9 张参考图生成视频，剪辑、延长、放大到 4K。
+  </Card>
+  <Card title="音频与 3D" icon="music" href="/zh/guides/audio-3d">
+    配乐、配音、声音克隆和音效；把一张图变成带贴图的 3D 模型。
   </Card>
   <Card title="资产" icon="box-archive" href="/zh/guides/assets">
-    我的资产、品牌套件、角色、产品和参考板。
+    我的素材、品牌套件编辑器、角色、产品和参考板。
   </Card>
   <Card title="Agent" icon="robot" href="/zh/guides/agent">
     和设计 Agent 对话（Claude Code、Codex、Qwen Code、DeepSeek Harness 或本地大模型），它直接在你的画布上干活。

@@ -1,0 +1,44 @@
+---
+title: "Edit Elements and mockups"
+description: "Turn a flat image back into editable layers, and print a design onto a product photo."
+---
+
+Both tools are in the image toolbar under **⋯**.
+
+## Edit Elements
+
+**Edit Elements** takes a finished image (a poster, an ad, a screenshot of a design) and rebuilds it as an editable artboard:
+
+1. Every line of text is read with on-device OCR ([RapidOCR](https://github.com/RapidAI/RapidOCR)) and becomes a real text layer at the same position, size, color and weight.
+2. The main product and logo are cut out as separate image layers with SAM3.
+3. The text and objects are erased from the picture with LaMa, leaving a clean background layer.
+
+The new artboard appears next to the original. Change the wording, font or color, move the product, then click **Re-render** in the artboard toolbar to blend the edited layers back into one natural-looking image.
+
+<Frame>
+  <img src="/images/edit-elements.webp" alt="Original perfume ad next to its rebuilt artboard with the brand name changed" />
+</Frame>
+
+In the example above the brand name was changed from LUMIERE to AURORE by typing in the text layer; the bottle and background were left untouched.
+
+<Note>
+Edit Elements needs `rapidocr` (installed by `requirements.txt`), plus the SAM3 and LaMa models used by the other image tools. See [Models](/guides/models#image-tools).
+</Note>
+
+## Mockups
+
+**Mockup** turns a product photo (a t-shirt, mug, bag, box, phone) into a surface you can print a design on. ComfyArt measures the photo's depth and cuts out the product once; after that, placing the design is instant and runs in your browser.
+
+<Frame>
+  <img src="/images/mockup-panel.webp" alt="Mockup panel placing a badge logo on a t-shirt" />
+</Frame>
+
+In the Mockup panel:
+
+- **Design**: pick any image from the canvas. Logos with a transparent background work best; run **Remove Background** first if needed.
+- **Left–right**, **Up–down**, **Size** and **Angle** place the design.
+- **Follow surface** bends the design with the folds and curves of the product. The product's own shading is laid over the design, and anything outside the product is masked away.
+- **Bake as image** flattens the mockup into a normal image.
+- **AI blend** re-renders the result with the image model for more realistic fabric, print texture and lighting.
+
+The mockup stays editable: select it again to swap the design or move it.

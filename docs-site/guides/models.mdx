@@ -40,6 +40,8 @@ Qwen Image 2512 is loaded with the **ComfyArt Precise UNET Loader** node. ComfyU
 | Smart select (inpaint, move object, custom split) | `sam3.1_multiplex_fp16.safetensors` | `checkpoints` |
 | Multi-angle | [`qwen-image-2.1-qma-camera-angles`](https://huggingface.co/gribbliest/qwen-image-2.1-qma-camera-angles), on top of the Qwen Image 2.1 files | `loras` |
 | Split layers | `qwen_image_layered_bf16` (`diffusion_models`), `qwen_image_layered_vae` (`vae`), `qwen_2.5_vl_7b_fp8_scaled` (`text_encoders`) | |
+| Edit Elements | the `rapidocr` Python package (from `requirements.txt`, ships its own small OCR models), plus SAM3 and LaMa above | |
+| Mockup | `depth_anything_v2_vitl.pth` through [comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) (downloaded on first use), plus `birefnet.safetensors` above | |
 
 ## Video
 
@@ -52,11 +54,23 @@ Animate image, video generation and video extend use MiniMax H3:
 | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` |
 | `minimax_h3_video_vae_fp16.safetensors`, `minimax_h3_audio_vae_fp32.safetensors` | `vae` |
 
+**Reference to video** uses `minimax_h3_ref2va_pruned_int8_convrot.safetensors` (`diffusion_models`) with the same text encoder and VAEs.
+
 Video trim and the video editor use core nodes only.
+
+## Audio and 3D
+
+| Feature | Files | Folder |
+|---|---|---|
+| Music | `ace_step_v1_3.5b.safetensors` | `checkpoints` |
+| Sound effects | `stable-audio-open-1.0.safetensors` (`checkpoints`), `t5-base.safetensors` (`text_encoders`) | |
+| Voiceover | [comfyui-kokoro](https://github.com/stavsap/comfyui-kokoro), which downloads its model on first use | |
+| Voice cloning | [ComfyUI-Easy-IndexTTS2](https://github.com/yolain/ComfyUI-Easy-IndexTTS2), which downloads IndexTTS-2 on first use | |
+| Image to 3D | `trellis_2_int8_convrot.safetensors` (`diffusion_models`), `trellis_2_shape_vae_bf16.safetensors` and `trellis_2_texture_vae_bf16.safetensors` (`vae`), `dino_v3_L_naf_fp32.safetensors` (`clip_vision`), plus `birefnet.safetensors` | |
 
 ## Speech and text recognition
 
-`gemma4_e4b_it_fp8_scaled.safetensors` in `text_encoders` powers voice input and, by default, text recognition for Edit Text and Extract Text. Text recognition can use the Agent instead; see [Agent settings](/guides/agent#settings).
+`gemma4_e4b_it_fp8_scaled.safetensors` in `text_encoders` powers voice input and, by default, text recognition for Edit Text and Extract Text. Edit Elements always uses RapidOCR, which also returns where each line sits. Text recognition can use the Agent instead; see [Agent settings](/guides/agent#settings).
 
 ## Reference modes
 

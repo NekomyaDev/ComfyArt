@@ -18,14 +18,14 @@ description: "Install ComfyArt, open the canvas and make your first image."
     ```
   </Step>
   <Step title="Install the Python requirements">
-    Use the same Python environment that runs ComfyUI. Today this only adds `pypdfium2`, used for PDF uploads.
+    Use the same Python environment that runs ComfyUI. This adds `pypdfium2` (PDF uploads) and `rapidocr` (text recognition for [Edit Elements](/guides/elements-mockups)).
 
     ```bash
     pip install -r ComfyArt/requirements.txt
     ```
   </Step>
   <Step title="Restart ComfyUI and open ComfyArt">
-    Open [http://127.0.0.1:8188/comfyart/](http://127.0.0.1:8188/comfyart/) in your browser.
+    Open [http://127.0.0.1:8188/comfyart/](http://127.0.0.1:8188/comfyart/) in your browser. You land on the [home page](/guides/home); click **New Project** for an empty canvas.
   </Step>
 </Steps>
 
@@ -39,14 +39,13 @@ The built page ships in `dist/`, so you do not need Node.js to use ComfyArt. Onl
 
 1. Click **Image Generation** in the bottom bar. A generator card appears on the canvas with a prompt box under it.
 2. Describe the image. Put any text that should appear in the image in quotes, for example `the title "SUMMER DRINKS"`.
-3. Pick a ratio, size and count, then press the arrow button. A progress ring runs around the card while ComfyUI works.
-4. Select the result to open the image toolbar: quick edit, upscale, split layers, remove background, eraser, edit text, multi-angle, animate, and more under **⋯**.
+3. Pick a size, ratio and count, then press the arrow button. A progress ring runs around the card while ComfyUI works.
+4. Select the result to open the image toolbar: quick edit, upscale, remove background, eraser, and many more tools under **⋯**.
 
 ## Projects and language
 
-- Each project is a URL: `/comfyart/?project=<id>`. Use the **Projects** button at the top left to switch, rename or create projects.
-- Projects are saved in the ComfyUI user directory under `comfyart/projects/`, with snapshot history you can restore.
-- The interface follows ComfyUI's language setting (English or Chinese).
+- Each project is a URL: `/comfyart/?project=<id>`, saved in the ComfyUI user directory under `comfyart/projects/` with snapshot history you can restore. See [Home and projects](/guides/home).
+- The interface starts in ComfyUI's language (English or Chinese); switch it any time from the settings menu.
 
 ## Next steps
 

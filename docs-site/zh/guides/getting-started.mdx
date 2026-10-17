@@ -6,7 +6,7 @@ description: "安装 ComfyArt，打开画布，生成第一张图。"
 ## 准备
 
 - 一套能正常运行的 [ComfyUI](https://github.com/comfyanonymous/ComfyUI)，显卡要能跑你选的图像模型。
-- 你要用的功能对应的模型文件，见[模型](/zh/guides/models)。只装 Qwen Image 2.1 就能用生成、快速编辑、编辑文字和扩图。
+- 你要用的功能对应的模型文件，见[模型](/zh/guides/models)。只装 Qwen Image 2.1 就能用生成、快捷编辑、编辑文字和扩展。
 
 ## 安装
 
@@ -18,14 +18,14 @@ description: "安装 ComfyArt，打开画布，生成第一张图。"
     ```
   </Step>
   <Step title="安装 Python 依赖">
-    用运行 ComfyUI 的同一个 Python 环境。目前只多一个 `pypdfium2`，用于上传 PDF。
+    用运行 ComfyUI 的同一个 Python 环境。会装上 `pypdfium2`（上传 PDF）和 `rapidocr`（[编辑元素](/zh/guides/elements-mockups)的文字识别）。
 
     ```bash
     pip install -r ComfyArt/requirements.txt
     ```
   </Step>
   <Step title="重启 ComfyUI，打开 ComfyArt">
-    在浏览器里打开 [http://127.0.0.1:8188/comfyart/](http://127.0.0.1:8188/comfyart/)。
+    在浏览器里打开 [http://127.0.0.1:8188/comfyart/](http://127.0.0.1:8188/comfyart/)，会先进入[首页](/zh/guides/home)；点 **新建项目** 得到一块空白画布。
   </Step>
 </Steps>
 
@@ -39,14 +39,13 @@ description: "安装 ComfyArt，打开画布，生成第一张图。"
 
 1. 点底部栏的 **图像生成**，画布上会出现一个生成卡片，下面是提示词框。
 2. 描述你想要的图。图里要出现的文字用引号括起来，例如 `标题 "夏日饮品"`。
-3. 选好比例、尺寸和张数，点箭头按钮。ComfyUI 生成时，卡片外圈会有进度环。
-4. 选中生成结果，就会出现图片工具栏：快捷编辑、放大、图层拆分、去背景、橡皮、编辑文字、多角度、动态图片，**⋯** 里还有更多。
+3. 选好尺寸、比例和张数，点箭头按钮。ComfyUI 生成时，卡片外圈会有进度环。
+4. 选中生成结果，就会出现图片工具栏：快捷编辑、放大、去背景、橡皮工具，**⋯** 里还有更多工具。
 
 ## 项目和语言
 
-- 每个项目对应一个网址：`/comfyart/?project=<id>`。左上角的 **项目** 按钮可以切换、重命名和新建项目。
-- 项目保存在 ComfyUI 用户目录的 `comfyart/projects/` 下，并有快照历史可以恢复。
-- 界面语言跟随 ComfyUI 的语言设置（中文或英文）。
+- 每个项目对应一个网址：`/comfyart/?project=<id>`，保存在 ComfyUI 用户目录的 `comfyart/projects/` 下，并有快照历史可以恢复。见[首页与项目](/zh/guides/home)。
+- 界面语言默认跟随 ComfyUI 的语言（中文或英文），随时可以在设置菜单里切换。
 
 ## 下一步
 

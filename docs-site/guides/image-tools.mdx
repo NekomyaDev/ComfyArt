@@ -3,11 +3,13 @@ title: "Image tools"
 description: "Everything in the image toolbar: edit, upscale, split layers, remove background, erase, edit text, multi-angle and more."
 ---
 
-Select an image to open its toolbar. The most used tools sit on the bar; the rest are under **⋯**. Use **Customize Toolbar** at the bottom of that menu to choose which tools are pinned and whether their names are shown.
+Select an image to open its toolbar. **Quick Edit**, **Upscale**, **Remove Background** and **Eraser** sit on the bar; everything else is under **⋯**. Use **Customize Toolbar** at the bottom of that menu to choose which tools are pinned and whether their names are shown.
 
 <Frame>
-  <img src="/images/image-tools.webp" alt="Image toolbar and the More menu" />
+  <img src="/images/image-toolbar.webp" alt="Image toolbar with the More menu open" style={{ maxWidth: '590px' }} />
 </Frame>
+
+**Edit Elements** and **Mockup** have their own page, [Edit Elements and mockups](/guides/elements-mockups); **Image to 3D** is in [Audio and 3D](/guides/audio-3d).
 
 Tools that run a model place their result next to the original with a progress ring; the original is never overwritten. **Restore original** brings back an image's first version.
 
@@ -30,11 +32,30 @@ Tools that run a model place their result next to the original with a progress r
 | **Remove Background** | Cut out the subject with BiRefNet. |
 | **Eraser** | Paint over something and LaMa fills it in. |
 | **Smudge** | Push pixels around with a brush. |
-| **Crop**, **Flip**, **Rotate 90°** | Instant, in the browser. |
-| **Adjust** | Light, color, detail and effects: exposure, contrast, highlights, shadows, whites, blacks, saturation, vibrance, temperature, tint, clarity, sharpen, grain, vignette, bloom, glamour, with auto and before / after compare. |
+| **Crop** | Drag the handles or type an exact size in pixels, with ratio presets for each platform. |
+| **Flip & Rotate** | Flip horizontally or vertically and rotate by 90°, instantly in the browser. |
+| **Adjust** | Light, color, detail and effects (below). |
 | **Effects** | Opacity, shadow and blur. |
 
 The brush tools (Eraser, Inpaint, Smudge) show the brush size as a circle under the pointer.
+
+### Crop
+
+<Frame>
+  <img src="/images/crop-bar.webp" alt="Crop bar with ratio presets" style={{ maxWidth: '580px' }} />
+</Frame>
+
+The crop bar replaces the toolbar while you crop. Pick **Free**, **Original** or a preset (1:1 and 4:5 for Instagram, 3:4 for Xiaohongshu, 9:16 for Story and TikTok, 16:9 for YouTube, 2:3 for Pinterest, 3:2, 1.91:1 for Facebook and X), or type the width and height in pixels. **Reset** returns to the full image, **Done** applies.
+
+### Adjust
+
+<Frame>
+  <img src="/images/adjust-panel.webp" alt="Adjust panel next to a poster" />
+</Frame>
+
+Four tabs: **Light** (exposure, contrast, highlights, shadows, whites, blacks), **Color** (saturation, vibrance, temperature, tint), **Detail** (clarity, sharpen, grain) and **Effects** (vignette, bloom, glamour). **Auto** picks values for you; hold **Hold to compare** to see the original.
+
+Adjustments are non-destructive. ComfyArt keeps the original pixels and your slider values, so opening Adjust again starts from where you left off instead of stacking a second adjustment on top. **Reset** followed by **Apply** puts the untouched pixels back; your crop and flip stay.
 
 ## Upscale
 

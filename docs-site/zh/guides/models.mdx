@@ -40,6 +40,8 @@ Qwen Image 2512 用 **ComfyArt Precise UNET Loader** 节点加载。ComfyUI 的 
 | 智能选择（局部重绘、移动对象、自定义拆分） | `sam3.1_multiplex_fp16.safetensors` | `checkpoints` |
 | 多角度 | [`qwen-image-2.1-qma-camera-angles`](https://huggingface.co/gribbliest/qwen-image-2.1-qma-camera-angles)，另需 Qwen Image 2.1 的模型文件 | `loras` |
 | 图层拆分 | `qwen_image_layered_bf16`（`diffusion_models`）、`qwen_image_layered_vae`（`vae`）、`qwen_2.5_vl_7b_fp8_scaled`（`text_encoders`） | |
+| 编辑元素 | Python 包 `rapidocr`（来自 `requirements.txt`，自带小型 OCR 模型），以及上面的 SAM3 和 LaMa | |
+| 样机 | 通过 [comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) 使用 `depth_anything_v2_vitl.pth`（第一次使用时下载），以及上面的 `birefnet.safetensors` | |
 
 ## 视频
 
@@ -52,11 +54,23 @@ Qwen Image 2512 用 **ComfyArt Precise UNET Loader** 节点加载。ComfyUI 的 
 | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` |
 | `minimax_h3_video_vae_fp16.safetensors`、`minimax_h3_audio_vae_fp32.safetensors` | `vae` |
 
+**参考生视频** 用 `minimax_h3_ref2va_pruned_int8_convrot.safetensors`（`diffusion_models`），文本编码器和 VAE 与上面相同。
+
 视频裁剪和视频编辑器只用核心节点。
+
+## 音频与 3D
+
+| 功能 | 文件 | 目录 |
+|---|---|---|
+| 配乐 | `ace_step_v1_3.5b.safetensors` | `checkpoints` |
+| 音效 | `stable-audio-open-1.0.safetensors`（`checkpoints`）、`t5-base.safetensors`（`text_encoders`） | |
+| 配音 | [comfyui-kokoro](https://github.com/stavsap/comfyui-kokoro)，第一次使用时自动下载模型 | |
+| 声音克隆 | [ComfyUI-Easy-IndexTTS2](https://github.com/yolain/ComfyUI-Easy-IndexTTS2)，第一次使用时自动下载 IndexTTS-2 | |
+| 转 3D | `trellis_2_int8_convrot.safetensors`（`diffusion_models`）、`trellis_2_shape_vae_bf16.safetensors` 和 `trellis_2_texture_vae_bf16.safetensors`（`vae`）、`dino_v3_L_naf_fp32.safetensors`（`clip_vision`），以及 `birefnet.safetensors` | |
 
 ## 语音与文字识别
 
-`text_encoders` 里的 `gemma4_e4b_it_fp8_scaled.safetensors` 负责语音输入，也默认负责编辑文字和提取文字的文字识别。文字识别也可以改用 Agent，见 [Agent](/zh/guides/agent) 页的设置部分。
+`text_encoders` 里的 `gemma4_e4b_it_fp8_scaled.safetensors` 负责语音输入，也默认负责编辑文字和提取文字的文字识别。编辑元素始终用 RapidOCR，它还会给出每一行文字所在的位置。文字识别也可以改用 Agent，见 [Agent](/zh/guides/agent) 页的设置部分。
 
 ## 参考模式
 

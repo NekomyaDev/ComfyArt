@@ -3,22 +3,33 @@ title: "Generate"
 description: "Image and video generators with references, color palettes, base images and storyboards."
 ---
 
-A generator is a card on the canvas with a prompt box under it. Click **Image Generation** in the bottom bar (or switch it to video generation) to add one. Results land on the canvas next to the card; the card shows a progress ring while ComfyUI works.
+There are two ways to generate:
+
+- **On the canvas**: click **Image Generation** in the bottom bar (its arrow switches to video or [audio](/guides/audio-3d)). A generator card appears with a prompt box under it, and the card already has the size of the image it will make.
+- **From the chat**: switch the mode under the chat box to **Image** or **Video**, type a prompt and send. No agent is involved.
 
 <Frame>
-  <img src="/images/generator.webp" alt="Image generator with a prompt" />
+  <img src="/images/generator.webp" alt="Image generator card with a prompt" style={{ maxWidth: '560px' }} />
 </Frame>
 
-## Image options
+Results land on the canvas next to the card; the card shows a progress ring while ComfyUI works.
+
+## Image settings
+
+Click the settings button (for example `1K · 1:1 · 1 image(s)`) to open **Image Settings**:
+
+<Frame>
+  <img src="/images/image-settings.webp" alt="Image settings" style={{ maxWidth: '520px' }} />
+</Frame>
 
 | Option | Values |
 |---|---|
-| Size | 1K, 2K or custom width and height |
-| Ratio | 1:1, 3:2, 2:3, 4:3, 3:4, 16:9, 9:16, 4:5, 5:4, 21:9 |
-| Count | up to 4 images per run |
-| Quality | turbo, standard, high quality |
-| Style | style presets added to the prompt |
-| Background | transparent background |
+| Resolution | 1K, 2K or a custom width and height |
+| Aspect ratio | 1:1, 3:2, 2:3, 4:3, 3:4, 16:9, 9:16, 4:5, 5:4, 21:9 |
+| Count | 1 to 4 images per run |
+| Quality | Turbo, Standard, High Quality |
+| Style | None, Photo, Cinematic, Illustration, 3D, Anime, Minimal, Retro |
+| Transparent background | on or off |
 
 Put text that should appear in the image in quotes. Qwen Image 2.1 renders both Chinese and English text well.
 
@@ -57,11 +68,13 @@ References are numbered ("image 1", "image 2") in the order they are used. If th
 
 ## Video generation
 
-Switch the generator to video for text-to-video or image-to-video with MiniMax H3:
+Switch the generator, or the chat mode, to **Video**. The video settings hold:
 
-- Ratios 16:9, 9:16, 1:1, 4:3, 3:4, 21:9 and a duration of 5 or 10 seconds.
-- A first frame and an optional last frame.
-- Camera motion presets.
-- **Storyboard**: split one idea into up to 6 scenes (30 seconds in total) and generate them as a sequence. Smart storyboard lets the Agent write the scenes.
+<Frame>
+  <img src="/images/composer-video.webp" alt="Video settings opened from the chat box" style={{ maxWidth: '450px' }} />
+</Frame>
 
-More in [Video](/guides/video).
+- **Aspect ratio** 16:9, 9:16, 1:1, 4:3, 3:4 or 21:9; **Resolution** 768p or 1080p; **Duration** 5, 10 or 15 seconds.
+- **Camera motion**: Auto, Static, Push In, Pull Out, Orbit, Follow, Handheld, Pan Left / Right, Tilt Up / Down.
+
+The video generator has three modes: **First/last frame**, **References** (reference to video, up to 9 images of characters, products or scenes) and **Storyboard**. More in [Video](/guides/video).

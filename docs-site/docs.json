@@ -54,6 +54,7 @@
                 "pages": [
                   "index",
                   "guides/getting-started",
+                  "guides/home",
                   "guides/models"
                 ]
               },
@@ -61,9 +62,12 @@
                 "group": "Create",
                 "pages": [
                   "guides/canvas",
+                  "guides/design",
                   "guides/generate",
                   "guides/image-tools",
-                  "guides/video"
+                  "guides/elements-mockups",
+                  "guides/video",
+                  "guides/audio-3d"
                 ]
               },
               {
@@ -89,6 +93,7 @@
                 "pages": [
                   "zh/index",
                   "zh/guides/getting-started",
+                  "zh/guides/home",
                   "zh/guides/models"
                 ]
               },
@@ -96,9 +101,12 @@
                 "group": "创作",
                 "pages": [
                   "zh/guides/canvas",
+                  "zh/guides/design",
                   "zh/guides/generate",
                   "zh/guides/image-tools",
-                  "zh/guides/video"
+                  "zh/guides/elements-mockups",
+                  "zh/guides/video",
+                  "zh/guides/audio-3d"
                 ]
               },
               {
