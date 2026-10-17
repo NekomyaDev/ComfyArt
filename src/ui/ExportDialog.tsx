@@ -49,6 +49,8 @@ export function ExportDialog({ editor, onError }: { editor: Editor; onError: (ms
   if (!ids) return null
   const close = () => exportAtom.set(null)
   const name = (editor.getDocumentSettings().name || 'comfyart').replace(/[\\/:*?"<>|]/g, '_')
+  const selected = editor.getSelectedShapeIds()
+  const fromSelection = ids.every((id) => selected.includes(id))
 
   const run = async () => {
     setBusy(true)
@@ -78,6 +80,7 @@ export function ExportDialog({ editor, onError }: { editor: Editor; onError: (ms
           <button type="button" className="ca-panel__icon" title={t('common.close')} onClick={close}>{Icons.close}</button>
         </div>
         <div className="ca-rename__body">
+          <div className="ca-chat__hint">{fromSelection ? t('exportDialog.selectedElements', ids.length) : t('exportDialog.wholePage')}</div>
           <div className="ca-rename__field"><span>{t('exportDialog.format')}</span>
             <div className="ca-panel__chips">
               {FORMATS.map(([f, label]) => <button key={f} type="button" className="ca-panel__chip" data-on={format === f || undefined} onClick={() => setFormat(f)}>{label}</button>)}

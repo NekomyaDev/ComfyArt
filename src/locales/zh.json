@@ -294,6 +294,8 @@
   "exportDialog.pptEditableText": "PPT（可编辑文本）",
   "exportDialog.pptImages": "PPT（图片）",
   "exportDialog.scale": "倍率",
+  "exportDialog.selectedElements": "导出选中的 {0} 个元素",
+  "exportDialog.wholePage": "导出当前页面的全部内容",
   "frameToolbar.batchDownload": "批量下载",
   "frameToolbar.downloadAsZip": "打包下载",
   "frameToolbar.exportArtboard": "导出画板",

@@ -1,20 +1,29 @@
 import { useState } from 'react'
-import { useValue, type Editor, type TLPageId } from 'tldraw'
+import { useValue, type Editor, type TLPageId, type TLShapeId } from 'tldraw'
 
+import { COMMENT } from '../shapes/CommentShape'
 import { allComments } from './CommentsList'
 import { confirmAtom } from './Confirm'
+import { exportAtom } from './ExportDialog'
 import { Icons } from './icons'
 import { SettingsMenu } from './SettingsMenu'
 import { sideAtom } from './SidePanel'
 import { t } from '../i18n'
 import { isEnter } from './keys'
 
+function exportTargets(editor: Editor): TLShapeId[] {
+  const selected = editor.getSelectedShapeIds()
+  if (selected.length) return selected
+  return editor.getSortedChildIdsForParent(editor.getCurrentPageId()).filter((id) => editor.getShape(id)?.type !== COMMENT)
+}
+
 export function TopBar({ editor, left }: { editor: Editor; left?: React.ReactNode }) {
   const pages = useValue('pages', () => editor.getPages(), [editor])
   const current = useValue('current page', () => editor.getCurrentPageId(), [editor])
   const [renaming, setRenaming] = useState<TLPageId | null>(null)
   const side = useValue(sideAtom)
-  const openComments = useValue('open comments', () => allComments(editor).filter((c) => !c.props.done).length, [editor])
+  const exportable = useValue('exportable', () => exportTargets(editor).length > 0, [editor])
+  const openComments =useValue('open comments', () => allComments(editor).filter((c) => !c.props.done).length, [editor])
 
   const add = () => {
     const name = t('topBar.page', pages.length + 1)
@@ -64,6 +73,9 @@ export function TopBar({ editor, left }: { editor: Editor; left?: React.ReactNod
         </button>
       </div>
       <div className="ca-gen__spacer" />
+      <button type="button" className="ca-bar__btn" disabled={!exportable} onClick={() => exportAtom.set(exportTargets(editor))}>
+        <span className="ca-icon">{Icons.export}</span><span>{t('common.export')}</span>
+      </button>
       <button type="button" className="ca-bar__btn" title={t('common.allComments')} data-on={side === 'comments' || undefined} onClick={() => sideAtom.set(side === 'comments' ? null : 'comments')}>
         <span className="ca-icon">{Icons.comment}</span>{openComments > 0 && <span className="ca-badge">{openComments}</span>}
       </button>

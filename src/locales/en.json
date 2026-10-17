@@ -294,6 +294,8 @@
   "exportDialog.pptEditableText": "PPT (editable text)",
   "exportDialog.pptImages": "PPT (images)",
   "exportDialog.scale": "Scale",
+  "exportDialog.selectedElements": "Exporting the selection ({0})",
+  "exportDialog.wholePage": "Exporting everything on this page",
   "frameToolbar.batchDownload": "Batch Download",
   "frameToolbar.downloadAsZip": "Download as ZIP",
   "frameToolbar.exportArtboard": "Export Artboard",
