@@ -10,11 +10,12 @@ await initLocale()
 const params = new URL(location.href).searchParams
 const project = params.get('project')
 const root = createRoot(document.getElementById('root')!)
+const { NEW_PARAM, projectExists } = await import('./projects')
 
-if (project) {
+if (project && (params.has(NEW_PARAM) || await projectExists(project))) {
   const { App } = await import('./App')
   root.render(<StrictMode><App id={project} /></StrictMode>)
 } else {
   const { HomeApp } = await import('./home/HomeApp')
-  root.render(<StrictMode><HomeApp view={params.get('view') === 'projects' ? 'projects' : 'home'} /></StrictMode>)
+  root.render(<StrictMode><HomeApp view={project ? { missing: project } : params.get('view') === 'projects' ? 'projects' : 'home'} /></StrictMode>)
 }

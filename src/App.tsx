@@ -1,17 +1,17 @@
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getSnapshot, loadSnapshot, Tldraw, useValue, type Editor, type TLAssetStore, type TLComponents, type TLShape } from 'tldraw'
+import { loadSnapshot, Tldraw, useValue, type Editor, type TLAssetStore, type TLComponents, type TLShape } from 'tldraw'
 import 'tldraw/tldraw.css'
 
 import { uploadImage, viewUrl } from './comfy'
 import { svgRaster } from './vectorize'
 import { errorText, resumeJobs } from './jobs'
 import './layers'
-import { maybeSaveVersion } from './history'
 import { defaultKitId, loadLibrary } from './library'
 import { loadMemory } from './memory'
 import { loadModels } from './models'
-import { coversOf, loadProject, saveProject, touchProject } from './projects'
+import { loadProject, NEW_PARAM } from './projects'
+import { startAutosave } from './autosave'
 import { takeHandoff } from './home/handoff'
 import { markDark, themeAtom } from './theme'
 import { overrides } from './overrides'
@@ -45,6 +45,8 @@ import { PathEditor } from './ui/PathEditor'
 import { FrameToolbar, registerFrameRules } from './ui/FrameToolbar'
 import { EditLayers } from './ui/EditLayers'
 import { GenPanel } from './ui/GenPanel'
+import { CanvasPick } from './ui/CanvasPick'
+import { CanvasChat } from './ui/CanvasChat'
 import { CropBar } from './ui/CropBar'
 import { ImageToolbar, registerCropRule } from './ui/ImageToolbar'
 import { InfoDialog } from './ui/InfoDialog'
@@ -52,6 +54,8 @@ import { KitEditor } from './ui/KitEditor'
 import { NoticeCenter } from './ui/NoticeCenter'
 import { loadNotices } from './notices'
 import { startScheduler } from './schedules'
+import { startProactive } from './proactive'
+import { startChatFrames } from './chatFrame'
 import { ScheduleDialog } from './ui/ScheduleDialog'
 import { startBot } from './bot'
 import { registerCommandBus } from './botCommands'
@@ -79,7 +83,6 @@ import { Zoom } from './ui/Zoom'
 import { lang, t } from './i18n'
 import { uuid } from './id'
 
-const SAVE_DELAY = 800
 const CHANNEL = 'comfyart-projects'
 const TAB = uuid()
 const assetUrls = getAssetUrlsByImport()
@@ -125,7 +128,6 @@ export function App({ id }: { id: string }) {
   const [error, setError] = useState('')
   const chat = useValue(chatViewAtom)
   const setChat = (view: ChatView) => chatViewAtom.set(view)
-  const saveTimer = useRef<number>(0)
   const [stale, setStale] = useState(false)
   const staleRef = useRef(false)
   const dock = useValue(dockAtom)
@@ -150,9 +152,11 @@ export function App({ id }: { id: string }) {
   useEffect(() => {
     if (!editor) return
     let alive = true
-    let ready = false
     let stopScheduler = () => { }
+    let stopProactive = () => { }
+    let stopChatFrames = () => { }
     let stopCommands = () => { }
+    let stopAutosave = () => { }
     const stopBot = startBot(id, () => staleRef.current)
     Promise.all([loadProject(id), loadLibrary()])
       .then(([snap]) => {
@@ -172,27 +176,22 @@ export function App({ id }: { id: string }) {
         const content = editor.getCurrentPageBounds()
         if (content) editor.zoomToBounds(content, { targetZoom: 1 })
         editor.clearHistory()
-        ready = true
         resumeJobs(editor, setError)
         stopScheduler = startScheduler(editor, setError)
+        stopProactive = startProactive(editor, setError)
+        stopChatFrames = startChatFrames(editor)
         stopCommands = registerCommandBus(editor, id, () => staleRef.current, setError)
+        const autosave = startAutosave(editor, id, () => !staleRef.current, () => channel.postMessage({ project: id, tab: TAB }))
+        stopAutosave = autosave.stop
+        const url = new URL(location.href)
+        if (url.searchParams.has(NEW_PARAM)) {
+          void autosave.save()
+          url.searchParams.delete(NEW_PARAM)
+          history.replaceState(null, '', url)
+        }
         takeHandoff(editor, setError).catch((e) => setError(errorText(e)))
       })
       .catch((e) => setError(String(e)))
-    const stop = editor.store.listen(() => {
-      if (!ready) return
-      clearTimeout(saveTimer.current)
-      saveTimer.current = window.setTimeout(() => {
-        if (staleRef.current) return
-        saveProject(id, getSnapshot(editor.store))
-          .then(() => {
-            channel.postMessage({ project: id, tab: TAB })
-            maybeSaveVersion(id, () => getSnapshot(editor.store), editor.store.query.records('shape').get().length)
-            return touchProject(id, editor.getDocumentSettings().name, coversOf(editor.store.allRecords()))
-          })
-          .catch((e) => setError(String(e)))
-      }, SAVE_DELAY)
-    }, { scope: 'document' })
     const channel = new BroadcastChannel(CHANNEL)
     channel.onmessage = (e: MessageEvent<{ project: string; tab: string }>) => {
       if (e.data.project !== id || e.data.tab === TAB) return
@@ -202,11 +201,12 @@ export function App({ id }: { id: string }) {
     return () => {
       alive = false
       stopScheduler()
+      stopProactive()
+      stopChatFrames()
       stopCommands()
       stopBot()
       channel.close()
-      stop()
-      clearTimeout(saveTimer.current)
+      stopAutosave()
     }
   }, [editor, id])
 
@@ -264,6 +264,8 @@ export function App({ id }: { id: string }) {
               <Effects />
               <VideoToolbar onError={setError} />
               <GenPanel onError={setError} />
+              <CanvasPick onError={setError} />
+              <CanvasChat onError={setError} />
               <CommentPanel onError={setError} />
               <MultiToolbar onError={setError} />
               <TextToolbar onError={setError} />

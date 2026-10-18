@@ -1,5 +1,6 @@
 import type { TLUiOverrides } from 'tldraw'
 
+import { openCanvasChat } from './canvasChat'
 import { arrange } from './ui/MultiToolbar'
 
 const KBD: Record<string, string> = {
@@ -26,6 +27,13 @@ export const overrides: TLUiOverrides = {
       onSelect() {
         const shapes = editor.getSelectedShapes()
         if (shapes.length > 1) arrange(editor, shapes)
+      },
+    }
+    actions['ca-chat'] = {
+      id: 'ca-chat',
+      kbd: 'shift+enter',
+      onSelect() {
+        openCanvasChat(editor)
       },
     }
     actions['ca-hide'] = {

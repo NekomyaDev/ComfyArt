@@ -38,7 +38,7 @@ export interface BotMessage { id: string; chat_id: string; parent_id: string | n
 export interface BotChat { id: string; user: string; project: string; title: string; provider: string; run_mode: 'auto' | 'ask'; pinned: boolean; archived: boolean; busy?: boolean; created_at: number; updated_at: number }
 export interface ModelOption { value: string; label: string; group: string }
 export interface ProviderInfo { id: string; label: string; available: boolean; version: string; detail: string; logged_in: boolean | null; stateful: boolean; attachments: boolean; branch: boolean; models: string[]; model_options?: ModelOption[] }
-export type BotSettings = Record<string, string | boolean>
+export type BotSettings = Record<string, string | boolean | number>
 
 export const TOOL_LABELS: Record<string, string> = {
   ToolSearch: t('bot.findTools'),
@@ -46,6 +46,7 @@ export const TOOL_LABELS: Record<string, string> = {
   server_info: t('bot.checkStatus'),
   get_canvas: t('bot.viewCanvas'),
   view_canvas: t('bot.lookAtCanvas'),
+  view_video: t('bot.watchVideo'),
   list_models: t('bot.viewModels'),
   brand_kits: t('bot.viewBrandKit'),
   generate_image: t('bot.generateImage'),
@@ -166,7 +167,7 @@ async function ensureChat(): Promise<BotChat> {
   return chat
 }
 
-export interface SendInput { text: string; refs: { id: string; src: string; name: string; kind: 'image' | 'video' }[]; kits: { name: string; description: string; images: string[] }[]; skill?: string; memory?: string }
+export interface SendInput { text: string; refs: { id: string; src: string; name: string; kind: 'image' | 'video' | 'audio'; transcript?: string }[]; docs: { src: string; name: string }[]; kits: { name: string; description: string; images: string[] }[]; skill?: string; memory?: string; context?: string }
 
 export async function sendMessage(input: SendInput) {
   const chat = await ensureChat()
@@ -257,6 +258,10 @@ const reducers: Record<string, (e: any) => void> = {
   turn_delta: (e) => patchMessages(e.chat_id, e.message_id, (m) => {
     const last = m.blocks.at(-1)
     return last?.type === 'text' ? { ...m, blocks: [...m.blocks.slice(0, -1), { ...last, text: (last.text ?? '') + e.text }] } : appendBlock(m, { type: 'text', text: e.text })
+  }),
+  turn_thinking: (e) => patchMessages(e.chat_id, e.message_id, (m) => {
+    const last = m.blocks.at(-1)
+    return last?.type === 'thinking' ? { ...m, blocks: [...m.blocks.slice(0, -1), { ...last, text: (last.text ?? '') + e.text }] } : appendBlock(m, { type: 'thinking', text: e.text })
   }),
   turn_tool_use: (e) => patchMessages(e.chat_id, e.message_id, (m) => appendBlock(m, { type: 'tool_use', name: e.name, input: e.input, id: e.id })),
   turn_tool_result: (e) => patchMessages(e.chat_id, e.message_id, (m) => appendBlock(m, { type: 'tool_result', name: e.name, text: e.text, status: e.status, id: e.id, duration_ms: e.duration_ms })),

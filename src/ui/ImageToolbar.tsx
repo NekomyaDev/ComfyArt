@@ -4,6 +4,7 @@ import { atom, useEditor, useValue, type Editor, type TLImageShape } from 'tldra
 import * as actions from '../actions'
 import { extractText } from '../agent'
 import { imageTo3d } from '../assetGen'
+import { openCanvasChat } from '../canvasChat'
 import { editElements } from '../elements'
 import { createMockup } from '../mockup'
 import { genInfoOf, regenerate, remix } from '../generate'
@@ -27,8 +28,8 @@ const GAP = 22
 const EDGE = 8
 const AUTO_LAYERS = 4
 const BAR_KEY = 'comfyart.toolbar'
-const DEFAULT_PINNED = ['quick', 'upscale', 'cutout', 'erase']
-const ALL_TOOLS = ['quick', 'upscale', 'cutout', 'erase', 'layers', 'text', 'angles', 'animate', 'move', 'expand', 'adjust', 'crop', 'vectorize', 'elements', 'mockup', 'to3d', 'transform', 'inpaint', 'style', 'ocr', 'effects', 'smudge', 'regenerate', 'remix', 'copyPrompt', 'info', 'preview', 'export']
+const DEFAULT_PINNED = ['chat', 'quick', 'upscale', 'cutout', 'erase']
+const ALL_TOOLS = ['chat', 'quick', 'upscale', 'cutout', 'erase', 'layers', 'text', 'angles', 'animate', 'move', 'expand', 'adjust', 'crop', 'vectorize', 'elements', 'mockup', 'to3d', 'transform', 'inpaint', 'style', 'ocr', 'effects', 'smudge', 'regenerate', 'remix', 'copyPrompt', 'info', 'preview', 'export']
 
 interface BarPrefs { pinned: string[]; names: boolean; seen: string[] }
 
@@ -169,6 +170,7 @@ export function ImageToolbar({ onError }: { onError: (msg: string) => void }) {
     editor.updateShape<TLImageShape>({ id: shape.id, type: 'image', x: (fw - w) / 2, y: (fh - h) / 2, rotation: 0, props: { w, h } })
   }
   const tools: Tool[] = [
+    { id: 'chat', icon: Icons.comment, label: t('canvasChat.chat'), hint: 'Shift Enter', run: () => openCanvasChat(editor) },
     { id: 'quick', icon: Icons.quick, label: t('common.quickEdit'), hint: 'Tab', run: mode$('quick') },
     { id: 'upscale', icon: Icons.upscale, label: t('common.upscale'), menu: <UpscaleMenu editor={editor} shape={shape} w={iw} h={ih} onDone={() => setMenu(null)} onError={onError} /> },
     {

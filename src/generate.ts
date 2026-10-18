@@ -1,11 +1,12 @@
 import { createShapeId, type Editor, type TLShape, type TLShapeId } from 'tldraw'
 
-import { loadWorkflow, mediaMeta, refKind, uploadImage, viewUrl, type RefKind } from './comfy'
+import { loadWorkflow, mediaMeta, refKind, uploadImage, viewUrl, type PromptGraph, type RefKind } from './comfy'
+import type { LoraPick } from './loras'
 import { ask, stripThink } from './llm'
 import { spawnHolder, startJob, type ErrorSink, type GenInfo } from './jobs'
 import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import { agentModels, isVideo, modelOf } from './models'
-import { applyRefs, PALETTE_MODE, refHints, refModesOf, refStrengthsOf, usableRefs } from './refModes'
+import { applyRefs, PALETTE_MODE, refControlsOf, refHints, refLimit, refModesOf, refStrengthsOf, usableRefs } from './refModes'
 import { paletteImage, palettePrompt } from './palette'
 import { annotated, imageToVideoGraph, lipSyncGraph, MAX_VIDEO_REF_KINDS, motionGraph, r2vGraph, storyboardGraph, t2vGraph, VIDEO_AREAS, videoSize, type Built, type Scene } from './workflows'
 import { t } from './i18n'
@@ -71,10 +72,10 @@ export function targetSize({ ratio, resolution, workflow, cw, ch }: GeneratorSha
   return r >= 1 ? [snap16(short * r), short] : [short, snap16(short / r)]
 }
 
-export function freeSpot(editor: Editor, w: number, h: number): [number, number] {
+export function freeSpot(editor: Editor, w: number, h: number, from?: [number, number]): [number, number] {
   const center = editor.getViewportPageBounds().center
   const boxes = editor.getCurrentPageShapes().map((s) => editor.getShapePageBounds(s)!).filter(Boolean)
-  let [x, y] = [center.x - w / 2, center.y - h / 2]
+  let [x, y] = from ?? [center.x - w / 2, center.y - h / 2]
   for (let i = 0; i < 200; i++) {
     const hit = boxes.find((b) => x < b.maxX + GAP && x + w + GAP > b.minX && y < b.maxY + GAP && y + h + GAP > b.minY)
     if (!hit) break
@@ -83,12 +84,12 @@ export function freeSpot(editor: Editor, w: number, h: number): [number, number]
   return [x, y]
 }
 
-export function createGenerator(editor: Editor, video = false, props: Partial<GeneratorShape['props']> = {}, focus = true): TLShapeId {
+export function createGenerator(editor: Editor, video = false, props: Partial<GeneratorShape['props']> = {}, focus = true, from?: [number, number]): TLShapeId {
   const id = createShapeId()
   const ratio = props.ratio ?? (video ? VIDEO_RATIOS[0] : '1:1')
   const workflow = props.workflow || agentModels(video)[0].id
   const [w, h] = targetSize({ ...editor.getShapeUtil<GeneratorShape>(GENERATOR).getDefaultProps(), ...props, ratio, workflow })
-  const [x, y] = freeSpot(editor, w, h)
+  const [x, y] = freeSpot(editor, w, h, from)
   editor.createShape({ id, type: GENERATOR, x, y, props: { ...props, w, h, ratio, workflow } })
   if (focus) {
     editor.setCurrentTool('select')
@@ -97,8 +98,6 @@ export function createGenerator(editor: Editor, video = false, props: Partial<Ge
   }
   return id
 }
-
-export const MAX_REFS = 4
 
 export function refsOf(shape: GeneratorShape): string[] {
   return (shape.meta.refs as string[] | undefined) ?? []
@@ -121,6 +120,29 @@ export function colorsOf(shape: GeneratorShape): string[] {
   return (shape.meta.colors as string[] | undefined) ?? []
 }
 
+export const negativeOf = (shape: GeneratorShape) => (shape.meta.negative as string | undefined) ?? ''
+export const seedOf = (shape: GeneratorShape) => (shape.meta.seed as number | null | undefined) ?? null
+export const lorasOf = (shape: GeneratorShape) => (shape.meta.loras as LoraPick[] | undefined) ?? []
+export const randomSeed = () => Math.floor(Math.random() * 2 ** 31)
+
+function applySeed(graph: PromptGraph, seed: number) {
+  for (const node of Object.values(graph)) {
+    if (node.class_type === 'RandomNoise') node.inputs.noise_seed = seed
+    if (node.class_type === 'KSampler') node.inputs.seed = seed
+  }
+}
+
+function applyLoras(graph: PromptGraph, loras: LoraPick[]) {
+  const unet = JSON.stringify(['1', 0])
+  const consumers = Object.values(graph).filter((n) => JSON.stringify(n.inputs.model) === unet)
+  let model: [string, number] = ['1', 0]
+  loras.forEach(({ name, strength }, i) => {
+    graph[`lora${i}`] = { class_type: 'LoraLoaderModelOnly', inputs: { model, lora_name: name, strength_model: strength / 100 } }
+    model = [`lora${i}`, 0]
+  })
+  for (const n of consumers) n.inputs.model = model
+}
+
 async function caption(spec: string, prompt: string, width: number, height: number): Promise<string> {
   const { system, template } = await loadWorkflow(spec) as unknown as { system: string; template: string }
   return stripThink(await ask(template.replace('{w}', String(width)).replace('{h}', String(height)).replace('{prompt}', prompt), system, []))
@@ -132,8 +154,8 @@ async function generateGraph(shape: GeneratorShape): Promise<Built> {
   const refs = refsOf(shape)
   const model = isVideo(workflow) ? null : modelOf(workflow) ?? agentModels(false)[0]
   const colors = isVideo(workflow) ? [] : colorsOf(shape)
-  const picked = model ? usableRefs(model, refs, refModesOf(shape)) : []
-  const palette = colors.length && model?.refs && picked.length < MAX_REFS
+  const picked = model ? usableRefs(model, refs, refModesOf(shape)).slice(0, refLimit(model)) : []
+  const palette = colors.length && model?.refs && picked.length < refLimit(model)
     ? viewUrl(await uploadImage(await paletteImage(colors), `palette-mosaic-${colors.join('').replace(/#/g, '')}.png`))
     : null
   const used = palette ? [...picked, { src: palette, mode: PALETTE_MODE }] : picked
@@ -167,7 +189,9 @@ async function generateGraph(shape: GeneratorShape): Promise<Built> {
   if (!model) throw new Error('unknown image model')
   const graph = await loadWorkflow(model.id)
   graph[PROMPT].inputs[model.prompt!] = model.caption ? await caption(model.caption, prompt, width, height) : prompt
-  applyRefs(graph, model, used, refStrengthsOf(shape), width, height)
+  if (model.negative) graph[model.negative[0]].inputs[model.negative[1]] = negativeOf(shape)
+  if (model.lora) applyLoras(graph, lorasOf(shape))
+  applyRefs(graph, model, used, refStrengthsOf(shape), refControlsOf(shape), width, height)
   for (const id of model.sizes!) Object.assign(graph[id].inputs, { width, height })
   graph[LATENT].inputs.batch_size = count
   const base = baseOf(shape)
@@ -183,7 +207,6 @@ async function generateGraph(shape: GeneratorShape): Promise<Built> {
       graph['7'].inputs.sigmas = ['b4', 1]
     }
   }
-  graph[model.seed![0]].inputs[model.seed![1]] = Math.floor(Math.random() * 2 ** 31)
   if (model.steps) graph[model.steps[0]].inputs.steps = model.steps[1][quality] ?? model.steps[1].standard
   if (transparent) {
     Object.assign(graph, {
@@ -200,7 +223,9 @@ async function generateGraph(shape: GeneratorShape): Promise<Built> {
 export function generate(editor: Editor, shape: GeneratorShape, onError: ErrorSink) {
   const kind = isVideo(shape.props.workflow) ? 'video' : 'image'
   const name = shape.props.prompt || scenesOf(shape)[0]?.prompt || ''
-  return startJob(editor, shape.id, generateGraph(shape), { name: name.slice(0, 32), kind }, onError)
+  const seed = seedOf(shape) ?? randomSeed()
+  const built = generateGraph(shape).then((b) => { applySeed(b.graph, seed); return b })
+  return startJob(editor, shape.id, built, { name: name.slice(0, 32), kind, extra: { seed } }, onError)
 }
 
 export function genInfoOf(shape: TLShape): GenInfo | null {

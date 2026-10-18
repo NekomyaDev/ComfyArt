@@ -2,6 +2,7 @@ import { atom, useValue, type Editor, type TLShapeId } from 'tldraw'
 
 import { genInfoOf, regenerate, remix } from '../generate'
 import { mediaAsset } from '../jobs'
+import { loraLabel, type LoraPick } from '../loras'
 import { isVideo, modelOf } from '../models'
 import { Icons } from './icons'
 import { t } from '../i18n'
@@ -23,6 +24,9 @@ export function InfoDialog({ editor, onError }: { editor: Editor; onError: (msg:
     [t('genSettings.aspectRatio'), info?.ratio],
     [t('infoDialog.size'), asset && 'w' in asset.props ? `${asset.props.w} × ${asset.props.h}` : undefined],
     [t('common.duration'), info?.duration && isVideo(info.workflow ?? '') ? `${info.duration}s` : undefined],
+    [t('genAdvanced.seed'), info?.seed?.toString()],
+    [t('genAdvanced.negativePrompt'), (info?.inputs?.negative as string | undefined) || undefined],
+    ['LoRA', (info?.inputs?.loras as LoraPick[] | undefined)?.map((l) => `${loraLabel(l.name)} ${l.strength}%`).join(', ') || undefined],
   ]
 
   return (

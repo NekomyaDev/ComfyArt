@@ -34,7 +34,8 @@ export async function placePdf(editor: Editor, file: File, at?: VecLike) {
     editor.createShape({ id: frameId, type: 'frame', x: center.x - w / 2, y: center.y - Math.min(h, 800) / 2, props: { w, h, name: file.name.replace(/\.pdf$/i, '') } })
     let y = GAP
     pages.forEach((p, i) => {
-      placeMedia(editor, { ref: p.ref, src: p.src, w: p.w, h: p.h, kind: 'image' }, t('pdf.page', file.name, i + 1), GAP, y, PAGE_W, frameId)
+      const id = placeMedia(editor, { ref: p.ref, src: p.src, w: p.w, h: p.h, kind: 'image' }, t('pdf.page', file.name, i + 1), GAP, y, PAGE_W, frameId)
+      if (p.text.trim()) editor.updateShape({ id, type: 'image', meta: { pageText: p.text.trim() } })
       y += heights[i] + GAP
     })
   })

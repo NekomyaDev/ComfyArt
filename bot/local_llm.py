@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import sys
 import time
@@ -36,6 +37,7 @@ _MAX_ITERATIONS = 80
 _MAX_WAIT_SLICES = 12
 _LLM_TIMEOUT_S = 300
 _HISTORY_CHAR_CAP = 16_000
+_THINK_RE = re.compile(r"<think>([\s\S]*?)</think>")
 
 _SYSTEM_PROMPT = AGENT_GUIDE
 
@@ -339,8 +341,13 @@ class LocalLlmProvider(AgentProvider):
                     usage = merge_usage(usage, data.get("usage"))
                     message = (data.get("choices") or [{}])[0].get("message") or {}
                     content = self._extract_text(message.get("content") or "")
+                    thought = _THINK_RE.search(content)
+                    reasoning = str(message.get("reasoning_content") or message.get("reasoning") or "") or (thought.group(1) if thought else "")
+                    content = _THINK_RE.sub("", content).strip()
                     tool_calls = message.get("tool_calls") or []
 
+                    if reasoning.strip():
+                        await emit(BotEvent(t="thinking", text=reasoning.strip()))
                     if content:
                         await emit(BotEvent(t="delta", text=content))
                     if not tool_calls:

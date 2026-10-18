@@ -7,6 +7,7 @@ import { libraryAtom } from '../library'
 import { ask, parseJson } from '../llm'
 import { correct, forget, MEMORY_CATEGORIES, memoryAtom, memoryLogAtom, remember, toInputs, type MemoryInput } from '../memory'
 import { isPdf, uploadPdf } from '../pdf'
+import { AbilitiesPanel } from './AbilitiesPanel'
 import { Icons } from './icons'
 import { t } from '../i18n'
 import { isEnter } from './keys'
@@ -98,7 +99,8 @@ export function MemoryDialog({ onError }: { onError: (msg: string) => void }) {
     if (!found.length) throw new Error(t('memoryDialog.couldntExtractAnyLong'))
     await remember(found, t('memoryDialog.import'))
   }
-  const shown = tab === 'log' ? [] : memory.filter((m) => (m.category ?? 'about') === tab)
+  const categoryTab = tab !== 'log' && tab !== 'abilities'
+  const shown = categoryTab ? memory.filter((m) => (m.category ?? 'about') === tab) : []
 
   return (
     <div className="ca-modal" onPointerDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) close() }}>
@@ -124,7 +126,9 @@ export function MemoryDialog({ onError }: { onError: (msg: string) => void }) {
                 </button>
               ))}
               <button type="button" className="ca-panel__chip" data-on={tab === 'log' || undefined} onClick={() => setTab('log')}>{t('memoryDialog.evolutionLog')}</button>
+              <button type="button" className="ca-panel__chip" data-on={tab === 'abilities' || undefined} onClick={() => setTab('abilities')}>{t('abilities.title')}</button>
             </div>
+            {tab === 'abilities' && <AbilitiesPanel onError={onError} />}
             {tab === 'log' && (log.length === 0
               ? <div className="ca-side__empty">{t('memoryDialog.noEvolutionLogYet')}</div>
               : log.slice(0, 200).map((l, i) => (
@@ -134,7 +138,7 @@ export function MemoryDialog({ onError }: { onError: (msg: string) => void }) {
                   <span className="ca-chat__hint">{l.source} · {new Date(l.time).toLocaleString()}</span>
                 </div>
               )))}
-            {tab !== 'log' && shown.length === 0 && <div className="ca-side__empty">{t('memoryDialog.noMemoriesYet')}</div>}
+            {categoryTab && shown.length === 0 && <div className="ca-side__empty">{t('memoryDialog.noMemoriesYet')}</div>}
             {shown.map((m) => (
               <div key={m.id} className="ca-memory__row">
                 {editing === m.id ? (
@@ -152,7 +156,7 @@ export function MemoryDialog({ onError }: { onError: (msg: string) => void }) {
                 <button type="button" className="ca-history__del" title={t('common.delete')} onClick={() => void forget([m.text], t('frameToolbar.manual')).catch(fail)}>{Icons.trash}</button>
               </div>
             ))}
-            {tab !== 'log' && <div className="ca-style__row">
+            {categoryTab && <div className="ca-style__row">
               <input className="ca-panel__input" value={text} placeholder={t('memoryDialog.add', MEMORY_CATEGORIES.find(([id]) => id === tab)![1])} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (isEnter(e)) add() }} />
               <button type="button" className="ca-panel__primary ca-memory__add" disabled={!text.trim()} onClick={add}>{t('common.add')}</button>
             </div>}

@@ -133,7 +133,7 @@ export function SkillsDialog({ onError }: { onError: (msg: string) => void }) {
             {skills.map((s) => (
               <div key={s.id} className="ca-memory__row">
                 <span className="ca-icon">{Icons.skill}</span>
-                <span className="ca-menu__grow" title={s.instructions}>{s.name}{Object.keys(s.files ?? {}).length + Object.keys(s.images ?? {}).length > 0 && <span className="ca-menu__key"> · {t('skillsDialog.filesImages', Object.keys(s.files ?? {}).length, Object.keys(s.images ?? {}).length)}</span>}</span>
+                <span className="ca-menu__grow" title={s.learned ? t('proactive.learnedFrom', s.learned.length, s.learned.join(' / ')) : s.instructions}>{s.name}{s.learned && <span className="ca-model__tag">{t('skillsDialog.learned')}</span>}{Object.keys(s.files ?? {}).length + Object.keys(s.images ?? {}).length > 0 && <span className="ca-menu__key"> · {t('skillsDialog.filesImages', Object.keys(s.files ?? {}).length, Object.keys(s.images ?? {}).length)}</span>}</span>
                 <button type="button" className="ca-history__del" title={t('skillsDialog.use')} onClick={() => { skillAtom.set(s); close() }}>{Icons.comment}</button>
                 <button type="button" className="ca-history__del" title={t('common.edit')} onClick={() => setView({ kind: 'edit', skill: s })}>{Icons.textTool}</button>
                 <button type="button" className="ca-history__del" title={t('skillsDialog.versionHistory')} onClick={() => setView({ kind: 'history', skill: s, versions: null })}>{Icons.undo}</button>

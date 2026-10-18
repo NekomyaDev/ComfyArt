@@ -70,8 +70,10 @@ def blocks_text(blocks: list[dict]) -> str:
         kind = b.get("type")
         if kind == "text":
             parts.append(str(b.get("text") or ""))
-        elif kind in ("image", "video"):
+        elif kind in ("image", "video", "audio"):
             parts.append(f"[attached {kind}: {b.get('url') or ''}]")
+        elif kind == "file":
+            parts.append(f"[attached document {b.get('name') or ''}: {b.get('url') or ''}]")
         elif kind == "notice" and b.get("text"):
             parts.append(f"[notice: {b.get('text')}]")
     return "\n".join(p for p in parts if p.strip()).strip()
@@ -122,6 +124,12 @@ def _apply_event(state: _TurnState, ev: BotEvent) -> Optional[dict]:
         else:
             state.blocks.append({"type": "text", "text": ev.text})
         return {"event": "turn_delta", "text": ev.text}
+    if ev.t == "thinking":
+        if state.blocks and state.blocks[-1].get("type") == "thinking":
+            state.blocks[-1]["text"] += ev.text
+        else:
+            state.blocks.append({"type": "thinking", "text": ev.text})
+        return {"event": "turn_thinking", "text": ev.text}
     if ev.t == "tool_use":
         block = {"type": "tool_use", "name": ev.name, "input": ev.input or {}}
         payload = {"event": "turn_tool_use", "name": ev.name,

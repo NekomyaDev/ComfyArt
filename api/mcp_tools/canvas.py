@@ -1,5 +1,5 @@
 from ..mcp_commands import submit_command
-from ._context import PROJECT
+from ._context import BOT_CHAT_ID, PROJECT
 from .bot_tools import maybe_ask_run_approval
 
 WAIT_MAX_S = 170
@@ -25,7 +25,7 @@ def _relay(action: str, *, timeout: float = 20.0, approval: str = ""):
             blocked = await maybe_ask_run_approval(f"{approval}{'：' + label if label else ''}")
             if blocked is not None:
                 return blocked
-        result = await submit_command(action, args, PROJECT.get(), timeout)
+        result = await submit_command(action, args, PROJECT.get(), timeout, chat=BOT_CHAT_ID.get())
         image = result.pop("png", None)
         if image:
             result["_images"] = [{"data": image, "mime": "image/png"}]
@@ -45,7 +45,8 @@ def _tool(description: str, properties: dict, required: list[str] = (), **relay)
 SPECS: dict[str, dict] = {
     "get_canvas": _tool(
         "List the open project: pages, the current page's frames and shapes (id, type, name or text, "
-        "x/y/width/height, parent, image or video URL and its pixel size, generation prompt), the selection, the linked "
+        "x/y/width/height, parent, image or video URL and its pixel size, generation prompt, the text of "
+        "imported PDF pages), the selection, the linked "
         "brand kit and running generations. page selects another page by id or name.",
         {"page": {"type": "string"}}),
     "view_canvas": _tool(

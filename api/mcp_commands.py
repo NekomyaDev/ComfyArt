@@ -13,12 +13,12 @@ _pending: dict[str, asyncio.Future] = {}
 
 
 async def submit_command(action: str, payload: dict, project: str,
-                         timeout: float = DEFAULT_TIMEOUT_S) -> dict:
+                         timeout: float = DEFAULT_TIMEOUT_S, chat: str = "") -> dict:
     command_id = uuid.uuid4().hex
     future: asyncio.Future = asyncio.get_running_loop().create_future()
     _pending[command_id] = future
     try:
-        PromptServer.instance.send_sync(COMMAND_EVENT, {"id": command_id, "action": action, "project": project, "args": payload})
+        PromptServer.instance.send_sync(COMMAND_EVENT, {"id": command_id, "action": action, "project": project, "chat": chat, "args": payload})
         return await asyncio.wait_for(future, timeout)
     except asyncio.TimeoutError:
         raise ValueError(

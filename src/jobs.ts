@@ -101,11 +101,12 @@ export interface GenInfo {
   duration?: number
   workflow?: string
   refs?: string[]
+  seed?: number
   settings?: Pick<GeneratorShape['props'], 'count' | 'quality' | 'style' | 'transparent' | 'cw' | 'ch'>
   inputs?: Record<string, JsonValue>
 }
 
-const GEN_INPUTS = ['refs', 'base', 'strength', 'colors', 'refModes', 'refStrengths', 'lastFrame', 'scenes', 'videoMode', 'motion', 'speech']
+const GEN_INPUTS = ['refs', 'base', 'strength', 'colors', 'refModes', 'refStrengths', 'refControls', 'lastFrame', 'scenes', 'videoMode', 'motion', 'speech', 'negative', 'seed', 'loras']
 
 function infoOf(holder: TLShape, job: Job): GenInfo {
   if (holder.type !== GENERATOR) return { tool: job.name }
@@ -117,6 +118,7 @@ function infoOf(holder: TLShape, job: Job): GenInfo {
   const inputs = Object.fromEntries(GEN_INPUTS.filter((k) => holder.meta[k] != null).map((k) => [k, holder.meta[k]!]))
   return {
     tool: t('common.generate'), prompt, ratio: p.ratio, resolution: p.resolution, duration: p.duration, workflow: p.workflow,
+    ...(typeof job.extra?.seed === 'number' ? { seed: job.extra.seed } : {}),
     ...(refs?.length ? { refs } : {}),
     settings: { count: p.count, quality: p.quality, style: p.style, transparent: p.transparent, cw: p.cw, ch: p.ch },
     inputs,

@@ -10,7 +10,7 @@ const SECTIONS: [string, [string, string][]][] = [
   [t('common.edit'), [[t('common.undo'), 'Ctrl Z'], [t('shortcuts.redo'), 'Ctrl Shift Z'], [t('common.copy'), 'Ctrl C'], [t('common.cut'), 'Ctrl X'], [t('canvasMenu.paste'), 'Ctrl V'], [t('common.duplicate'), 'Ctrl D'], [t('common.delete'), 'Delete'], [t('canvasMenu.selectAll'), 'Ctrl A'], [t('shortcuts.group'), 'Ctrl G'], [t('shortcuts.ungroup'), 'Ctrl Shift G'], [t('multiToolbar.tidyUp'), 'Shift A']]],
   [t('shortcuts.view'), [[t('common.zoomIn'), 'Ctrl +'], [t('common.zoomOut'), 'Ctrl -'], [t('shortcuts.zoomTo100'), 'Ctrl 0'], [t('shortcuts.fitCanvas'), 'Shift 1'], [t('shortcuts.fitSelection'), 'Shift 2']]],
   [t('common.layers'), [[t('shortcuts.bringToFront'), ']'], [t('shortcuts.sendToBack'), '['], [t('canvasMenu.bringForward'), 'Ctrl ]'], [t('canvasMenu.sendBackward'), 'Ctrl ['], [t('canvasMenu.mergeLayers'), 'Ctrl E'], [`${t('sidePanel.show')} / ${t('sidePanel.hide')}`, 'Ctrl Shift H'], [t('canvasMenu.lockUnlock'), 'Ctrl Shift L'], [t('common.flipHorizontal'), 'Shift H'], [t('common.flipVertical'), 'Shift V'], [t('shortcuts.nudge'), t('shortcuts.arrowKeys')], [t('shortcuts.nudge10px'), t('shortcuts.shiftArrowKeys')]]],
-  [t('common.image'), [[t('common.quickEdit'), 'Tab']]],
+  [t('common.image'), [[t('canvasChat.chatSelection'), 'Shift Enter'], [t('common.quickEdit'), 'Tab']]],
 ]
 
 export function Shortcuts() {

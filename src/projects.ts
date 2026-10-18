@@ -16,7 +16,7 @@ export const loadProject = (id: string) => readUserJson<TLEditorSnapshot | null>
 
 export const saveProject = (id: string, snapshot: TLEditorSnapshot) => writeUserJson(filePath(id), snapshot)
 
-export interface ProjectEntry { id: string; name: string; updated: number; covers?: string[] }
+export interface ProjectEntry { id: string; name: string; updated: number; covers?: string[]; pinned?: boolean }
 
 const INDEX = 'comfyart/index.json'
 type ProjectIndex = Record<string, Omit<ProjectEntry, 'id'>>
@@ -24,7 +24,7 @@ type ProjectIndex = Record<string, Omit<ProjectEntry, 'id'>>
 const readIndex = () => readUserJson<ProjectIndex>(INDEX, {})
 
 export async function listProjects(): Promise<ProjectEntry[]> {
-  return Object.entries(await readIndex()).map(([id, e]) => ({ id, ...e })).sort((a, b) => b.updated - a.updated)
+  return Object.entries(await readIndex()).map(([id, e]) => ({ id, ...e })).sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.updated - a.updated)
 }
 
 export function coversOf(records: TLRecord[]): string[] {
@@ -36,7 +36,7 @@ export function coversOf(records: TLRecord[]): string[] {
 
 export async function touchProject(id: string, name: string, covers: string[]) {
   const index = await readIndex()
-  index[id] = { name, updated: Date.now(), covers }
+  index[id] = { ...index[id], name, updated: Date.now(), covers }
   await writeUserJson(INDEX, index)
 }
 
@@ -72,8 +72,6 @@ export async function deleteProjects(ids: string[]) {
   await writeUserJson(INDEX, index)
 }
 
-export const newProjectId = () => uuid().slice(0, 8)
-
 export function projectUrl(id: string, params: Record<string, string | string[]> = {}) {
   const url = new URL(location.pathname, location.origin)
   url.searchParams.set('project', id)
@@ -81,8 +79,40 @@ export function projectUrl(id: string, params: Record<string, string | string[]>
   return url.toString()
 }
 
-export function openProject(id: string, kit?: string) {
-  location.assign(projectUrl(id, kit ? { kit } : {}))
+export function openProject(id: string) {
+  location.assign(projectUrl(id))
+}
+
+export const NEW_PARAM = 'new'
+
+export function newProject(params: Record<string, string | string[]> = {}) {
+  location.assign(projectUrl(uuid().slice(0, 8), { [NEW_PARAM]: '1', ...params }))
+}
+
+export async function projectExists(id: string) {
+  return (await loadProject(id)) !== null
+}
+
+export async function setPinned(id: string, pinned: boolean) {
+  const index = await readIndex()
+  if (!index[id]) return
+  index[id] = { ...index[id], pinned: pinned || undefined }
+  await writeUserJson(INDEX, index)
+}
+
+export async function duplicateProject(id: string): Promise<string> {
+  const snapshot = await loadProject(id)
+  const entry = (await readIndex())[id]
+  if (!snapshot || !entry) throw new Error(t('home.projectNotFound'))
+  const copy = uuid().slice(0, 8)
+  const name = t('projects.copyName', entry.name || UNTITLED)
+  const doc = snapshot.document.store['document:document' as TLRecord['id']]
+  if (doc?.typeName === 'document') snapshot.document.store[doc.id] = { ...doc, name }
+  await saveProject(copy, snapshot)
+  const index = await readIndex()
+  index[copy] = { name, updated: Date.now(), covers: entry.covers }
+  await writeUserJson(INDEX, index)
+  return copy
 }
 
 export function openView(view: 'home' | 'projects') {

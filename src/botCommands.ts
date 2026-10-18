@@ -5,6 +5,8 @@ import { generateAudio, imageTo3d, VOICES } from './assetGen'
 import { editElements } from './elements'
 import { bakeToImage, createMockup } from './mockup'
 import { api } from './comfy'
+import { settingsAtom } from './bot'
+import { placeInChatFrame } from './chatFrame'
 import { placeHtml } from './embeds'
 import { capRefs, createGenerator, DURATIONS, generate, genInfoOf, RATIOS, VIDEO_RATIOS } from './generate'
 import { MAX_VIDEO_REF_KINDS } from './workflows'
@@ -28,10 +30,11 @@ import { t } from './i18n'
 import { uuid } from './id'
 
 type Args = Record<string, any>
-type Handler = (editor: Editor, args: Args, onError: ErrorSink) => unknown
+type Handler = (editor: Editor, args: Args, onError: ErrorSink, chat: string) => unknown
 
 const MAX_SHAPES = 300
 const VIEW_MAX_PX = 1024
+const PAGE_TEXT_CAP = 3000
 const GAP = 40
 
 function shapeOf(editor: Editor, id: unknown): TLShape {
@@ -79,6 +82,7 @@ function describe(editor: Editor, shape: TLShape) {
     ...(media?.props.src ? { url: media.props.src, pixels: `${media.props.w}x${media.props.h}` } : fileSrc(editor, shape) ? { url: fileSrc(editor, shape) } : {}),
     ...(gen?.prompt ? { prompt: gen.prompt.slice(0, 300) } : {}),
     ...(shape.type === GENERATOR ? { prompt: (shape as GeneratorShape).props.prompt.slice(0, 300) } : {}),
+    ...(typeof shape.meta.pageText === 'string' ? { page_text: shape.meta.pageText.slice(0, PAGE_TEXT_CAP) } : {}),
   }
 }
 
@@ -100,7 +104,7 @@ async function blobBase64(blob: Blob): Promise<string> {
   return btoa(s)
 }
 
-function place(editor: Editor, id: TLShapeId, args: Args) {
+function place(editor: Editor, id: TLShapeId, args: Args, chat: string) {
   const shape = editor.getShape(id)!
   if (args.frame) {
     const frame = shapeOf(editor, args.frame)
@@ -110,7 +114,15 @@ function place(editor: Editor, id: TLShapeId, args: Args) {
   } else if (args.near) {
     const b = editor.getShapePageBounds(shapeOf(editor, args.near))!
     editor.updateShape({ id, type: shape.type, x: b.maxX + GAP, y: b.y })
+  } else if (chat) {
+    placeInChatFrame(editor, id, chat)
   }
+}
+
+function toChat(editor: Editor, chat: string, holder: TLShapeId | undefined) {
+  const result = started(editor, holder)
+  if (chat) placeInChatFrame(editor, holder!, chat)
+  return result
 }
 
 function refUrls(editor: Editor, refs: unknown): string[] {
@@ -123,7 +135,7 @@ function refUrls(editor: Editor, refs: unknown): string[] {
   })
 }
 
-function startGenerator(editor: Editor, video: boolean, args: Args, onError: ErrorSink) {
+function startGenerator(editor: Editor, video: boolean, args: Args, onError: ErrorSink, chat: string) {
   const models = agentModels(video)
   const wantsRefs = !video && Array.isArray(args.refs) && args.refs.length > 0
   const model = args.model ? models.find((m) => m.id === args.model) : (wantsRefs && models.find((m) => m.refs)) || models[0]
@@ -151,7 +163,7 @@ function startGenerator(editor: Editor, video: boolean, args: Args, onError: Err
   }
   const id = createGenerator(editor, video, props, false)
   editor.updateShape<GeneratorShape>({ id, type: GENERATOR, meta })
-  place(editor, id, args)
+  place(editor, id, args, chat)
   void generate(editor, editor.getShape<GeneratorShape>(id)!, onError)
   return { ids: [id], model: model.id, note: 'call wait_generation with these ids' }
 }
@@ -243,8 +255,8 @@ const HANDLERS: Record<string, Handler> = {
       items: libraryAtom.get().map((k) => ({ id: k.id, kind: k.kind, name: k.name, summary: describeItem(k), images: itemImages(k) })),
     }
   },
-  generate_image: (editor, args, onError) => startGenerator(editor, false, args, onError),
-  generate_video: (editor, args, onError) => startGenerator(editor, true, args, onError),
+  generate_image: (editor, args, onError, chat) => startGenerator(editor, false, args, onError, chat),
+  generate_video: (editor, args, onError, chat) => startGenerator(editor, true, args, onError, chat),
   edit_image: (editor, args, onError) => started(editor, actions.quickEdit(editor, imageOf(editor, args.id), String(args.prompt), onError)),
   animate_image: (editor, args, onError) => started(editor, actions.animate(editor, imageOf(editor, args.id), String(args.prompt), onError, args.loop !== false)),
   upscale_image: (editor, args, onError) => {
@@ -273,16 +285,16 @@ const HANDLERS: Record<string, Handler> = {
     return started(editor, actions.upscaleVideo(editor, videoOf(editor, args.id), long, onError))
   },
   remove_video_background: (editor, args, onError) => started(editor, actions.cutoutVideo(editor, videoOf(editor, args.id), onError)),
-  generate_music: (editor, args, onError) => started(editor, generateAudio(editor, { kind: 'music', prompt: String(args.prompt), lyrics: String(args.lyrics ?? ''), seconds: Math.min(240, Math.max(5, Number(args.duration) || 30)) }, onError, true)),
-  generate_sound_effect: (editor, args, onError) => started(editor, generateAudio(editor, { kind: 'sfx', prompt: String(args.prompt), seconds: Math.min(47, Math.max(1, Number(args.duration) || 8)) }, onError, true)),
-  text_to_speech: (editor, args, onError) => {
+  generate_music: (editor, args, onError, chat) => toChat(editor, chat, generateAudio(editor, { kind: 'music', prompt: String(args.prompt), lyrics: String(args.lyrics ?? ''), seconds: Math.min(240, Math.max(5, Number(args.duration) || 30)) }, onError, true)),
+  generate_sound_effect: (editor, args, onError, chat) => toChat(editor, chat, generateAudio(editor, { kind: 'sfx', prompt: String(args.prompt), seconds: Math.min(47, Math.max(1, Number(args.duration) || 8)) }, onError, true)),
+  text_to_speech: (editor, args, onError, chat) => {
     if (args.reference) {
       const shape = shapeOf(editor, args.reference)
       if (shape.type !== AUDIO) throw new Error(`${shape.id} is not an audio shape`)
-      return started(editor, generateAudio(editor, { kind: 'clone', text: String(args.text), reference: fileSrc(editor, shape)! }, onError, true))
+      return toChat(editor, chat, generateAudio(editor, { kind: 'clone', text: String(args.text), reference: fileSrc(editor, shape)! }, onError, true))
     }
     if (args.voice && !VOICES.includes(args.voice)) throw new Error(`voice must be one of ${VOICES.join(', ')}`)
-    return started(editor, generateAudio(editor, { kind: 'speech', text: String(args.text), voice: args.voice ?? VOICES[0] }, onError, true))
+    return toChat(editor, chat, generateAudio(editor, { kind: 'speech', text: String(args.text), voice: args.voice ?? VOICES[0] }, onError, true))
   },
   edit_elements: (editor, args, onError) => started(editor, editElements(editor, imageOf(editor, args.id), onError)),
   create_mockup: (editor, args, onError) => started(editor, createMockup(editor, imageOf(editor, args.id), onError)),
@@ -303,7 +315,7 @@ const HANDLERS: Record<string, Handler> = {
   },
   image_to_3d: (editor, args, onError) => started(editor, imageTo3d(editor, imageOf(editor, args.id), onError)),
   wait_generation: (editor, args) => waitResults(editor, (args.ids ?? []).map(String), Number(args.timeout_s) || 60),
-  place_html: (editor, args) => {
+  place_html: (editor, args, _onError, chat) => {
     const id = placeHtml(editor, String(args.html), String(args.name ?? t('botCommands.webPage')))
     editor.updateShape<HtmlShape>({
       id, type: HTML,
@@ -311,6 +323,7 @@ const HANDLERS: Record<string, Handler> = {
       ...(args.y != null ? { y: Number(args.y) } : {}),
       props: { ...(args.width ? { w: Number(args.width) } : {}), ...(args.height ? { h: Number(args.height) } : {}) },
     })
+    if (chat && args.x == null && args.y == null) placeInChatFrame(editor, id, chat)
     return { id }
   },
   create_slides: (editor, args, onError) => {
@@ -401,6 +414,7 @@ const HANDLERS: Record<string, Handler> = {
     return { selected: shapes.map((s: TLShape) => s.id) }
   },
   memory: async (_editor, args) => {
+    if (settingsAtom.get()['memory-enabled'] === false && args.action !== 'forget') throw new Error('the user turned memory off; do not read or save memories')
     if (args.action === 'list') return { memories: memoryAtom.get().map((m) => ({ text: m.text, category: m.category ?? 'about' })) }
     if (args.action === 'add') {
       await remember([{ text: String(args.text), category: args.category }], t('botCommands.chat'))
@@ -432,13 +446,13 @@ const HANDLERS: Record<string, Handler> = {
 }
 
 export function registerCommandBus(editor: Editor, project: string, isStale: () => boolean, onError: ErrorSink) {
-  return onComfyEvent('comfyart-mcp-command', (msg: { id: string; action: string; project: string; args: Args }) => {
+  return onComfyEvent('comfyart-mcp-command', (msg: { id: string; action: string; project: string; chat?: string; args: Args }) => {
     if ((msg.project && msg.project !== project) || isStale()) return
     const handler = HANDLERS[msg.action]
     const reply = (body: object) => api('/comfyart/mcp_command_result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command_id: msg.id, ...body }) })
     if (!handler) return void reply({ ok: false, error: `unknown command ${msg.action}` })
     Promise.resolve()
-      .then(() => handler(editor, msg.args ?? {}, onError))
+      .then(() => handler(editor, msg.args ?? {}, onError, msg.chat ?? ''))
       .then((result) => reply({ ok: true, result }), (e) => reply({ ok: false, error: errorText(e) }))
   })
 }
