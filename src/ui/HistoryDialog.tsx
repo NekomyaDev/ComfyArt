@@ -36,7 +36,7 @@ export function HistoryDialog({ editor, projectId, onError }: { editor: Editor; 
     run: async () => {
       try {
         await saveVersion(projectId, getSnapshot(editor.store), editor.getCurrentPageShapeIds().size)
-        loadSnapshot(editor.store, await loadVersion(projectId, v.file))
+        loadSnapshot(editor.store, await loadVersion(projectId, v.time))
         close()
       } catch (e) {
         onError(errorText(e))
@@ -54,7 +54,7 @@ export function HistoryDialog({ editor, projectId, onError }: { editor: Editor; 
         <div className="ca-history__list">
           {versions?.length === 0 && <div className="ca-side__empty">{t('historyDialog.noCanvasHistoryYet')}</div>}
           {versions?.map((v) => (
-            <div key={v.file} className="ca-history__row">
+            <div key={v.time} className="ca-history__row">
               <span className="ca-menu__grow">{ago(v.time)}</span>
               <span className="ca-menu__key">{t('historyDialog.elements', v.count)}</span>
               <button type="button" className="ca-panel__secondary" onClick={() => restore(v)}>{t('historyDialog.restore')}</button>

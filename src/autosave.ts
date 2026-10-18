@@ -2,7 +2,7 @@ import { atom, getSnapshot, type Editor } from 'tldraw'
 
 import { maybeSaveVersion } from './history'
 import { errorText } from './jobs'
-import { coversOf, saveProject, touchProject } from './projects'
+import { coversOf, saveProject } from './projects'
 
 export type SaveState = 'saved' | 'pending' | 'saving' | 'error'
 
@@ -22,12 +22,11 @@ export function startAutosave(editor: Editor, id: string, canSave: () => boolean
     if (!canSave()) return
     if (running) await running
     saveStateAtom.set({ state: 'saving' })
-    running = saveProject(id, getSnapshot(editor.store))
+    running = saveProject(id, getSnapshot(editor.store), editor.getDocumentSettings().name, coversOf(editor.store.allRecords()))
       .then(() => {
         saveStateAtom.set({ state: 'saved', time: Date.now() })
         onSaved()
         maybeSaveVersion(id, () => getSnapshot(editor.store), editor.store.query.records('shape').get().length)
-        return touchProject(id, editor.getDocumentSettings().name, coversOf(editor.store.allRecords()))
       })
       .catch((e) => { saveStateAtom.set({ state: 'error', error: errorText(e) }) })
       .finally(() => { running = null })

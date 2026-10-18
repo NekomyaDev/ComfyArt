@@ -26,7 +26,7 @@ The rail on the left has **New Project**, **Home**, **Projects** and the setting
 
 The project library shows every project with a preview of its canvas. From a card's menu you can **Pin to top** (pinned projects come first and show a pin), rename, **Duplicate** (a full copy of the canvas named "… copy"; chats are not copied) or delete it. Use **Select** to pick several (or **Select all**) and delete them together. Deleting a project removes its canvas, chats and saved versions; generated images and videos stay in ComfyUI's output folder.
 
-Each project is a URL, `/comfyart/?project=<id>`, and is saved in the ComfyUI user directory under `comfyart/projects/`. A link to a project that does not exist (deleted, or a typo) shows **Project not found** with buttons to the project library and a new project, instead of opening an empty canvas.
+Each project is a URL, `/comfyart/?project=<id>`, and is saved, with its snapshot history, in ComfyArt's SQLite database (`user/__comfyart/data.db`). Projects from older versions, which were JSON files under `comfyart/projects/`, are imported the first time you open ComfyArt after updating; the old files stay where they were. A link to a project that does not exist (deleted, or a typo) shows **Project not found** with buttons to the project library and a new project, instead of opening an empty canvas.
 
 ## Inside a project
 

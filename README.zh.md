@@ -29,7 +29,7 @@
 
 把本目录放进 `ComfyUI/custom_nodes/`，在 ComfyUI 的环境里装好 Python 依赖（`pip install -r requirements.txt`：PDF 上传用的 `pypdfium2` 和编辑元素用的 `rapidocr`），重启 ComfyUI 后打开 `http://127.0.0.1:8188/comfyart/`。构建好的页面在 `dist/`；改了 `src/` 之后用 `npm install && npm run build` 重新构建。
 
-项目保存在 ComfyUI 用户目录的 `comfyart/projects/` 下。界面语言默认跟随 ComfyUI，可以在设置菜单里随时切换。
+项目、项目的快照历史和 Agent 对话都保存在 SQLite 数据库 `user/__comfyart/data.db` 里。旧版本的项目（`comfyart/projects/` 下的 JSON 文件）会在第一次打开 ComfyArt 时自动导入，原文件保留不动。界面语言默认跟随 ComfyUI，可以在设置菜单里随时切换。
 
 ## Agent
 
