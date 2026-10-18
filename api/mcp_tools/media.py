@@ -1,6 +1,7 @@
 import asyncio
 
-from ..bot_media import contact_sheet, jpeg, video_frames, view_path
+from .._common import view_path
+from ..bot_media import contact_sheet, jpeg, video_frames
 
 MAX_FRAMES = 16
 SHEET_PX = 1536

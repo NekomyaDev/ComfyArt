@@ -2,7 +2,8 @@ import { atom, createShapeId, type Editor, type TLImageShape, type TLShape, type
 
 import { commentTarget } from './actions'
 import { botEnabledAtom, logDirect, sendMessage, settingsAtom, type BotBlock } from './bot'
-import { capRefs, createGenerator, DURATIONS, generate, nearestRatio, VIDEO_RATIOS } from './generate'
+import { capRefs, createGenerator, generate, nearestRatio } from './generate'
+import { DURATIONS, VIDEO_RATIOS } from './genOptions'
 import { uploadImage, viewUrl, type RefKind } from './comfy'
 import { fileSrc, placeMedia, toMedia, type ErrorSink } from './jobs'
 import { describeItem, itemImages, linkedKit, type LibraryItem } from './library'

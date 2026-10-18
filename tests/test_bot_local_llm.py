@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from ComfyArt.bot import lms
 from ComfyArt.bot.guide import CORE_MCP_TOOLS
 from ComfyArt.bot.local_llm import LocalLlmProvider, _user_content
 from ComfyArt.bot.providers import BotEvent, TurnHandle, TurnRequest
@@ -116,7 +117,7 @@ class TestWaitLoop:
             return json.dumps({"status": "done", "results": []}), []
 
         monkeypatch.setattr(provider, "_mcp_call_tool", fake_call)
-        monkeypatch.setattr(provider, "_lms_bin", lambda: "")
+        monkeypatch.setattr(lms, "lms_bin", lambda: "")
         raw = await provider._wait_stage_done(
             None, "http://x/mcp", {"ids": ["shape:a"]}, "m", TurnHandle())
         assert json.loads(raw)["status"] == "done"

@@ -1,3 +1,4 @@
+import { readLocal } from './localPrefs'
 import { t } from './i18n'
 import { CLIENT_ID, onComfyEvent } from './ws'
 
@@ -8,7 +9,7 @@ export type PromptGraph = Record<string, { class_type: string; inputs: Record<st
 export interface ImageRef { filename: string; subfolder: string; type: string; metadata?: { width?: number; height?: number } }
 
 function comfyUser(): string | null {
-  try { return localStorage.getItem('Comfy.userId') } catch { return null }
+  return readLocal('Comfy.userId')
 }
 
 export function api(path: string, init?: RequestInit) {
@@ -71,11 +72,18 @@ export function refKind(src: string): RefKind {
   return VIDEO_EXTS.includes(ext) ? 'video' : AUDIO_EXTS.includes(ext) ? 'audio' : 'image'
 }
 
-export function mediaMeta(src: string, kind: 'video' | 'audio'): Promise<{ seconds: number; aspect: number }> {
+export function mediaMeta(src: string, kind: RefKind): Promise<{ seconds: number; w: number; h: number }> {
   return new Promise((resolve, reject) => {
+    if (kind === 'image') {
+      const img = new Image()
+      img.onload = () => resolve({ seconds: 0, w: img.naturalWidth, h: img.naturalHeight })
+      img.onerror = () => reject(new Error(`cannot read ${src}`))
+      img.src = src
+      return
+    }
     const el = document.createElement(kind)
     el.preload = 'metadata'
-    el.onloadedmetadata = () => resolve({ seconds: el.duration, aspect: el instanceof HTMLVideoElement ? el.videoWidth / el.videoHeight : 1 })
+    el.onloadedmetadata = () => resolve({ seconds: el.duration, w: el instanceof HTMLVideoElement ? el.videoWidth : 0, h: el instanceof HTMLVideoElement ? el.videoHeight : 0 })
     el.onerror = () => reject(new Error(`cannot read ${src}`))
     el.src = src
   })

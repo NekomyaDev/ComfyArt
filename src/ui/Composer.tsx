@@ -6,7 +6,7 @@ import { EachButton, EachRole, useEach } from './EachToggle'
 import { RefFrameButton } from './RefFrameButton'
 import { placeAsset } from '../assets'
 import { botEnabledAtom, messagesAtom } from '../bot'
-import { VIDEO_RATIOS } from '../generate'
+import { VIDEO_RATIOS } from '../genOptions'
 import { errorText } from '../jobs'
 import { KIND_LABELS, libraryAtom } from '../library'
 import { agentModels, installedModels, modelOf } from '../models'
@@ -20,7 +20,7 @@ import { AgentPicker } from './AgentPicker'
 import { Icons } from './icons'
 import { ModelPrefs } from './ModelPrefs'
 import { VoiceButton } from './VoiceButton'
-import { skillsOpenAtom } from './SkillsDialog'
+import { SkillForm, skillsOpenAtom } from './SkillsDialog'
 import { Popover } from './Popover'
 import { t } from '../i18n'
 import { uuid } from '../id'
@@ -43,29 +43,6 @@ function RefThumb({ editor, s }: { editor: Editor; s: RefShape }) {
   const kind = refKindOf(s)
   if (kind === 'audio') return <span className="ca-icon">{Icons.music}</span>
   return kind === 'video' ? <video src={srcOf(editor, s) ?? ''} muted preload="metadata" /> : <img src={srcOf(editor, s) ?? ''} alt="" />
-}
-
-function SkillEditor({ onDone }: { onDone: (s: Skill | null) => void }) {
-  const [name, setName] = useState('')
-  const [text, setText] = useState('')
-  return (
-    <div className="ca-menu ca-skilled">
-      <div className="ca-gen__title">{t('composer.skillCreator')}</div>
-      <input className="ca-panel__input" value={name} placeholder={t('composer.skillName')} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
-      <textarea className="ca-panel__prompt ca-panel__prompt--boxed" value={text} placeholder={t('composer.instructionsForTheAgentDeliverables')} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
-      <div className="ca-panel__foot">
-        <button type="button" className="ca-panel__secondary" onClick={() => onDone(null)}>{t('common.cancel')}</button>
-        <button
-          type="button"
-          className="ca-panel__primary"
-          disabled={!name.trim() || !text.trim()}
-          onClick={() => onDone({ id: uuid().slice(0, 8), name: name.trim(), instructions: text.trim(), custom: true })}
-        >
-          {t('common.save')}
-        </button>
-      </div>
-    </div>
-  )
 }
 
 function DirectPills({ editor, video }: { editor: Editor; video: boolean }) {
@@ -290,13 +267,17 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
             </div>
           )}
           {menu === 'create' && (
-            <SkillEditor
-              onDone={(s) => {
-                setMenu(null)
-                if (!s) return
-                void saveSkill(s).then(() => skillAtom.set(s)).catch((e) => onError(String(e)))
-              }}
-            />
+            <div className="ca-menu ca-skilled">
+              <div className="ca-gen__title">{t('composer.skillCreator')}</div>
+              <SkillForm
+                initial={{ id: uuid().slice(0, 8), name: '', instructions: '', custom: true }}
+                onDone={(s) => {
+                  setMenu(null)
+                  if (!s) return
+                  void saveSkill(s).then(() => skillAtom.set(s)).catch((e) => onError(String(e)))
+                }}
+              />
+            </div>
           )}
         </Popover>
         <Popover

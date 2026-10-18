@@ -1,11 +1,10 @@
 import { createShapeId, type Editor, type TLImageShape, type TLShapeId } from 'tldraw'
 
 import { loadWorkflow } from './comfy'
-import { freeSpot } from './generate'
-import { registerPlacer, selectResults, spawnHolder, startJob, type ErrorSink } from './jobs'
+import { freeSpot, GAP, registerPlacer, selectResults, spawnHolder, startJob, type ErrorSink } from './jobs'
 import { AUDIO, AUDIO_SIZE, MODEL } from './shapes/EmbedShapes'
 import { GENERATOR } from './shapes/GeneratorShape'
-import { annotated, type Built } from './workflows'
+import { annotated, randomSeed, type Built } from './workflows'
 import { t } from './i18n'
 
 export const VOICES = ['zf_xiaoxiao', 'zf_xiaoyi', 'zf_xiaobei', 'zf_xiaoni', 'zm_yunxi', 'zm_yunjian', 'zm_yunyang', 'zm_yunxia', 'af_heart', 'af_bella', 'af_nicole', 'am_adam', 'am_michael', 'bf_emma', 'bm_george', 'jf_alpha', 'jm_kumo']
@@ -13,7 +12,6 @@ const LANGS: Record<string, string> = { a: 'English', b: 'English (British)', j:
 export const MUSIC_SECONDS = [15, 30, 60, 120]
 export const SFX_SECONDS = [3, 5, 8, 15]
 const MODEL_SIZE = 480
-const GAP = 40
 
 export type AudioSpec =
   | { kind: 'music'; prompt: string; lyrics: string; seconds: number }
@@ -21,21 +19,19 @@ export type AudioSpec =
   | { kind: 'clone'; text: string; reference: string }
   | { kind: 'sfx'; prompt: string; seconds: number }
 
-const seed = () => Math.floor(Math.random() * 2 ** 31)
-
 async function audioGraph(spec: AudioSpec): Promise<Built> {
   if (spec.kind === 'music') {
     const g = await loadWorkflow('music-ace-step.api.json')
     Object.assign(g['3'].inputs, { tags: spec.prompt, lyrics: spec.lyrics || '[instrumental]' })
     g['5'].inputs.seconds = spec.seconds
-    g['6'].inputs.seed = seed()
+    g['6'].inputs.seed = randomSeed()
     return { graph: g, result: '8' }
   }
   if (spec.kind === 'sfx') {
     const g = await loadWorkflow('sfx-stable-audio.api.json')
     g['3'].inputs.text = spec.prompt
     g['5'].inputs.seconds = spec.seconds
-    g['6'].inputs.seed = seed()
+    g['6'].inputs.seed = randomSeed()
     return { graph: g, result: '8' }
   }
   if (spec.kind === 'speech') {
@@ -46,7 +42,7 @@ async function audioGraph(spec: AudioSpec): Promise<Built> {
   }
   const g = await loadWorkflow('voice-clone-indextts.api.json')
   g['1'].inputs.audio = annotated(spec.reference)
-  Object.assign(g['3'].inputs, { text: spec.text, seed: seed() })
+  Object.assign(g['3'].inputs, { text: spec.text, seed: randomSeed() })
   return { graph: g, result: '4' }
 }
 

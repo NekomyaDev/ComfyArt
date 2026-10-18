@@ -1,10 +1,11 @@
 import { atom, type Editor, type TLShapeId } from 'tldraw'
 
 import { mediaMeta, refKind, type RefKind } from './comfy'
-import { capRefs, DURATIONS, nearestRatio, refsOf, targetSize, VIDEO_RATIOS, videoModeOf } from './generate'
+import { capRefs, nearestRatio, refsOf, targetSize, videoModeOf } from './generate'
+import { DURATIONS, VIDEO_RATIOS } from './genOptions'
 import { agentModels, isVideo, modelOf } from './models'
 import { refLimit } from './refModes'
-import { MAX_VIDEO_REF_KINDS } from './workflows'
+import { MAX_VIDEO_REF_KINDS } from './videoGraphs'
 import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 
 export type Target = 'ref' | 'base' | 'last' | 'motion' | 'speech'
@@ -36,8 +37,8 @@ export async function fillTarget(editor: Editor, id: TLShapeId, to: Target, srcs
   }
   if (!src) return
   if (to === 'motion') {
-    const { seconds, aspect } = await mediaMeta(src, 'video')
-    const props = { ...shape.props, ratio: nearestRatio(aspect, VIDEO_RATIOS), duration: DURATIONS.filter((d) => d <= seconds).pop() ?? DURATIONS[0] }
+    const { seconds, w: vw, h: vh } = await mediaMeta(src, 'video')
+    const props = { ...shape.props, ratio: nearestRatio(vw / vh, VIDEO_RATIOS), duration: DURATIONS.filter((d) => d <= seconds).pop() ?? DURATIONS[0] }
     const [w, h] = targetSize(props)
     editor.updateShape<GeneratorShape>({ id, type: GENERATOR, props: { ...props, w, h } })
     return setMeta({ motion: src })

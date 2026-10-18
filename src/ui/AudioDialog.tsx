@@ -3,7 +3,8 @@ import { atom, useValue, type Editor } from 'tldraw'
 
 import { generateAudio, MUSIC_SECONDS, SFX_SECONDS, VOICES, type AudioSpec } from '../assetGen'
 import { AUDIO, type AudioShape } from '../shapes/EmbedShapes'
-import { Icons } from './icons'
+import { Modal } from './Modal'
+import { Chips } from './Chips'
 import { t } from '../i18n'
 
 type Tab = 'music' | 'speech' | 'sfx'
@@ -45,47 +46,37 @@ export function AudioDialog({ editor, onError }: { editor: Editor; onError: (msg
   }
 
   return (
-    <div className="ca-modal" onPointerDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) close() }}>
-      <div className="ca-modal__card ca-rename">
-        <div className="ca-side__head">
-          <span>{t('audio.generateAudio')}</span>
-          <button type="button" className="ca-panel__icon" title={t('common.close')} onClick={close}>{Icons.close}</button>
-        </div>
-        <div className="ca-rename__body">
-          <div className="ca-panel__chips">
-            {TABS.map(([k, label]) => <button key={k} type="button" className="ca-panel__chip" data-on={tab === k || undefined} onClick={() => pick(k)}>{label}</button>)}
+    <Modal title={t('audio.generateAudio')} onClose={close}>
+      <div className="ca-rename__body">
+        <Chips value={tab} options={TABS} onPick={pick} />
+        <textarea
+          autoFocus
+          className="ca-panel__prompt ca-panel__prompt--boxed"
+          value={prompt}
+          placeholder={tab === 'music' ? t('audio.musicPlaceholder') : tab === 'sfx' ? t('audio.sfxPlaceholder') : t('audio.speechPlaceholder')}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
+        />
+        {tab === 'music' && (
+          <textarea className="ca-panel__prompt ca-panel__prompt--boxed" value={lyrics} placeholder={t('audio.lyricsPlaceholder')} onChange={(e) => setLyrics(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
+        )}
+        {tab === 'speech' ? (
+          <div className="ca-rename__field"><span>{t('audio.voice')}</span>
+            <select className="ca-panel__input" value={voice} onChange={(e) => setVoice(e.target.value)}>
+              {reference && <option value={CLONE}>{t('audio.cloneSelected')}</option>}
+              {VOICES.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
           </div>
-          <textarea
-            autoFocus
-            className="ca-panel__prompt ca-panel__prompt--boxed"
-            value={prompt}
-            placeholder={tab === 'music' ? t('audio.musicPlaceholder') : tab === 'sfx' ? t('audio.sfxPlaceholder') : t('audio.speechPlaceholder')}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => e.stopPropagation()}
-          />
-          {tab === 'music' && (
-            <textarea className="ca-panel__prompt ca-panel__prompt--boxed" value={lyrics} placeholder={t('audio.lyricsPlaceholder')} onChange={(e) => setLyrics(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
-          )}
-          {tab === 'speech' ? (
-            <div className="ca-rename__field"><span>{t('audio.voice')}</span>
-              <select className="ca-panel__input" value={voice} onChange={(e) => setVoice(e.target.value)}>
-                {reference && <option value={CLONE}>{t('audio.cloneSelected')}</option>}
-                {VOICES.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-            </div>
-          ) : (
-            <div className="ca-rename__field"><span>{t('audio.duration')}</span>
-              <div className="ca-panel__chips">
-                {durations.map((s) => <button key={s} type="button" className="ca-panel__chip" data-on={seconds === s || undefined} onClick={() => setSeconds(s)}>{s}s</button>)}
-              </div>
-            </div>
-          )}
-          <div className="ca-panel__foot">
-            <button type="button" className="ca-panel__secondary" onClick={close}>{t('common.cancel')}</button>
-            <button type="button" className="ca-panel__primary" disabled={!prompt.trim()} onClick={run}>{t('common.generate')}</button>
+        ) : (
+          <div className="ca-rename__field"><span>{t('audio.duration')}</span>
+            <Chips value={seconds} options={durations.map((s) => [s, `${s}s`] as const)} onPick={setSeconds} />
           </div>
+        )}
+        <div className="ca-panel__foot">
+          <button type="button" className="ca-panel__secondary" onClick={close}>{t('common.cancel')}</button>
+          <button type="button" className="ca-panel__primary" disabled={!prompt.trim()} onClick={run}>{t('common.generate')}</button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { errorText } from '../jobs'
 import { CONTROL_RESOLUTIONS, DEFAULT_CONTROL, previewControl, type RefControl, type RefMode } from '../refModes'
+import { Chips } from './Chips'
 import { t } from '../i18n'
 
 export function RefControls({ src, mode, value, onChange, onError }: { src: string; mode: RefMode; value: RefControl | undefined; onChange: (c: RefControl) => void; onError: (msg: string) => void }) {
@@ -27,7 +28,7 @@ export function RefControls({ src, mode, value, onChange, onError }: { src: stri
       {mode.node && 'resolution' in mode.node[1] && (
         <div className="ca-panel__row">
           <span>{t('refControls.resolution')}</span>
-          <div className="ca-gen__chips">{CONTROL_RESOLUTIONS.map((r) => <button key={r} type="button" className="ca-gen__chip" data-on={c.res === r || undefined} onClick={() => set({ res: r })}>{r}</button>)}</div>
+          <Chips value={c.res} options={CONTROL_RESOLUTIONS.map((r) => [r, String(r)] as const)} onPick={(r) => set({ res: r })} gen />
         </div>
       )}
       <div className="ca-panel__row">

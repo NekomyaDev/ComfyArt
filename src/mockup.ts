@@ -1,14 +1,13 @@
 import { createShapeId, type Editor, type TLImageShape } from 'tldraw'
 
 import { api, loadWorkflow, uploadImage, viewUrl, type ImageRef } from './comfy'
-import { placeMedia, registerPlacer, selectResults, spawnHolder, startJob, toMedia, type ErrorSink } from './jobs'
+import { GAP, placeMedia, registerPlacer, selectResults, spawnHolder, startJob, toMedia, type ErrorSink } from './jobs'
 import { bakeMockup } from './mockupGl'
 import { MOCKUP, placementOf, sourcesOf, type MockupShape } from './shapes/MockupShape'
 import { annotated, editGraph } from './workflows'
 import { t } from './i18n'
 
 const [DEPTH, MASK] = ['3', '7']
-const GAP = 40
 const BLEND_PROMPT = 'Make the printed design look naturally printed on the product: follow its folds, curvature, fabric or material texture and lighting. Keep the design content and position, the product and the background unchanged.'
 
 export function createMockup(editor: Editor, shape: TLImageShape, onError: ErrorSink) {

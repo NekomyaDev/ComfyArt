@@ -139,6 +139,7 @@ export function KitEditor({ onError }: { onError: (msg: string) => void }) {
   }
   const removeFont = (family: string) => update((x) => ({ ...x, fonts: x.fonts.filter((f) => f !== family), fontFiles: (x.fontFiles ?? []).filter((f) => f.family !== family) }))
   const remove = () => confirmAtom.set({
+    danger: true,
     title: t('libraryPanel.deleteItem', KIND_LABELS[item.kind]),
     desc: t('libraryPanel.itemWillBeRemoved', item.name || t('kitEditor.untitled', KIND_LABELS[item.kind])),
     ok: t('common.delete'),

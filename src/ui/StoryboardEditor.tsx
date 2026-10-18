@@ -1,6 +1,7 @@
-import { DURATIONS } from '../generate'
-import type { Scene } from '../workflows'
+import { DURATIONS } from '../genOptions'
+import type { Scene } from '../videoGraphs'
 import { Icons } from './icons'
+import { Chips } from './Chips'
 import { t } from '../i18n'
 
 export function StoryboardEditor({ scenes, onChange, onSmart, smartBusy }: { scenes: Scene[]; onChange: (scenes: Scene[]) => void; onSmart: () => void; smartBusy: boolean }) {
@@ -12,9 +13,7 @@ export function StoryboardEditor({ scenes, onChange, onSmart, smartBusy }: { sce
         <div key={i} className="ca-story__scene">
           <div className="ca-story__head">
             <span>{t('storyboardEditor.scene', i + 1)}</span>
-            <div className="ca-panel__chips">
-              {DURATIONS.map((d) => <button key={d} type="button" className="ca-panel__chip" data-on={s.duration === d || undefined} onClick={() => set(i, { duration: d })}>{d}s</button>)}
-            </div>
+            <Chips value={s.duration} options={DURATIONS.map((d) => [d, `${d}s`] as const)} onPick={(d) => set(i, { duration: d })} />
             {scenes.length > 1 && <button type="button" className="ca-history__del" title={t('common.delete')} onClick={() => onChange(scenes.filter((_, j) => j !== i))}>{Icons.trash}</button>}
           </div>
           <textarea

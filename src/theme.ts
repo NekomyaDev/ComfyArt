@@ -1,5 +1,6 @@
 import { atom, type Editor } from 'tldraw'
 
+import { readLocal, writeLocal } from './localPrefs'
 import { t } from './i18n'
 
 export type Theme = 'light' | 'dark' | 'system'
@@ -13,8 +14,7 @@ const systemDark = matchMedia('(prefers-color-scheme: dark)')
 const isDark = (theme: Theme) => theme === 'dark' || (theme === 'system' && systemDark.matches)
 
 export async function initTheme() {
-  let stored: string | null = null
-  try { stored = localStorage.getItem(KEY) } catch { }
+  const stored = readLocal(KEY)
   if (stored === 'light' || stored === 'dark' || stored === 'system') themeAtom.set(stored)
   else {
     const res = await fetch('/api/settings/Comfy.ColorPalette').catch(() => null)
@@ -27,7 +27,7 @@ export async function initTheme() {
 
 export function saveTheme(theme: Theme) {
   themeAtom.set(theme)
-  try { localStorage.setItem(KEY, theme) } catch { }
+  writeLocal(KEY, theme)
   markDark(isDark(theme))
 }
 

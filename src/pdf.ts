@@ -1,13 +1,12 @@
 import { createShapeId, type Editor, type VecLike } from 'tldraw'
 
 import { viewUrl, type ImageRef } from './comfy'
-import { placeMedia } from './jobs'
+import { GAP, placeMedia } from './jobs'
 import { t } from './i18n'
 
 export interface PdfPage { ref: ImageRef; src: string; text: string; w: number; h: number }
 
 const PAGE_W = 600
-const GAP = 40
 
 export const isPdf = (file: File) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 
@@ -15,7 +14,7 @@ export async function uploadPdf(file: File, max = 30): Promise<PdfPage[]> {
   const body = new FormData()
   body.append('file', file, file.name)
   const res = await fetch(`/comfyart/pdf?max=${max}`, { method: 'POST', body })
-  if (!res.ok) throw new Error(t('pdf.pdfUploadFailed', await res.text()))
+  if (!res.ok) throw new Error(t('pdf.pdfUploadFailed', (await res.json().catch(() => ({}))).error ?? res.status))
   const { pages } = await res.json() as { pages: { name: string; subfolder: string; type: string; width: number; height: number; text: string }[] }
   return pages.map((p) => {
     const ref = { filename: p.name, subfolder: p.subfolder, type: p.type }

@@ -6,6 +6,7 @@ from conftest import SENT, write_settings
 from server import PromptServer
 
 from ComfyArt.api import chat_store, mcp_commands
+from ComfyArt.api.mcp_tools import bot_tools
 from ComfyArt.api.bot_turns import ACTIVE_TURNS, _TurnState
 from ComfyArt.bot.guide import CORE_MCP_TOOLS
 from ComfyArt.bot.providers import TurnHandle
@@ -41,10 +42,10 @@ async def test_mcp_is_off_by_default(bot_client):
 async def test_tools_list_matches_the_core_list(bot_client):
     tools = (await (await bot_client.post("/comfyart/mcp", json=_rpc("tools/list"))).json())["result"]["tools"]
     names = {t["name"] for t in tools}
-    assert names == set(CORE_MCP_TOOLS) - {"ask_user", "update_plan"}
+    assert names == set(CORE_MCP_TOOLS) - set(bot_tools.TOOLS)
     chat = chat_store.create_chat(user="default", project="p", provider="codex")
     with_chat = await (await bot_client.post(f"/comfyart/mcp?bot_chat={chat['id']}", json=_rpc("tools/list"))).json()
-    assert {"ask_user", "update_plan"} <= {t["name"] for t in with_chat["result"]["tools"]}
+    assert set(bot_tools.TOOLS) <= {t["name"] for t in with_chat["result"]["tools"]}
 
 
 async def test_canvas_tool_is_relayed_to_the_project_page(bot_client):

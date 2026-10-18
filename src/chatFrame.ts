@@ -1,8 +1,7 @@
 import { createShapeId, type Editor, type TLFrameShape, type TLShape, type TLShapeId } from 'tldraw'
 
 import { chatsAtom } from './bot'
-import { freeSpot } from './generate'
-import { fileSrc } from './jobs'
+import { fileSrc, freeSpot } from './jobs'
 import { TEXT, type TextShape } from './shapes/TextShape'
 import { onComfyEvent } from './ws'
 import { t } from './i18n'

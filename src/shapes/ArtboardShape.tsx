@@ -2,6 +2,7 @@ import { cloneElement, type CSSProperties, type ReactElement } from 'react'
 import { FrameShapeUtil, Vec, type Editor, type SvgExportContext, type TLFrameShape, type TLShapeId } from 'tldraw'
 
 import { t } from '../i18n'
+import { canvasBlob } from '../canvasBlob'
 
 export interface ArtboardStyle { fill?: string; stroke?: string; radius?: number }
 
@@ -51,9 +52,7 @@ export async function exportImage(editor: Editor, ids: TLShapeId[], opts: ImageO
     ctx.stroke()
   }
   const type = MIME[opts.format as keyof typeof MIME] ?? MIME.png
-  const out = await new Promise<Blob | null>((resolve) => c.toBlob(resolve, type))
-  if (!out) throw new Error('export failed')
-  return { blob: out, width, height }
+  return { blob: await canvasBlob(c, type), width, height }
 }
 
 export class ArtboardShapeUtil extends FrameShapeUtil.configure({

@@ -8,8 +8,8 @@ import { schedulesOpenAtom } from '../schedules'
 import { Icons } from './icons'
 import { Markdown } from './Markdown'
 import { Thumb } from './TaskDetails'
+import { CopyButton } from './CopyButton'
 import { t } from '../i18n'
-import { copyText } from '../clipboard'
 
 const GEN_TOOLS = new Set(['generate_image', 'generate_video', 'edit_image', 'animate_image', 'upscale_image', 'remove_background', 'expand_image', 'split_layers', 'change_angle', 'replace_text', 'edit_region', 'erase_region', 'move_object', 'style_transfer', 'extend_video', 'upscale_video', 'remove_video_background', 'generate_music', 'generate_sound_effect', 'text_to_speech', 'image_to_3d', 'edit_elements', 'create_mockup', 'create_slides'])
 
@@ -190,7 +190,7 @@ export function UserMessage({ editor, m, onBranch }: { editor: Editor; m: BotMes
     <div className="ca-chat__user" data-queued={m.status === 'queued' || undefined}>
       <div className="ca-chat__acts">
         <button type="button" className="ca-history__del" title={t('chatMessage.editAgain')} onClick={() => draftAtom.set(text)}>{Icons.textTool}</button>
-        <button type="button" className="ca-history__del" title={t('common.copy')} onClick={() => void copyText(text)}>{Icons.page}</button>
+        <CopyButton text={text} />
         <button type="button" className="ca-history__del" title={t('chatMessage.setAsScheduledTask')} onClick={() => schedulesOpenAtom.set({ prompt: text })}>{Icons.bell}</button>
         {onBranch && <button type="button" className="ca-history__del" title={t('chatMessage.forkNewChatFromHere')} onClick={onBranch}>{Icons.merge}</button>}
       </div>

@@ -1,6 +1,6 @@
 import { AssetRecordType, atom, createShapeId, type Editor, type JsonValue, type TLAssetId, type TLImageAsset, type TLShape, type TLShapeId, type TLVideoAsset } from 'tldraw'
 
-import { cancelPrompt, queuePrompt, viewUrl, waitForImages, type ImageRef } from './comfy'
+import { cancelPrompt, mediaMeta, queuePrompt, viewUrl, waitForImages, type ImageRef } from './comfy'
 import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import type { Built } from './workflows'
 import { t } from './i18n'
@@ -21,7 +21,7 @@ export type ErrorSink = (msg: string) => void
 export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 export type Placer = (editor: Editor, holder: TLShape, media: Media[], job: Job, onError: ErrorSink) => Promise<void>
 
-const GAP = 40
+export const GAP = 40
 const active = new Set<string>()
 const settled = new Set<string>()
 const placers: Record<string, Placer> = {}
@@ -54,29 +54,12 @@ export function jobOf(shape: TLShape): Job | null {
   return (shape.meta?.job as Job | undefined) ?? null
 }
 
-function mediaSize(src: string, kind: MediaKind): Promise<[number, number]> {
-  return new Promise((resolve, reject) => {
-    if (kind === 'video') {
-      const v = document.createElement('video')
-      v.preload = 'metadata'
-      v.onloadedmetadata = () => resolve([v.videoWidth, v.videoHeight])
-      v.onerror = () => reject(new Error('cannot load video'))
-      v.src = src
-      return
-    }
-    const img = new Image()
-    img.onload = () => resolve([img.naturalWidth, img.naturalHeight])
-    img.onerror = () => reject(new Error('cannot load image'))
-    img.src = src
-  })
-}
-
 export async function toMedia(ref: ImageRef, kind: MediaKind): Promise<Media> {
   const src = viewUrl(ref)
   if (kind === 'audio' || kind === 'model') return { ref, src, w: 0, h: 0, kind }
-  const [w, h] = ref.metadata?.width && ref.metadata?.height && kind === 'image'
-    ? [ref.metadata.width, ref.metadata.height]
-    : await mediaSize(src, kind)
+  const { w, h } = ref.metadata?.width && ref.metadata?.height && kind === 'image'
+    ? { w: ref.metadata.width, h: ref.metadata.height }
+    : await mediaMeta(src, kind)
   return { ref, src, w, h, kind }
 }
 
@@ -201,16 +184,22 @@ export async function startJob(
   }
 }
 
-export function spawnHolder(editor: Editor, beside: TLShape, size?: [number, number]): TLShapeId {
-  const b = editor.getShapePageBounds(beside)!
-  const [w, h] = size ?? [b.w, b.h]
+export function freeSpot(editor: Editor, w: number, h: number, from?: [number, number]): [number, number] {
+  const center = editor.getViewportPageBounds().center
   const boxes = editor.getCurrentPageShapes().map((s) => editor.getShapePageBounds(s)!).filter(Boolean)
-  let [x, y] = [b.maxX + GAP, b.minY]
+  let [x, y] = from ?? [center.x - w / 2, center.y - h / 2]
   for (let i = 0; i < 200; i++) {
-    const hit = boxes.find((o) => x < o.maxX + GAP && x + w + GAP > o.minX && y < o.maxY + GAP && y + h + GAP > o.minY)
+    const hit = boxes.find((b) => x < b.maxX + GAP && x + w + GAP > b.minX && y < b.maxY + GAP && y + h + GAP > b.minY)
     if (!hit) break
     x = hit.maxX + GAP
   }
+  return [x, y]
+}
+
+export function spawnHolder(editor: Editor, beside: TLShape, size?: [number, number]): TLShapeId {
+  const b = editor.getShapePageBounds(beside)!
+  const [w, h] = size ?? [b.w, b.h]
+  const [x, y] = freeSpot(editor, w, h, [b.maxX + GAP, b.minY])
   const id = createShapeId()
   editor.createShape({ id, type: GENERATOR, x, y, props: { w, h }, meta: { temp: true } })
   return id

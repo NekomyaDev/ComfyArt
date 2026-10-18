@@ -10,7 +10,7 @@ import folder_paths
 from . import db
 from ._common import app_path
 from .db import Migration, Project, ProjectVersion
-from .project_store import DOCUMENT_KEY
+from .project_store import document_of
 
 MIGRATION = "json-projects"
 VERSION_FILE = re.compile(r"^(\d+)-(\d+)\.json$")
@@ -20,20 +20,14 @@ _lock = threading.Lock()
 _log = logging.getLogger(__name__)
 
 
-def _read(path: str) -> str | None:
+def _read(path: str) -> tuple[str, dict] | None:
     try:
         with open(path, encoding="utf-8") as f:
             text = f.read()
-        json.loads(text)
-        return text
+        return text, json.loads(text)
     except (OSError, ValueError) as e:
         _log.warning("[ComfyArt] skipping unreadable project file %s: %s", path, e)
         return None
-
-
-def _document_name(snapshot: str) -> str:
-    doc = json.loads(snapshot).get("document", {}).get("store", {}).get(DOCUMENT_KEY)
-    return str(doc.get("name") or "") if isinstance(doc, dict) else ""
 
 
 def _import(s, user: str, root: str) -> int:
@@ -51,13 +45,15 @@ def _import(s, user: str, root: str) -> int:
             continue
         project_id = file[:-5]
         path = os.path.join(projects_dir, file)
-        snapshot = _read(path)
-        if snapshot is None or s.get(Project, (user, project_id)) is not None:
+        read = _read(path)
+        if read is None or s.get(Project, (user, project_id)) is not None:
             continue
+        snapshot, data = read
+        doc = document_of(data) or {}
         meta = index.get(project_id) if isinstance(index.get(project_id), dict) else {}
         updated = meta["updated"] / 1000 if isinstance(meta.get("updated"), (int, float)) else os.path.getmtime(path)
         covers = meta.get("covers")
-        s.add(Project(user=user, id=project_id, name=str(meta.get("name") or _document_name(snapshot)),
+        s.add(Project(user=user, id=project_id, name=str(meta.get("name") or doc.get("name") or ""),
                       covers=json.dumps(covers, ensure_ascii=False) if isinstance(covers, list) else None,
                       pinned=bool(meta.get("pinned")), snapshot=snapshot, created_at=os.path.getmtime(path), updated_at=updated))
         history = os.path.join(root, "history", project_id)
@@ -65,7 +61,7 @@ def _import(s, user: str, root: str) -> int:
             m = VERSION_FILE.match(name)
             version = _read(os.path.join(history, name)) if m else None
             if version is not None:
-                s.add(ProjectVersion(user=user, project=project_id, time=int(m[1]), count=int(m[2]), snapshot=version))
+                s.add(ProjectVersion(user=user, project=project_id, time=int(m[1]), count=int(m[2]), snapshot=version[0]))
         count += 1
     return count
 

@@ -41,7 +41,7 @@ function LibCard({ item, save }: { item: LibraryItem; save: (list: LibraryItem[]
                 </button>
               )}
               <button type="button" className="ca-menu__item" onClick={act(() => save([...all(), { ...item, id: uuid().slice(0, 8), name: t('libraryPanel.copy', name), isDefault: false }]))}>{t('common.duplicate')}</button>
-              <button type="button" className="ca-menu__item ca-menu__item--danger" onClick={act(() => confirmAtom.set({ title: t('libraryPanel.deleteItem', KIND_LABELS[item.kind]), desc: t('libraryPanel.itemWillBeRemoved', name), ok: t('common.delete'), run: () => save(all().filter((x) => x.id !== item.id)) }))}>{t('common.delete')}</button>
+              <button type="button" className="ca-menu__item ca-menu__item--danger" onClick={act(() => confirmAtom.set({ danger: true, title: t('libraryPanel.deleteItem', KIND_LABELS[item.kind]), desc: t('libraryPanel.itemWillBeRemoved', name), ok: t('common.delete'), run: () => save(all().filter((x) => x.id !== item.id)) }))}>{t('common.delete')}</button>
             </div>
           </Popover>
         </span>

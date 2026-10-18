@@ -4,7 +4,8 @@ from xml.etree import ElementTree
 
 import pypdfium2
 
-from .bot_media import jpeg, view_path
+from ._common import view_path
+from .bot_media import jpeg
 
 DOC_EXT = (".pdf", ".docx", ".md", ".markdown", ".txt")
 DOC_CHAR_CAP = 30_000

@@ -20,6 +20,7 @@ import { enterMode, modeAtom, type Mode } from './mode'
 import { Popover } from './Popover'
 import { UpscaleMenu } from './UpscaleMenu'
 import { useSelectedImage, useSelectionRect } from './selection'
+import { readLocal, writeLocal } from '../localPrefs'
 import { t } from '../i18n'
 import { copyText } from '../clipboard'
 import { isEnter } from './keys'
@@ -35,7 +36,7 @@ interface BarPrefs { pinned: string[]; names: boolean; seen: string[] }
 
 function readPrefs(): BarPrefs {
   try {
-    const stored = JSON.parse(localStorage.getItem(BAR_KEY) ?? 'null') as Partial<BarPrefs> | null
+    const stored = JSON.parse(readLocal(BAR_KEY) ?? 'null') as Partial<BarPrefs> | null
     if (!stored?.pinned) return { pinned: DEFAULT_PINNED, names: stored?.names ?? true, seen: ALL_TOOLS }
     const seen = stored.seen ?? []
     return { pinned: [...stored.pinned, ...DEFAULT_PINNED.filter((id) => !seen.includes(id) && !stored.pinned!.includes(id))], names: stored.names ?? true, seen: ALL_TOOLS }
@@ -48,7 +49,7 @@ const prefsAtom = atom<BarPrefs>('image toolbar', readPrefs())
 
 function setPrefs(patch: Partial<BarPrefs>) {
   prefsAtom.set({ ...prefsAtom.get(), ...patch })
-  try { localStorage.setItem(BAR_KEY, JSON.stringify(prefsAtom.get())) } catch { }
+  writeLocal(BAR_KEY, JSON.stringify(prefsAtom.get()))
 }
 
 interface Tool { id: string; icon: ReactNode; label: string; hint?: string; run?: () => void; menu?: ReactNode; when?: boolean }

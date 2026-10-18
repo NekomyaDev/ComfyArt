@@ -35,6 +35,7 @@ import { CommentPanel } from './ui/CommentPanel'
 import { Confirm } from './ui/Confirm'
 import { Dock } from './ui/Dock'
 import { DropHandlers } from './ui/DropHandlers'
+import { ErrorToasts, reportError } from './ui/ErrorToasts'
 import { EmbedToolbar, HtmlPreview } from './ui/EmbedToolbar'
 import { Effects } from './ui/Effects'
 import { HistoryDialog } from './ui/HistoryDialog'
@@ -125,7 +126,7 @@ const assets: TLAssetStore = {
 
 export function App({ id }: { id: string }) {
   const [editor, setEditor] = useState<Editor | null>(null)
-  const [error, setError] = useState('')
+  const setError = reportError
   const chat = useValue(chatViewAtom)
   const setChat = (view: ChatView) => chatViewAtom.set(view)
   const [stale, setStale] = useState(false)
@@ -251,6 +252,7 @@ export function App({ id }: { id: string }) {
               getShapeVisibility={getShapeVisibility}
               onMount={onMount}
             >
+              <ErrorToasts />
               <DropHandlers onError={setError} />
               <SelectionLabel />
               <EditLayers />
@@ -298,7 +300,6 @@ export function App({ id }: { id: string }) {
       {editor && <HistoryDialog editor={editor} projectId={id} onError={setError} />}
       {editor && <ExportDialog editor={editor} onError={setError} />}
       {editor && <AudioDialog editor={editor} onError={setError} />}
-      {error && <div className="ca-error" onClick={() => setError('')}>{error}</div>}
       {stale && (
         <div className="ca-stale">
           <span>{t('app.yourFileVersionIsOut')}</span>

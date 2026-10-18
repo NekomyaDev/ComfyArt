@@ -1,6 +1,6 @@
 import { atom, useValue } from 'tldraw'
 
-import { Icons } from './icons'
+import { Modal } from './Modal'
 import { t } from '../i18n'
 
 export const shortcutsAtom = atom('shortcuts open', false)
@@ -17,23 +17,17 @@ export function Shortcuts() {
   const open = useValue(shortcutsAtom)
   if (!open) return null
   return (
-    <div className="ca-modal" onPointerDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) shortcutsAtom.set(false) }}>
-      <div className="ca-modal__card">
-        <div className="ca-side__head">
-          <span>{t('shortcuts.keyboardShortcuts')}</span>
-          <button type="button" className="ca-panel__icon" title={t('common.close')} onClick={() => shortcutsAtom.set(false)}>{Icons.close}</button>
-        </div>
-        <div className="ca-keys">
-          {SECTIONS.map(([title, rows]) => (
-            <section key={title}>
-              <div className="ca-gen__label">{title}</div>
-              {rows.map(([label, key]) => (
-                <div key={label} className="ca-keys__row"><span>{label}</span><kbd>{key}</kbd></div>
-              ))}
-            </section>
-          ))}
-        </div>
+    <Modal title={t('shortcuts.keyboardShortcuts')} className="" onClose={() => shortcutsAtom.set(false)}>
+      <div className="ca-keys">
+        {SECTIONS.map(([title, rows]) => (
+          <section key={title}>
+            <div className="ca-gen__label">{title}</div>
+            {rows.map(([label, key]) => (
+              <div key={label} className="ca-keys__row"><span>{label}</span><kbd>{key}</kbd></div>
+            ))}
+          </section>
+        ))}
       </div>
-    </div>
+    </Modal>
   )
 }

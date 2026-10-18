@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useValue } from 'tldraw'
 
-import { lorasOf, negativeOf, randomSeed, seedOf } from '../generate'
+import { lorasOf, negativeOf, seedOf } from '../generate'
+import { randomSeed } from '../workflows'
 import { DEFAULT_LORA_STRENGTH, loadLoras, loraFavoritesAtom, loraLabel, lorasAtom, toggleFavorite } from '../loras'
 import type { ModelDef } from '../models'
 import type { GeneratorShape } from '../shapes/GeneratorShape'

@@ -80,7 +80,7 @@ SPECS: dict[str, dict] = {
         "describe the shot; a tag only mentioned in passing is ignored. motion_video (a video shape id) "
         "makes the person in first_frame copy that video's body motion. speech_audio (an audio shape id) "
         "makes the person in first_frame say that audio with matching lip movement; the video lasts as long "
-        "as the audio (max 15 s). duration in seconds (5, 10 or 15).",
+        "as the audio. duration in seconds (5, 10 or 15).",
         {"prompt": {"type": "string"}, "model": {"type": "string"}, "ratio": {"type": "string"},
          "duration": {"type": "integer"}, "first_frame": {"type": "string"}, "last_frame": {"type": "string"},
          "reference_images": _IDS, "reference_videos": _IDS, "reference_audios": _IDS,
@@ -109,7 +109,7 @@ SPECS: dict[str, dict] = {
         {"id": _ID, "left": _POINT, "top": _POINT, "right": _POINT, "bottom": _POINT, "prompt": {"type": "string"}},
         ["id"], approval="扩图"),
     "split_layers": _tool(
-        "Split an image shape into separate transparent layers (layers 2-8).",
+        "Split an image shape into separate transparent layers (layers: how many, default 4).",
         {"id": _ID, "layers": {"type": "integer"}, "prompt": {"type": "string"}}, ["id"], approval="图层拆分"),
     "change_angle": _tool(
         "Re-render an image shape from another camera angle: horizontal -180..180 degrees, vertical "
@@ -162,7 +162,7 @@ SPECS: dict[str, dict] = {
         ["prompt"], approval="生成配乐"),
     "generate_sound_effect": _tool(
         "Generate a short sound effect (an audio element) from an English description. duration in "
-        "seconds (default 8, max 47). Returns ids for wait_generation.",
+        "seconds (default 8; Stable Audio is trained on clips up to 47 s). Returns ids for wait_generation.",
         {"prompt": {"type": "string"}, "duration": {"type": "integer"}}, ["prompt"], approval="生成音效"),
     "text_to_speech": _tool(
         "Read text aloud as an audio element. voice is a built-in voice id (zf_/zm_ Chinese female/male, "

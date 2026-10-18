@@ -16,10 +16,15 @@ def _entry(row: Project) -> dict:
             "covers": json.loads(row.covers) if row.covers else None, "pinned": row.pinned}
 
 
+def document_of(data: dict) -> Optional[dict]:
+    doc = data.get("document", {}).get("store", {}).get(DOCUMENT_KEY)
+    return doc if isinstance(doc, dict) else None
+
+
 def _renamed(snapshot: str, name: str) -> str:
     data = json.loads(snapshot)
-    doc = data.get("document", {}).get("store", {}).get(DOCUMENT_KEY)
-    if not isinstance(doc, dict):
+    doc = document_of(data)
+    if doc is None:
         return snapshot
     doc["name"] = name
     return json.dumps(data, ensure_ascii=False)

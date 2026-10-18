@@ -5,6 +5,7 @@ import { botEnabledAtom, saveSettings, settingsAtom, type BotSettings } from '..
 import { errorText } from '../jobs'
 import { ABILITY_SETTINGS, runsToday, type Ability } from '../proactive'
 import { botSettingsOpenAtom } from './AgentPicker'
+import { Chips } from './Chips'
 import { t } from '../i18n'
 
 const DAILY_CHOICES = [1, 3, 5, 10, 20]
@@ -55,7 +56,7 @@ export function AbilitiesPanel({ onError }: { onError: (msg: string) => void }) 
       })}
       <div className="ca-memory__row ca-ability">
         <span className="ca-menu__grow"><b>{t('abilities.dailyRuns')}</b></span>
-        <div className="ca-panel__chips">{DAILY_CHOICES.map((n) => <button key={n} type="button" className="ca-panel__chip" data-on={daily === n || undefined} onClick={() => save({ 'proactive-daily': n })}>{n}</button>)}</div>
+        <Chips value={daily} options={DAILY_CHOICES.map((n) => [n, String(n)] as const)} onPick={(n) => save({ 'proactive-daily': n })} />
       </div>
     </>
   )

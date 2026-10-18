@@ -3,36 +3,18 @@ import { createShapeId, type Editor, type TLShape, type TLShapeId } from 'tldraw
 import { loadWorkflow, mediaMeta, refKind, uploadImage, viewUrl, type PromptGraph, type RefKind } from './comfy'
 import type { LoraPick } from './loras'
 import { ask, stripThink } from './llm'
-import { spawnHolder, startJob, type ErrorSink, type GenInfo } from './jobs'
+import { freeSpot, spawnHolder, startJob, type ErrorSink, type GenInfo } from './jobs'
 import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import { agentModels, isVideo, modelOf } from './models'
 import { applyRefs, PALETTE_MODE, refControlsOf, refHints, refLimit, refModesOf, refStrengthsOf, usableRefs } from './refModes'
 import { paletteImage, palettePrompt } from './palette'
-import { annotated, imageToVideoGraph, lipSyncGraph, MAX_VIDEO_REF_KINDS, motionGraph, r2vGraph, storyboardGraph, t2vGraph, VIDEO_AREAS, videoSize, type Built, type Scene } from './workflows'
-import { t } from './i18n'
-
-export const RESOLUTIONS = ['1K', '2K', 'custom']
-export const QUALITIES: [string, string][] = [['fast', t('generate.turbo')], ['standard', t('generate.standard')], ['high', t('generate.highQuality')]]
-export const SHOTS: [string, string, string][] = [
-  ['', t('common.auto'), ''], ['fixed', t('generate.static'), 'static locked-off camera'], ['advance', t('generate.pushIn'), 'slow push-in toward the subject'],
-  ['zoom_out', t('generate.pullOut'), 'slow pull-back revealing the scene'], ['orbit', t('generate.orbit'), 'camera orbits around the subject'],
-  ['follow', t('generate.follow'), 'tracking shot following the subject'], ['handheld', t('generate.handheld'), 'handheld camera with natural shake'],
-  ['left', t('generate.panLeft'), 'camera pans left'], ['right', t('generate.panRight'), 'camera pans right'], ['up', t('generate.tiltUp'), 'camera tilts up'], ['down', t('generate.tiltDown'), 'camera tilts down'],
-]
+import { annotated, randomSeed, type Built } from './workflows'
+import { imageToVideoGraph, lipSyncGraph, MAX_VIDEO_REF_KINDS, motionGraph, r2vGraph, storyboardGraph, t2vGraph, VIDEO_AREAS, videoSize, type Scene } from './videoGraphs'
+import { SHOTS, STYLES, VIDEO_RATIOS } from './genOptions'
 
 export function scenesOf(shape: GeneratorShape): Scene[] {
   return (shape.meta.scenes as Scene[] | undefined) ?? []
 }
-
-export const STYLES: [string, string, string][] = [
-  ['', t('common.none'), ''], ['photo', t('generate.photo'), 'professional photography, natural light, sharp focus'], ['cinematic', t('generate.cinematic'), 'cinematic still, dramatic lighting, film grain'],
-  ['illustration', t('common.illustration'), 'editorial illustration, clean shapes'], ['3d', '3D', 'high quality 3D render, soft studio light'], ['anime', t('common.anime'), 'anime style, cel shading'],
-  ['minimal', t('generate.minimal'), 'minimalist design, generous negative space'], ['retro', t('generate.retro'), 'retro vintage print, muted colors, halftone texture'],
-]
-export const RATIOS = ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '4:5', '5:4', '21:9']
-export const VIDEO_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9']
-export const DURATIONS = [5, 10, 15]
-export const VIDEO_RESOLUTIONS = Object.keys(VIDEO_AREAS)
 
 export function capRefs(srcs: string[]): string[] {
   const count: Record<RefKind, number> = { image: 0, video: 0, audio: 0 }
@@ -48,7 +30,6 @@ export const motionOf = (shape: GeneratorShape) => (shape.meta.motion as string 
 export const speechOf = (shape: GeneratorShape) => (shape.meta.speech as string | undefined) ?? null
 
 const SHORT_SIDE: Record<string, number> = { '1K': 1024, '2K': 2048 }
-const GAP = 40
 const [PROMPT, LATENT, RESULT] = ['6', '5', '9']
 
 function ratioOf(ratio: string): number {
@@ -68,18 +49,6 @@ export function targetSize({ ratio, resolution, workflow, cw, ch }: GeneratorSha
   if (resolution === 'custom') return [snap16(cw), snap16(ch)]
   const short = SHORT_SIDE[resolution] ?? 1024
   return r >= 1 ? [snap16(short * r), short] : [short, snap16(short / r)]
-}
-
-export function freeSpot(editor: Editor, w: number, h: number, from?: [number, number]): [number, number] {
-  const center = editor.getViewportPageBounds().center
-  const boxes = editor.getCurrentPageShapes().map((s) => editor.getShapePageBounds(s)!).filter(Boolean)
-  let [x, y] = from ?? [center.x - w / 2, center.y - h / 2]
-  for (let i = 0; i < 200; i++) {
-    const hit = boxes.find((b) => x < b.maxX + GAP && x + w + GAP > b.minX && y < b.maxY + GAP && y + h + GAP > b.minY)
-    if (!hit) break
-    x = hit.maxX + GAP
-  }
-  return [x, y]
 }
 
 export function createGenerator(editor: Editor, video = false, props: Partial<GeneratorShape['props']> = {}, focus = true, from?: [number, number]): TLShapeId {
@@ -119,7 +88,6 @@ export function colorsOf(shape: GeneratorShape): string[] {
 export const negativeOf = (shape: GeneratorShape) => (shape.meta.negative as string | undefined) ?? ''
 export const seedOf = (shape: GeneratorShape) => (shape.meta.seed as number | null | undefined) ?? null
 export const lorasOf = (shape: GeneratorShape) => (shape.meta.loras as LoraPick[] | undefined) ?? []
-export const randomSeed = () => Math.floor(Math.random() * 2 ** 31)
 
 function applySeed(graph: PromptGraph, seed: number) {
   for (const node of Object.values(graph)) {

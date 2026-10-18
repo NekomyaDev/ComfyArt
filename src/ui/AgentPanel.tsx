@@ -18,8 +18,8 @@ import { NoticeCenter } from './NoticeCenter'
 import { Popover } from './Popover'
 import { ProjectHeader } from './ProjectHeader'
 import { detailsAtom } from './TaskDetails'
+import { CopyButton } from './CopyButton'
 import { t } from '../i18n'
-import { copyText } from '../clipboard'
 
 const NEAR_BOTTOM = 80
 
@@ -188,7 +188,7 @@ export function AgentPanel({ editor, projectId, max, onMax, onCollapse, onError 
                   {!busy && i === messages.length - 1 && lastUser === i - 1 && (
                     <button type="button" className="ca-history__del" title={t('common.regenerate')} onClick={() => void resend(editor, messages[i - 1]).catch(fail)}>{Icons.replace}</button>
                   )}
-                  <button type="button" className="ca-history__del" title={t('common.copy')} onClick={() => void copyText(textOf(m))}>{Icons.page}</button>
+                  <CopyButton text={textOf(m)} />
                   <button type="button" className="ca-history__del" title={t('agentPanel.taskDetails')} onClick={() => detailsAtom.set(m.id)}>{Icons.files}</button>
                 </div>
               )}
