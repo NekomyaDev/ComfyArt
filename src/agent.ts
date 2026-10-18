@@ -2,7 +2,7 @@ import { atom, type Editor, type TLImageShape, type TLShapeId, type TLVideoShape
 
 import { commentTarget } from './actions'
 import { botEnabledAtom, logDirect, sendMessage } from './bot'
-import { createGenerator, DURATIONS, generate, MAX_SCENES, MAX_STORY_SECONDS, nearestRatio, VIDEO_RATIOS } from './generate'
+import { capRefs, createGenerator, DURATIONS, generate, MAX_SCENES, MAX_STORY_SECONDS, nearestRatio, VIDEO_RATIOS } from './generate'
 import { uploadImage, viewUrl } from './comfy'
 import { placeMedia, toMedia, type ErrorSink } from './jobs'
 import { describeItem, itemImages, linkedKit, type LibraryItem } from './library'
@@ -89,9 +89,10 @@ export async function generateDirect(editor: Editor, text: string, all: RefShape
   const settings = directSettingsAtom.get()[video ? 'video' : 'image']
   const picked = settings.ratio ?? (video ? VIDEO_RATIOS[0] : '1:1')
   const ratio = video && refs[0] ? nearestRatio(refs[0].props.w / refs[0].props.h, VIDEO_RATIOS) : picked
-  const srcs = refs.flatMap((r) => srcOf(editor, r) ?? []).slice(0, video ? 1 : MAX_DIRECT_REFS)
+  const media = video && all.some((r) => r.type === 'video')
+  const srcs = media ? capRefs(all.flatMap((r) => srcOf(editor, r) ?? [])) : refs.flatMap((r) => srcOf(editor, r) ?? []).slice(0, video ? 1 : MAX_DIRECT_REFS)
   const holder = createGenerator(editor, video, { ...settings, prompt: text, ratio }, false)
-  if (srcs.length) editor.updateShape<GeneratorShape>({ id: holder, type: GENERATOR, meta: { refs: srcs } })
+  if (srcs.length) editor.updateShape<GeneratorShape>({ id: holder, type: GENERATOR, meta: { refs: srcs, ...(media ? { videoMode: 'refs' } : {}) } })
   void generate(editor, editor.getShape<GeneratorShape>(holder)!, onError)
   const model = modelOf(editor.getShape<GeneratorShape>(holder)!.props.workflow)?.label
   if (!botEnabledAtom.get()) return

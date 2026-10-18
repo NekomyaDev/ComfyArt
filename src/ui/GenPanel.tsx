@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useEditor, useValue } from 'tldraw'
 
-import { uploadImage, viewUrl } from '../comfy'
+import { mediaMeta, refKind, uploadImage, viewUrl, type RefKind } from '../comfy'
 import { planStoryboard } from '../agent'
-import { baseOf, colorsOf, generate, lastFrameOf, MAX_COLORS, MAX_REFS, MAX_STORY_SECONDS, MAX_VIDEO_REFS, refsOf, scenesOf, targetSize, videoModeOf } from '../generate'
+import { baseOf, capRefs, colorsOf, DURATIONS, generate, lastFrameOf, MAX_COLORS, MAX_REFS, MAX_STORY_SECONDS, motionOf, nearestRatio, refsOf, scenesOf, speechOf, targetSize, VIDEO_RATIOS, videoModeOf } from '../generate'
+import { MAX_VIDEO_REF_KINDS } from '../workflows'
 import { DEFAULT_STRENGTH, modeOf, modesFor, refModeFor, refModesOf, refStrengthsOf, usableRefs } from '../refModes'
 import { errorText, jobOf } from '../jobs'
 import type { GeneratorShape } from '../shapes/GeneratorShape'
@@ -21,7 +22,16 @@ import { isEnter } from './keys'
 const GAP = 12
 const EDGE = 8
 
-type Target = 'ref' | 'base' | 'last'
+type Target = 'ref' | 'base' | 'last' | 'motion' | 'speech'
+
+const TAGS: Record<RefKind, string> = { image: 'genPanel.tagImage', video: 'genPanel.tagVideo', audio: 'genPanel.tagAudio' }
+
+function RefMedia({ src }: { src: string }) {
+  const kind = refKind(src)
+  if (kind === 'video') return <video src={src} muted preload="metadata" />
+  if (kind === 'audio') return <span className="ca-gen__refaudio ca-icon">{Icons.music}</span>
+  return <img src={src} alt="" />
+}
 
 export function GenPanel({ onError }: { onError: (msg: string) => void }) {
   const editor = useEditor()
@@ -53,7 +63,9 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
   const video = isVideo(p.workflow)
   const refs = refsOf(shape)
   const vmode = video ? (Array.isArray(shape.meta.scenes) ? 'story' : videoModeOf(shape)) : null
-  const maxRefs = vmode === 'refs' ? MAX_VIDEO_REFS : video ? 1 : MAX_REFS
+  const maxRefs = vmode === 'refs' ? Object.values(MAX_VIDEO_REF_KINDS).reduce((a, b) => a + b) : video ? 1 : MAX_REFS
+  const motion = motionOf(shape)
+  const speech = speechOf(shape)
   const modes = refModesOf(shape)
   const strengths = refStrengthsOf(shape)
   const colors = colorsOf(shape)
@@ -62,45 +74,72 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
   const setColors = (next: string[]) => setMeta({ colors: next })
   const base = baseOf(shape)
   const last = lastFrameOf(shape)
-  const fill = (to: Target, srcs: string[]) => {
-    if (to === 'ref') setRefs([...refs, ...srcs.filter((x) => !refs.includes(x))].slice(-maxRefs))
-    else if (srcs.length) setMeta(to === 'base' ? { base: srcs[0] } : { lastFrame: srcs[0] })
+  const media = vmode === 'refs'
+  const firstImage = refs.filter((x) => refKind(x) === 'image').slice(0, 1)
+  const fillRefs = (srcs: string[]) => {
+    const added = srcs.filter((x) => !refs.includes(x) && (media || refKind(x) === 'image'))
+    setRefs(media ? capRefs([...refs, ...added]) : [...refs, ...added].slice(-maxRefs))
+  }
+  const fill = async (to: Target, srcs: string[]) => {
+    const src = srcs[0]
+    if (to === 'ref') return fillRefs(srcs)
+    if (!src) return
+    if (to === 'motion') {
+      const { seconds, aspect } = await mediaMeta(src, 'video')
+      update({ ratio: nearestRatio(aspect, VIDEO_RATIOS), duration: DURATIONS.filter((d) => d <= seconds).pop() ?? DURATIONS[0] })
+      setMeta({ motion: src })
+    } else setMeta(to === 'base' ? { base: src } : to === 'speech' ? { speech: src } : { lastFrame: src })
   }
   const upload = async (files: FileList | null) => {
     const to = uploadTo.current
     const srcs: string[] = []
     for (const f of Array.from(files ?? []).slice(0, to === 'ref' ? undefined : 1)) srcs.push(viewUrl(await uploadImage(f, f.name)))
-    fill(to, srcs)
+    await fill(to, srcs)
   }
-  const imagePicker = (to: Target, label: string) => (
-    <Popover
-      open={pick?.to === to}
-      onOpenChange={(o) => setPick(o ? { to, assets: false } : null)}
-      contentKey={pick?.to === to && pick.assets ? 'assets' : 'menu'}
-      trigger={({ toggle }) => (
-        <button type="button" className="ca-gen__refadd" title={label} onClick={toggle}>
-          <span className="ca-icon">{Icons.image}</span><span>{label}</span>
-        </button>
-      )}
-    >
-      {pick?.assets ? (
-        <div className="ca-menu ca-assets-pop"><AssetGrid images onPick={(item) => { setPick(null); fill(to, [item.src]) }} /></div>
-      ) : (
-        <div className="ca-menu">
-          <button type="button" className="ca-menu__item" onClick={() => { setPick(null); uploadTo.current = to; if (file.current) { file.current.multiple = to === 'ref'; file.current.click() } }}>
-            <span className="ca-icon">{Icons.upload}</span><span className="ca-menu__grow">{t('genPanel.uploadImage')}</span>
+  const accepts: Partial<Record<Target, string>> = { motion: 'video/*', speech: 'audio/*', ...(media ? { ref: 'image/*,video/*,audio/*' } : {}) }
+  const assetKind = (to: Target) => (to === 'motion' ? 'video' : to === 'speech' ? null : to === 'ref' && media ? 'all' : 'image')
+  const pickFailed = (e: unknown) => onError(errorText(e))
+  const imagePicker = (to: Target, label: string) => {
+    const kind = assetKind(to)
+    const icon = to === 'motion' ? Icons.video : to === 'speech' ? Icons.music : Icons.image
+    return (
+      <Popover
+        open={pick?.to === to}
+        onOpenChange={(o) => setPick(o ? { to, assets: false } : null)}
+        contentKey={pick?.to === to && pick.assets ? 'assets' : 'menu'}
+        trigger={({ toggle }) => (
+          <button type="button" className="ca-gen__refadd" title={label} onClick={toggle}>
+            <span className="ca-icon">{icon}</span><span>{label}</span>
           </button>
-          <button type="button" className="ca-menu__item" onClick={() => setPick({ to, assets: true })}>
-            <span className="ca-icon">{Icons.files}</span><span className="ca-menu__grow">{t('genPanel.chooseFromAssets')}</span><span className="ca-icon">{Icons.next}</span>
-          </button>
-        </div>
-      )}
-    </Popover>
+        )}
+      >
+        {pick?.assets && kind ? (
+          <div className="ca-menu ca-assets-pop"><AssetGrid only={kind === 'all' ? undefined : kind} onPick={(item) => { setPick(null); fill(to, [item.src]).catch(pickFailed) }} /></div>
+        ) : (
+          <div className="ca-menu">
+            <button type="button" className="ca-menu__item" onClick={() => { setPick(null); uploadTo.current = to; if (file.current) { file.current.multiple = to === 'ref'; file.current.accept = accepts[to] ?? 'image/*'; file.current.click() } }}>
+              <span className="ca-icon">{Icons.upload}</span><span className="ca-menu__grow">{kind === 'image' ? t('genPanel.uploadImage') : t('genPanel.uploadFile')}</span>
+            </button>
+            {kind && (
+              <button type="button" className="ca-menu__item" onClick={() => setPick({ to, assets: true })}>
+                <span className="ca-icon">{Icons.files}</span><span className="ca-menu__grow">{t('genPanel.chooseFromAssets')}</span><span className="ca-icon">{Icons.next}</span>
+              </button>
+            )}
+          </div>
+        )}
+      </Popover>
+    )
+  }
+  const slot = (src: string, label: string, clear: () => void) => (
+    <span className="ca-gen__ref"><RefMedia src={src} /><span className="ca-gen__refmode">{label}</span><button type="button" title={t('common.remove')} onClick={clear}>{Icons.close}</button></span>
   )
 
   const story = video && Array.isArray(shape.meta.scenes)
   const scenes = scenesOf(shape)
-  const ready = story ? scenes.some((sc) => sc.prompt.trim()) && scenes.reduce((n, sc) => n + sc.duration, 0) <= MAX_STORY_SECONDS : !!p.prompt.trim()
+  const ready = story ? scenes.some((sc) => sc.prompt.trim()) && scenes.reduce((n, sc) => n + sc.duration, 0) <= MAX_STORY_SECONDS
+    : vmode === 'motion' ? !!(refs[0] && motion)
+      : vmode === 'lipsync' ? !!(refs[0] && speech)
+        : !!p.prompt.trim()
   const setScenes = (next: typeof scenes | null) => setMeta({ scenes: next })
   const smartSplit = async () => {
     setSmart(true)
@@ -133,11 +172,11 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
   return (
     <div ref={panel} className="ca-gen" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
       <div className="ca-gen__refs">
-        {refs.map((src, i) => (
+        {refs.map((src) => (
           <span key={src} className="ca-gen__ref" data-off={video || used.includes(src) ? undefined : true} title={video || used.includes(src) ? undefined : unusedReason(src)}>
-            <img src={src} alt="" />
+            <RefMedia src={src} />
             {!video && used.includes(src) && <span className="ca-gen__refnum">{used.indexOf(src) + 1}</span>}
-            {vmode === 'refs' && <span className="ca-gen__refnum">{i + 1}</span>}
+            {media && <span className="ca-gen__refnum">{t(TAGS[refKind(src)], refs.filter((x) => refKind(x) === refKind(src)).indexOf(src) + 1)}</span>}
             <button type="button" title={t('common.remove')} onClick={() => setRefs(refs.filter((x) => x !== src))}>{Icons.close}</button>
             {!video && !available.length && <span className="ca-gen__refmode">{t('genPanel.refUnused')}</span>}
             {!video && available.length > 0 && (
@@ -170,7 +209,10 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
             )}
           </span>
         ))}
-        {refs.length < maxRefs && (video || available.length > 0) && imagePicker('ref', video && vmode !== 'refs' ? t('genPanel.firstFrame') : t('genPanel.referenceImage'))}
+        {refs.length < maxRefs && (video || available.length > 0) && imagePicker('ref', media ? t('genPanel.addReference')
+          : vmode === 'motion' ? t('genPanel.character')
+            : vmode === 'lipsync' ? t('genPanel.portrait')
+              : video ? t('genPanel.firstFrame') : t('genPanel.referenceImage'))}
         {!video && (
           <div className="ca-gen__colors">
             {colors.map((c, i) => (
@@ -186,21 +228,18 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
             )}
           </div>
         )}
-        {vmode !== 'story' && vmode !== 'refs' && (video ? (
-          last
-            ? <span className="ca-gen__ref"><img src={last} alt="" /><span className="ca-gen__refmode">{t('genPanel.lastFrame')}</span><button type="button" title={t('common.remove')} onClick={() => setMeta({ lastFrame: null })}>{Icons.close}</button></span>
-            : imagePicker('last', t('genPanel.lastFrame'))
-        ) : (
-          base
-            ? <span className="ca-gen__ref"><img src={base.src} alt="" /><span className="ca-gen__refmode">{t('genPanel.baseImage')}</span><button type="button" title={t('common.remove')} onClick={() => setMeta({ base: null })}>{Icons.close}</button></span>
-            : imagePicker('base', t('genPanel.baseImage'))
-        ))}
+        {vmode === 'frames' && (last ? slot(last, t('genPanel.lastFrame'), () => setMeta({ lastFrame: null })) : imagePicker('last', t('genPanel.lastFrame')))}
+        {vmode === 'motion' && (motion ? slot(motion, t('genPanel.motionVideo'), () => setMeta({ motion: null })) : imagePicker('motion', t('genPanel.motionVideo')))}
+        {vmode === 'lipsync' && (speech ? slot(speech, t('genPanel.speechAudio'), () => setMeta({ speech: null })) : imagePicker('speech', t('genPanel.speechAudio')))}
+        {!video && (base ? slot(base.src, t('genPanel.baseImage'), () => setMeta({ base: null })) : imagePicker('base', t('genPanel.baseImage')))}
         <input ref={file} type="file" accept="image/*" hidden onChange={(e) => { void upload(e.target.files).catch((err) => onError(String(err))); e.target.value = '' }} />
       </div>
       {video && (
         <div className="ca-panel__chips ca-gen__modes">
-          <button type="button" className="ca-panel__chip" data-on={vmode === 'frames' || undefined} onClick={() => setMeta({ scenes: null, videoMode: null, refs: refs.slice(0, 1) })}>{t('genPanel.firstLastFrame')}</button>
-          <button type="button" className="ca-panel__chip" data-on={vmode === 'refs' || undefined} onClick={() => setMeta({ scenes: null, videoMode: 'refs', lastFrame: null })}>{t('genPanel.referenceToVideo')}</button>
+          <button type="button" className="ca-panel__chip" data-on={vmode === 'frames' || undefined} onClick={() => setMeta({ scenes: null, videoMode: null, refs: firstImage })}>{t('genPanel.firstLastFrame')}</button>
+          <button type="button" className="ca-panel__chip" data-on={media || undefined} onClick={() => setMeta({ scenes: null, videoMode: 'refs', lastFrame: null })}>{t('genPanel.referenceToVideo')}</button>
+          <button type="button" className="ca-panel__chip" data-on={vmode === 'motion' || undefined} onClick={() => setMeta({ scenes: null, videoMode: 'motion', lastFrame: null, refs: firstImage })}>{t('genPanel.motionControl')}</button>
+          <button type="button" className="ca-panel__chip" data-on={vmode === 'lipsync' || undefined} onClick={() => setMeta({ scenes: null, videoMode: 'lipsync', lastFrame: null, refs: firstImage })}>{t('genPanel.lipSync')}</button>
           <button type="button" className="ca-panel__chip" data-on={story || undefined} onClick={() => setMeta({ videoMode: null, scenes: scenes.length ? scenes : [{ prompt: p.prompt, duration: p.duration }] })}>{t('genPanel.storyboard')}</button>
         </div>
       )}

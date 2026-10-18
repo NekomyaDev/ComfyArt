@@ -14,7 +14,7 @@ function Thumb({ item }: { item: AssetItem }) {
   return <img src={thumbUrl(item.src)} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} />
 }
 
-export function AssetGrid({ onPick, images }: { onPick: (item: AssetItem) => void; images?: boolean }) {
+export function AssetGrid({ onPick, only }: { onPick: (item: AssetItem) => void; only?: AssetItem['kind'] }) {
   const [tab, setTab] = useState(TABS[0][0])
   const [search, setSearch] = useState('')
   const [items, setItems] = useState<AssetItem[] | null>(null)
@@ -30,7 +30,7 @@ export function AssetGrid({ onPick, images }: { onPick: (item: AssetItem) => voi
     listAssets(tab, search.trim(), after)
       .then((page) => {
         if (id !== query.current) return
-        const list = images ? page.items.filter((i) => i.kind === 'image') : page.items
+        const list = only ? page.items.filter((i) => i.kind === only) : page.items
         setItems((prev) => (after && prev ? [...prev, ...list] : list))
         setNext(page.next)
       })
@@ -45,7 +45,7 @@ export function AssetGrid({ onPick, images }: { onPick: (item: AssetItem) => voi
     setError('')
     const timer = setTimeout(() => load(), 200)
     return () => clearTimeout(timer)
-  }, [tab, search, images])
+  }, [tab, search, only])
 
   useEffect(() => {
     if (!next || loading || !sentinel.current) return

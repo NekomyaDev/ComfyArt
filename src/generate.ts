@@ -1,13 +1,13 @@
 import { createShapeId, type Editor, type TLShape, type TLShapeId } from 'tldraw'
 
-import { loadWorkflow, uploadImage, viewUrl } from './comfy'
+import { loadWorkflow, mediaMeta, refKind, uploadImage, viewUrl, type RefKind } from './comfy'
 import { ask, stripThink } from './llm'
 import { spawnHolder, startJob, type ErrorSink, type GenInfo } from './jobs'
 import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import { agentModels, isVideo, modelOf } from './models'
 import { applyRefs, PALETTE_MODE, refHints, refModesOf, refStrengthsOf, usableRefs } from './refModes'
 import { paletteImage, palettePrompt } from './palette'
-import { annotated, imageToVideoGraph, r2vGraph, storyboardGraph, t2vGraph, VIDEO_AREAS, videoSize, type Built, type Scene } from './workflows'
+import { annotated, imageToVideoGraph, lipSyncGraph, MAX_VIDEO_REF_KINDS, motionGraph, r2vGraph, storyboardGraph, t2vGraph, VIDEO_AREAS, videoSize, type Built, type Scene } from './workflows'
 import { t } from './i18n'
 
 export const RESOLUTIONS = ['1K', '2K', 'custom']
@@ -34,10 +34,19 @@ export const RATIOS = ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '4:5',
 export const VIDEO_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9']
 export const DURATIONS = [5, 10, 15]
 export const VIDEO_RESOLUTIONS = Object.keys(VIDEO_AREAS)
-export const MAX_VIDEO_REFS = 9
 
-export type VideoMode = 'frames' | 'refs'
-export const videoModeOf = (shape: GeneratorShape): VideoMode => (shape.meta.videoMode === 'refs' ? 'refs' : 'frames')
+export function capRefs(srcs: string[]): string[] {
+  const count: Record<RefKind, number> = { image: 0, video: 0, audio: 0 }
+  return srcs.filter((src) => count[refKind(src)]++ < MAX_VIDEO_REF_KINDS[refKind(src)])
+}
+
+export const MAX_SPEECH_SECONDS = 15
+
+export type VideoMode = 'frames' | 'refs' | 'motion' | 'lipsync'
+const VIDEO_MODES: VideoMode[] = ['refs', 'motion', 'lipsync']
+export const videoModeOf = (shape: GeneratorShape): VideoMode => (VIDEO_MODES.includes(shape.meta.videoMode as VideoMode) ? shape.meta.videoMode as VideoMode : 'frames')
+export const motionOf = (shape: GeneratorShape) => (shape.meta.motion as string | undefined) ?? null
+export const speechOf = (shape: GeneratorShape) => (shape.meta.speech as string | undefined) ?? null
 
 const SHORT_SIDE: Record<string, number> = { '1K': 1024, '2K': 2048 }
 const GAP = 40
@@ -140,7 +149,15 @@ async function generateGraph(shape: GeneratorShape): Promise<Built> {
       return storyboardGraph(scenes.map((sc) => ({ ...sc, prompt: [sc.prompt, suffix].filter(Boolean).join(', ') })), ratioOf(ratio), refs[0] ? annotated(refs[0]) : null)
     }
     const area = VIDEO_AREAS[shape.props.resolution] ?? VIDEO_AREAS['768p']
-    if (videoModeOf(shape) === 'refs' && refs.length) return r2vGraph(refs.map(annotated), prompt, ratioOf(ratio), duration, area)
+    const mode = videoModeOf(shape)
+    if (mode === 'refs' && refs.length) return r2vGraph(refs.map((src) => ({ file: annotated(src), kind: refKind(src) })), prompt, ratioOf(ratio), duration, area)
+    const motion = motionOf(shape)
+    if (mode === 'motion' && refs[0] && motion) return motionGraph(annotated(refs[0]), annotated(motion), prompt, ratioOf(ratio), duration, area)
+    const speech = speechOf(shape)
+    if (mode === 'lipsync' && refs[0] && speech) {
+      const { seconds } = await mediaMeta(speech, 'audio')
+      return lipSyncGraph(annotated(refs[0]), annotated(speech), prompt, ratioOf(ratio), Math.min(seconds, MAX_SPEECH_SECONDS), area)
+    }
     const last = lastFrameOf(shape)
     return refs.length || last
       ? imageToVideoGraph(refs[0] ? annotated(refs[0]) : null, prompt, ratioOf(ratio), duration, last ? annotated(last) : null, area)

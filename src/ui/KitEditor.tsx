@@ -244,7 +244,7 @@ export function KitEditor({ onError }: { onError: (msg: string) => void }) {
               <Popover open={pick} onOpenChange={setPick} align="end" trigger={({ toggle }) => <button type="button" className="ca-kit__add" onClick={toggle}><span className="ca-icon">{Icons.plus}</span>{t('common.add')}</button>}>
                 <div className="ca-menu ca-assets-pop">
                   <button type="button" className="ca-menu__item" onClick={() => { setPick(false); refs.current?.click() }}><span className="ca-icon">{Icons.upload}</span><span className="ca-menu__grow">{t('common.uploadFile')}</span></button>
-                  <AssetGrid images onPick={(a) => { setPick(false); addImages([a.src]) }} />
+                  <AssetGrid only="image" onPick={(a) => { setPick(false); addImages([a.src]) }} />
                 </div>
               </Popover>
             )}

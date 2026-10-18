@@ -1,4 +1,4 @@
-import { loadWorkflow, type PromptGraph } from './comfy'
+import { loadWorkflow, type PromptGraph, type RefKind } from './comfy'
 
 const seed = () => Math.floor(Math.random() * 2 ** 31)
 
@@ -229,19 +229,72 @@ export async function imageToVideoGraph(image: string | null, prompt: string, as
   return { graph: g, result: '92' }
 }
 
-export async function r2vGraph(images: string[], prompt: string, aspect: number, duration: number, area: number): Promise<Built> {
+export interface MediaRef { file: string; kind: RefKind }
+
+export const MAX_VIDEO_REF_KINDS: Record<RefKind, number> = { image: 9, video: 3, audio: 3 }
+const H3_TAGS: Record<RefKind, string> = { image: 'Picture', video: 'Video', audio: 'Audio' }
+
+function refLead(refs: MediaRef[]): string {
+  const tags = (kind: RefKind) => refs.filter((r) => r.kind === kind).map((_, i) => `<${H3_TAGS[kind]} ${i + 1}>`)
+  const images = tags('image')
+  const others = [...tags('video'), ...tags('audio')]
+  return [
+    images.length && `Use ${images.join(', ')} as the reference${images.length > 1 ? 's' : ''} and keep ${images.length > 1 ? 'them' : 'it'} exactly as shown.`,
+    others.length && `Use ${others.join(', ')} as reference${others.length > 1 ? 's' : ''}.`,
+  ].filter(Boolean).join(' ')
+}
+
+export async function r2vGraph(refs: MediaRef[], prompt: string, aspect: number, duration: number, area: number): Promise<Built> {
   const g = await loadWorkflow('r2v-minimax-h3.api.json')
   const [w, h] = videoSize(aspect, area)
-  const tags = images.map((_, i) => `<Picture ${i + 1}>`)
-  const text = tags.some((tag) => prompt.includes(tag)) ? prompt : `${prompt}${prompt ? '\n' : ''}Use ${tags.join(', ')} as references.`
-  Object.assign(g['136'].inputs, { prompt: text, width: w, height: h })
-  images.forEach((image, i) => {
-    const id = i ? `r${i}` : '137'
-    g[id] = { class_type: 'LoadImage', inputs: { image } }
-    g['136'].inputs[`ref_images.ref_image_${i}`] = [id, 0]
+  Object.assign(g['136'].inputs, { prompt: [refLead(refs), prompt].filter(Boolean).join('\n'), width: w, height: h })
+  delete g['137']
+  const count: Record<RefKind, number> = { image: 0, video: 0, audio: 0 }
+  refs.forEach(({ file, kind }, i) => {
+    const n = count[kind]++
+    if (kind === 'image') {
+      g[`r${i}`] = { class_type: 'LoadImage', inputs: { image: file } }
+      g['136'].inputs[`ref_images.ref_image_${n}`] = [`r${i}`, 0]
+    } else if (kind === 'video') {
+      g[`r${i}`] = { class_type: 'LoadVideo', inputs: { file } }
+      g[`c${i}`] = { class_type: 'GetVideoComponents', inputs: { video: [`r${i}`, 0] } }
+      g['136'].inputs[`ref_videos.ref_video_${n}`] = [`c${i}`, 0]
+    } else {
+      g[`r${i}`] = { class_type: 'LoadAudio', inputs: { audio: file } }
+      g['136'].inputs[`ref_audios.ref_audio_${n}`] = [`r${i}`, 0]
+    }
   })
   g['132'].inputs.value = duration
   g['129'].inputs.noise_seed = seed()
+  return { graph: g, result: '92' }
+}
+
+export async function motionGraph(image: string, video: string, prompt: string, aspect: number, duration: number, area: number): Promise<Built> {
+  const built = await r2vGraph([{ file: image, kind: 'image' }], `${prompt ? `${prompt}\n` : ''}The character from <Picture 1> performs exactly the body motion of the control pose video.`, aspect, duration, area)
+  Object.assign(built.graph, {
+    m1: { class_type: 'LoadVideo', inputs: { file: video } },
+    m2: { class_type: 'Video Slice', inputs: { video: ['m1', 0], start_time: 0, duration, strict_duration: false } },
+    m3: { class_type: 'GetVideoComponents', inputs: { video: ['m2', 0] } },
+    m4: { class_type: 'ResizeImageMaskNode', inputs: { input: ['m3', 0], resize_type: 'scale longer dimension', 'resize_type.longer_size': 1024, scale_method: 'lanczos' } },
+    m5: { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: 'sdpose_wholebody_fp16.safetensors' } },
+    m6: { class_type: 'UNETLoader', inputs: { unet_name: 'rt_detr_v4-x-hgnet_fp16.safetensors', weight_dtype: 'default' } },
+    m7: { class_type: 'RTDETR_detect', inputs: { model: ['m6', 0], image: ['m4', 0], threshold: 0.5, class_name: 'person', max_detections: 2 } },
+    m8: { class_type: 'SDPoseKeypointExtractor', inputs: { model: ['m5', 0], vae: ['m5', 2], image: ['m4', 0], batch_size: 16, bboxes: ['m7', 0] } },
+    m9: { class_type: 'SDPoseDrawKeypoints', inputs: { keypoints: ['m8', 0], draw_body: true, draw_hands: true, draw_face: true, draw_feet: true, stick_width: 4, face_point_size: 2, score_threshold: 0.5, draw_head: true } },
+    m10: { class_type: 'ModelPatchLoader', inputs: { name: 'minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors' } },
+    m11: { class_type: 'MiniMaxH3FunControlNetApply', inputs: { model: ['127', 0], model_patch: ['m10', 0], vae: ['119', 0], strength: 1, start_percent: 0, end_percent: 1, control_video: ['m9', 0] } },
+  })
+  built.graph['124'].inputs.model = ['m11', 0]
+  built.graph['126'].inputs.model = ['m11', 0]
+  return built
+}
+
+export async function lipSyncGraph(image: string, audio: string, prompt: string, aspect: number, seconds: number, area: number): Promise<Built> {
+  const g = await i2vGraph(`${prompt || 'The person talks naturally to the camera.'} The lips move in sync with the speech.`, aspect, seconds, area)
+  g['114'].inputs.image = image
+  g.s1 = { class_type: 'LoadAudio', inputs: { audio } }
+  g.s2 = { class_type: 'MiniMaxH3AddGuide', inputs: { positive: ['105:104', 0], latent: ['105:104', 1], vae: ['105:11', 0], audio_vae: ['105:24', 0], audio: ['s1', 0], frame_idx: 0 } }
+  g['105:16'].inputs.conditioning = ['s2', 0]
   return { graph: g, result: '92' }
 }
 

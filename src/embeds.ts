@@ -1,11 +1,10 @@
 import { unzipSync } from 'fflate'
 import { createShapeId, type Editor, type VecLike } from 'tldraw'
 
-import { uploadImage, viewUrl } from './comfy'
+import { AUDIO_EXTS, uploadImage, viewUrl } from './comfy'
 import { AUDIO, AUDIO_SIZE, HTML, LOTTIE, MODEL } from './shapes/EmbedShapes'
 
 export const MODEL_EXTS = ['glb', 'gltf', 'obj', 'fbx', 'stl', 'ply']
-const AUDIO_EXTS = ['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus']
 const LOTTIE_LONG = 480
 const MODEL_SIZE = 480
 const HTML_SIZE: [number, number] = [960, 640]

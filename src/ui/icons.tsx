@@ -21,6 +21,8 @@ export const Icons = {
   extend: <Svg><rect x="3" y="6" width="10" height="12" rx="2" /><path d="M16.5 12H21M18.8 9.7 21 12l-2.2 2.3" /></Svg>,
   comment: <Svg><path d="M12 3.5a8.5 8.5 0 0 0-7.4 12.7L3.5 20.5l4.3-1.1A8.5 8.5 0 1 0 12 3.5z" /></Svg>,
   lasso: <Svg><path d="M7 17.5c-2.2-1-3.5-2.8-3.5-5C3.5 8 7.3 4.5 12 4.5s8.5 3.5 8.5 8-3.8 8-8.5 8c-1 0-2-.1-2.8-.4" /><circle cx="7" cy="18.5" r="1.5" /></Svg>,
+  list: <Svg><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></Svg>,
+  qr: <Svg><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2" /></Svg>,
   box: <Svg><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /></Svg>,
   close: <Svg><path d="M6 6l12 12M18 6 6 18" /></Svg>,
   trash: <Svg><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5" /></Svg>,

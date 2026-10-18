@@ -54,7 +54,7 @@ Animate image, video generation and video extend use MiniMax H3:
 | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` |
 | `minimax_h3_video_vae_fp16.safetensors`, `minimax_h3_audio_vae_fp32.safetensors` | `vae` |
 
-**Reference to video** uses `minimax_h3_ref2va_pruned_int8_convrot.safetensors` (`diffusion_models`) with the same text encoder and VAEs.
+**Reference to video** uses `minimax_h3_ref2va_pruned_int8_convrot.safetensors` (`diffusion_models`) with the same text encoder and VAEs. **Motion control** adds `minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors` (`model_patches`), `sdpose_wholebody_fp16.safetensors` (`checkpoints`) and `rt_detr_v4-x-hgnet_fp16.safetensors` (`diffusion_models`) for pose extraction. **Lip sync** uses the image-to-video files above.
 
 Video trim and the video editor use core nodes only.
 

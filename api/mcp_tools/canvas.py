@@ -70,12 +70,19 @@ SPECS: dict[str, dict] = {
         ["prompt"], approval="生成图像"),
     "generate_video": _tool(
         "Start generating a video. Returns ids at once; call wait_generation with them. first_frame / "
-        "last_frame are image shape ids. reference_images (up to 9 image shape ids) makes a video that "
-        "follows those characters, products or scenes instead of starting from a frame; mention them in "
-        "the prompt as <Picture 1>, <Picture 2> in the same order. duration in seconds (5, 10 or 15).",
+        "last_frame are image shape ids. References make a video that follows characters, products, scenes, "
+        "motion or sound instead of starting from a frame: reference_images (up to 9 image shape ids, "
+        "<Picture 1>…), reference_videos (up to 3 video shape ids, <Video 1>…), reference_audios (up to 3 "
+        "audio shape ids, <Audio 1>…). With references, first say what each one is and what it does "
+        "(\"Use <Picture 1> as the product, <Video 1> for the camera move, <Audio 1> as the voice\"), then "
+        "describe the shot; a tag only mentioned in passing is ignored. motion_video (a video shape id) "
+        "makes the person in first_frame copy that video's body motion. speech_audio (an audio shape id) "
+        "makes the person in first_frame say that audio with matching lip movement; the video lasts as long "
+        "as the audio (max 15 s). duration in seconds (5, 10 or 15).",
         {"prompt": {"type": "string"}, "model": {"type": "string"}, "ratio": {"type": "string"},
          "duration": {"type": "integer"}, "first_frame": {"type": "string"}, "last_frame": {"type": "string"},
-         "reference_images": _IDS, **_PLACE},
+         "reference_images": _IDS, "reference_videos": _IDS, "reference_audios": _IDS,
+         "motion_video": {"type": "string"}, "speech_audio": {"type": "string"}, **_PLACE},
         ["prompt"], approval="生成视频"),
     "edit_image": _tool(
         "Edit an image shape with an instruction (change, add or remove things, restyle). The result is "

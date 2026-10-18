@@ -3,6 +3,9 @@ import { Box, createShapeId, useEditor, useValue } from 'tldraw'
 
 import { createGenerator } from '../generate'
 import { imageUnder } from '../actions'
+import { addComposeShape, createBoard, importLayout } from '../compose'
+import { errorText } from '../jobs'
+import { GENBLOCK, QR } from '../shapes/ComposeShapes'
 import { COMMENT, COMMENT_SIZE, commentKindAtom, type CommentKind } from '../shapes/CommentShape'
 import { DOODLE } from '../shapes/DoodleShape'
 import { PEN } from '../shapes/PenTool'
@@ -20,6 +23,9 @@ const INSERTS: [string, string, keyof typeof Icons, string, string?][] = [
   ['text', t('common.text'), 'textTool', 'T'], ['rect', t('common.rectangle'), 'rect', 'R'], ['ellipse', t('dock.circle'), 'ellipse', 'O'], ['polygon', t('dock.polygon'), 'polygon', ''], ['star', t('dock.star'), 'star', ''], ['pen', t('dock.pen'), 'pen', 'P'],
   ['line', t('dock.line'), 'minus', 'L'], ['arrow', t('dock.arrow'), 'link', 'Shift L'], ['note', t('dock.stickyNote'), 'page', 'N'], ['frame', t('common.artboard'), 'frame', 'F'],
 ]
+const COMPOSE_INSERTS: [string, string, keyof typeof Icons][] = [
+  ['board', t('compose.board'), 'frame'], [GENBLOCK, t('compose.aiBlock'), 'genImage'], [QR, t('compose.qrCode'), 'qr'],
+]
 
 const KINDS: [CommentKind, string, keyof typeof Icons][] = [['point', t('dock.clickSelect'), 'comment'], ['lasso', t('dock.lassoSelect'), 'lasso'], ['box', t('dock.boxSelect'), 'box']]
 
@@ -36,13 +42,14 @@ function CommentBar() {
   )
 }
 
-export function Dock() {
+export function Dock({ onError }: { onError: (msg: string) => void }) {
   const editor = useEditor()
   const tool = useValue('tool', () => editor.getCurrentToolId(), [editor])
   const [video, setVideo] = useState(false)
   const [menu, setMenu] = useState(false)
   const [insert, setInsert] = useState(false)
   const upload = useRef<HTMLInputElement>(null)
+  const layout = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const keys: Record<string, () => void> = {
@@ -122,6 +129,15 @@ export function Dock() {
                 <span className="ca-icon">{Icons[icon]}</span><span className="ca-menu__grow">{label}</span>{key && <span className="ca-menu__key">{key}</span>}
               </button>
             ))}
+            <div className="ca-menu__sep" />
+            {COMPOSE_INSERTS.map(([id, label, icon]) => (
+              <button key={id} type="button" className="ca-menu__item" onClick={() => { setInsert(false); if (id === 'board') createBoard(editor); else addComposeShape(editor, id as typeof GENBLOCK) }}>
+                <span className="ca-icon">{Icons[icon]}</span><span className="ca-menu__grow">{label}</span>
+              </button>
+            ))}
+            <button type="button" className="ca-menu__item" onClick={() => { setInsert(false); layout.current?.click() }}>
+              <span className="ca-icon">{Icons.upload}</span><span className="ca-menu__grow">{t('compose.importLayout')}</span>
+            </button>
           </div>
         </Popover>
         <input
@@ -132,6 +148,7 @@ export function Dock() {
           accept="image/*,video/*,.pdf,.json,.lottie,.html,.htm,.glb,.gltf,.obj,.fbx,.stl,.ply,.mp3,.wav,.flac,.ogg,.m4a,.opus"
           onChange={(e) => { const files = Array.from(e.target.files ?? []); if (files.length) void editor.putExternalContent({ type: 'files', files, point: editor.getViewportPageBounds().center }); e.target.value = '' }}
         />
+        <input ref={layout} type="file" hidden accept=".json" onChange={(e) => { const f = e.target.files?.[0]; if (f) importLayout(editor, f).catch((err) => onError(errorText(err))); e.target.value = '' }} />
         <div className="ca-bar__sep" />
         <div className="ca-split">
           <button type="button" className="ca-bar__btn" onClick={gen(video)}>

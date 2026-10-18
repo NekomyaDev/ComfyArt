@@ -105,7 +105,7 @@ export interface GenInfo {
   inputs?: Record<string, JsonValue>
 }
 
-const GEN_INPUTS = ['refs', 'base', 'strength', 'colors', 'refModes', 'refStrengths', 'lastFrame', 'scenes', 'videoMode']
+const GEN_INPUTS = ['refs', 'base', 'strength', 'colors', 'refModes', 'refStrengths', 'lastFrame', 'scenes', 'videoMode', 'motion', 'speech']
 
 function infoOf(holder: TLShape, job: Job): GenInfo {
   if (holder.type !== GENERATOR) return { tool: job.name }

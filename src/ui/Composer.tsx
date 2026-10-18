@@ -259,7 +259,7 @@ export function Composer({ editor, busy, onError }: { editor: Editor; busy: bool
           )}
           {menu === 'assets' && (
             <div className="ca-menu ca-assets-pop">
-              <AssetGrid images onPick={(item) => { setMenu(null); void placeAsset(editor, item).then((id) => id && addRef(id)) }} />
+              <AssetGrid only="image" onPick={(item) => { setMenu(null); void placeAsset(editor, item).then((id) => id && addRef(id)) }} />
             </div>
           )}
           {menu === 'create' && (

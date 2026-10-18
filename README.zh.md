@@ -61,7 +61,9 @@ Agent 面板在后端运行一个真正会调用工具的 Agent，移植自 [Com
 | 多角度 | `multiangle-qwen-image-2.1` | 上面的 Qwen Image 2.1 三个文件，外加 [`qwen-image-2.1-qma-camera-angles.safetensors`](https://huggingface.co/gribbliest/qwen-image-2.1-qma-camera-angles)（loras） |
 | 图层拆分 | `layers-qwen-image-layered` | `qwen_image_layered_bf16.safetensors`、`qwen_image_layered_vae.safetensors`、`qwen_2.5_vl_7b_fp8_scaled.safetensors` |
 | 动态图片、视频生成、视频延长 | `i2v-minimax-h3`、`t2v-minimax-h3` | `minimax_h3_fl2va_pruned_int8_convrot.safetensors`、`minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors`、`qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors`、`minimax_h3_video_vae_fp16.safetensors`、`minimax_h3_audio_vae_fp32.safetensors` |
-| 参考生视频 | `r2v-minimax-h3` | `minimax_h3_ref2va_pruned_int8_convrot.safetensors`，外加上面的文本编码器和 VAE |
+| 参考生视频（图片、视频、音频） | `r2v-minimax-h3` | `minimax_h3_ref2va_pruned_int8_convrot.safetensors`，外加上面的文本编码器和 VAE |
+| 动作控制 | `r2v-minimax-h3` + 代码内构建的姿态图 | `minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors`（model_patches）、`sdpose_wholebody_fp16.safetensors`（checkpoints）、`rt_detr_v4-x-hgnet_fp16.safetensors`（diffusion_models） |
+| 对口型 | `i2v-minimax-h3` + `MiniMaxH3AddGuide` | 上面图生视频的那套文件 |
 | 视频裁剪 | 代码内构建 | 只用核心节点 |
 | 编辑元素 | 代码内构建、`erase-lama` | `rapidocr`（Python 包，`POST /comfyart/ocr`）、SAM3（`sam3.1_multiplex_fp16.safetensors`）、LaMa |
 | 样机 | `mockup-surface` | [comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) 的 Depth Anything V2（`depth_anything_v2_vitl.pth`，首次使用时下载）、`birefnet.safetensors` |

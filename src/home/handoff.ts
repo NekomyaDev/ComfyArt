@@ -3,10 +3,11 @@ import type { Editor, TLImageShape } from 'tldraw'
 import { agentModeAtom, extraRefsAtom, generateDirect, sendToAgent, type AgentMode } from '../agent'
 import { refreshBot } from '../bot'
 import { refFromUrl } from '../comfy'
+import { editElements } from '../elements'
 import { placeMedia, toMedia, type ErrorSink } from '../jobs'
 import { loadSkills, skillAtom } from '../skills'
 
-const KEYS = ['ask', 'mode', 'ref', 'skill']
+const KEYS = ['ask', 'mode', 'ref', 'skill', 'tool']
 const REF_LONG = 512
 const GAP = 20
 
@@ -30,9 +31,15 @@ export async function takeHandoff(editor: Editor, onError: ErrorSink) {
   const mode = (url.searchParams.get('mode') ?? 'agent') as AgentMode
   const refs = url.searchParams.getAll('ref')
   const skillId = url.searchParams.get('skill')
+  const tool = url.searchParams.get('tool')
   if (!text && !refs.length && !skillId) return
   for (const k of KEYS) url.searchParams.delete(k)
   history.replaceState(null, '', url)
+  if (tool === 'elements') {
+    const [shape] = await placeRefs(editor, refs.slice(0, 1))
+    if (shape) editElements(editor, shape, onError)
+    return
+  }
 
   agentModeAtom.set(mode)
   const skill = skillId ? (await loadSkills()).find((s) => s.id === skillId) ?? null : null

@@ -61,7 +61,9 @@ Every canvas action runs one of the API workflows in `workflows/` through ComfyU
 | Angles | `multiangle-qwen-image-2.1` | the Qwen Image 2.1 files above, plus [`qwen-image-2.1-qma-camera-angles.safetensors`](https://huggingface.co/gribbliest/qwen-image-2.1-qma-camera-angles) (loras) |
 | Split layers | `layers-qwen-image-layered` | `qwen_image_layered_bf16.safetensors`, `qwen_image_layered_vae.safetensors`, `qwen_2.5_vl_7b_fp8_scaled.safetensors` |
 | Animate, video generation, video extend | `i2v-minimax-h3`, `t2v-minimax-h3` | `minimax_h3_fl2va_pruned_int8_convrot.safetensors`, `minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors`, `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors`, `minimax_h3_video_vae_fp16.safetensors`, `minimax_h3_audio_vae_fp32.safetensors` |
-| Reference to video | `r2v-minimax-h3` | `minimax_h3_ref2va_pruned_int8_convrot.safetensors`, plus the text encoder and VAEs above |
+| Reference to video (images, videos, audio) | `r2v-minimax-h3` | `minimax_h3_ref2va_pruned_int8_convrot.safetensors`, plus the text encoder and VAEs above |
+| Motion control | `r2v-minimax-h3` + pose graph built in code | `minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors` (model_patches), `sdpose_wholebody_fp16.safetensors` (checkpoints), `rt_detr_v4-x-hgnet_fp16.safetensors` (diffusion_models) |
+| Lip sync | `i2v-minimax-h3` + `MiniMaxH3AddGuide` | the image-to-video files above |
 | Video trim | built in code | core nodes only |
 | Edit Elements | built in code, `erase-lama` | `rapidocr` (Python package, `POST /comfyart/ocr`), SAM3 (`sam3.1_multiplex_fp16.safetensors`), LaMa |
 | Mockup | `mockup-surface` | [comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) Depth Anything V2 (`depth_anything_v2_vitl.pth`, downloaded on first use), `birefnet.safetensors` |

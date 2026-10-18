@@ -20,6 +20,7 @@
     "lottie-web": "^5.13.0",
     "paper": "^0.12.18",
     "pptxgenjs": "^4.0.1",
+    "qrcode-generator": "^2.0.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "three": "^0.186.1",

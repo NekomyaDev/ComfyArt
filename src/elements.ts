@@ -2,16 +2,16 @@ import { createShapeId, type Editor, type TLFrameShape, type TLImageShape } from
 
 import { maskFile } from './actions'
 import { loadImage } from './adjust'
-import { api, queuePrompt, uploadImage, viewUrl, waitForImages } from './comfy'
+import { api, queuePrompt, viewUrl, waitForImages } from './comfy'
 import { placeMedia, registerPlacer, selectResults, spawnHolder, startJob, type ErrorSink } from './jobs'
 import { cropLayer, grow, pixels, type RegionLayer } from './layers'
-import { exportImage } from './shapes/ArtboardShape'
+import { ask, parseJson } from './llm'
 import { TEXT, type TextShape } from './shapes/TextShape'
-import { annotated, editGraph, eraseGraph, samGraph } from './workflows'
+import { annotated, eraseGraph, samGraph } from './workflows'
 import { t } from './i18n'
 
 interface Line { box: [number, number][]; text: string; score: number }
-interface TextLayer { text: string; cx: number; cy: number; w: number; h: number; angle: number; color: string; weight: number }
+interface TextLayer { text: string; cx: number; cy: number; w: number; h: number; angle: number; color: string; weight: number; font: string; align: string }
 
 const MIN_SCORE = 0.6
 const MASK_PAD = 0.2
@@ -19,13 +19,15 @@ const MAX_SIZE_PER_HEIGHT = 1.05
 const TEXT_FILL = 0.94
 const PROBE_SIZE = 100
 const FONT = 'Arial'
+const FAMILIES: Record<string, [string, string]> = { serif: ['Georgia', 'SimSun'], sans: ['Arial', 'Microsoft YaHei'], display: ['Impact', 'SimHei'], mono: ['Courier New', 'FangSong'], script: ['Georgia', 'KaiTi'] }
+const CJK = /[぀-ヿ㐀-鿿가-힯]/
+const STYLE_SYSTEM = 'You identify typography in design images. Reply with ONE JSON object and nothing else.'
+const CENTER_TOLERANCE = 0.03
+const RIGHT_MARGIN = 0.1
 const BOLD_INK = 0.3
 const OBJECT_PROMPTS = ['product', 'logo']
 const MIN_OBJECT = 0.002
 const OBJECT_GROW = 6
-const RERENDER_SCALE = 2
-const RERENDER_LONG = 2048
-const RERENDER_PROMPT = 'Fix only the seams between the elements of this design: blend edges, contact shadows and lighting so nothing looks pasted on. Every object stays complete with all of its parts, in the same place, size and shape. Keep the background, all text, logos, layout and colors exactly as they are. Do not add or remove anything.'
 
 async function readLines(src: string): Promise<Line[]> {
   const res = await api('/comfyart/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ src }) })
@@ -55,6 +57,11 @@ function inkOf(ctx: CanvasRenderingContext2D, box: [number, number][]) {
   return { color: `#${hex(ink[0] / n)}${hex(ink[1] / n)}${hex(ink[2] / n)}`, weight: ink[3] / (d.length / 4) > BOLD_INK ? 700 : 400 }
 }
 
+function alignOf(cx: number, w: number, width: number) {
+  if (Math.abs(cx - width / 2) < width * CENTER_TOLERANCE) return 'center'
+  return cx - w / 2 > width / 2 && cx + w / 2 > width * (1 - RIGHT_MARGIN) ? 'right' : 'left'
+}
+
 function layersOf(lines: Line[], img: HTMLImageElement): TextLayer[] {
   const c = document.createElement('canvas')
   c.width = img.naturalWidth
@@ -63,16 +70,33 @@ function layersOf(lines: Line[], img: HTMLImageElement): TextLayer[] {
   ctx.drawImage(img, 0, 0)
   return lines.map(({ box, text }) => {
     const [p0, p1, p2, p3] = box
+    const cx = (p0[0] + p1[0] + p2[0] + p3[0]) / 4
+    const w = Math.hypot(p1[0] - p0[0], p1[1] - p0[1])
     return {
-      text,
-      cx: (p0[0] + p1[0] + p2[0] + p3[0]) / 4,
+      text, cx, w,
       cy: (p0[1] + p1[1] + p2[1] + p3[1]) / 4,
-      w: Math.hypot(p1[0] - p0[0], p1[1] - p0[1]),
       h: Math.hypot(p2[0] - p1[0], p2[1] - p1[1]),
       angle: Math.atan2(p1[1] - p0[1], p1[0] - p0[0]),
+      font: FONT,
+      align: alignOf(cx, w, c.width),
       ...inkOf(ctx, box),
     }
   })
+}
+
+async function applyTypography(src: string, layers: TextLayer[]) {
+  const list = layers.map((l, i) => `${i + 1}. "${l.text}"`).join('\n')
+  const reply = parseJson(await ask(
+    `For each numbered text line in this design, give its typeface category (serif, sans, display, mono or script) and weight (400 or 700). Reply {"lines": [{"n": 1, "family": "sans", "weight": 700}]}.\n${list}`,
+    STYLE_SYSTEM, [src],
+  ))
+  for (const s of (reply?.lines as { n: number; family: string; weight: number }[] | undefined) ?? []) {
+    const l = layers[s.n - 1]
+    const family = FAMILIES[s.family]
+    if (!l || !family) continue
+    l.font = family[CJK.test(l.text) ? 1 : 0]
+    if (s.weight === 400 || s.weight === 700) l.weight = s.weight
+  }
 }
 
 function paintBoxes(ctx: CanvasRenderingContext2D, layers: TextLayer[], padding: number) {
@@ -123,6 +147,7 @@ export function editElements(editor: Editor, shape: TLImageShape, onError: Error
   const extra: { layers: TextLayer[]; objects: RegionLayer[]; base: string; source: string } = { layers: [], objects: [], base: name, source: src }
   void startJob(editor, holder, (async () => {
     extra.layers = layersOf(await readLines(src), await loadImage(src))
+    if (extra.layers.length) await applyTypography(src, extra.layers).catch(() => undefined)
     const { layers, union } = await objectLayers(src, w, h, extra.layers)
     extra.objects = layers
     if (!extra.layers.length && !layers.length) throw new Error(t('elements.nothingFound'))
@@ -132,17 +157,6 @@ export function editElements(editor: Editor, shape: TLImageShape, onError: Error
     })
     return eraseGraph(annotated(src), mask)
   })(), { name: t('elements.jobName', name), placer: 'textLayers', extra }, onError)
-  return holder
-}
-
-export function rerender(editor: Editor, frame: TLFrameShape, onError: ErrorSink) {
-  const holder = spawnHolder(editor, frame)
-  const { w, h, name } = frame.props
-  void startJob(editor, holder, (async () => {
-    const { blob } = await exportImage(editor, [frame.id], { format: 'png', background: true, scale: Math.min(RERENDER_SCALE, RERENDER_LONG / Math.max(w, h)) })
-    const ref = await uploadImage(blob, `${name || 'elements'}-rerender.png`)
-    return editGraph(annotated(viewUrl(ref)), RERENDER_PROMPT)
-  })(), { name: t('elements.rerenderName', name) }, onError)
   return holder
 }
 
@@ -158,14 +172,14 @@ registerPlacer('textLayers', async (editor, holder, [plate], job) => {
     objects.forEach((o, i) => placeMedia(editor, o.media, t('elements.object', base, i + 1), o.x * k, o.y * k, o.media.w * k, frame))
     const measure = document.createElement('canvas').getContext('2d')!
     for (const l of layers) {
-      measure.font = `${l.weight} ${PROBE_SIZE}px ${FONT}`
+      measure.font = `${l.weight} ${PROBE_SIZE}px "${l.font}"`
       const size = Math.min(l.h * k * MAX_SIZE_PER_HEIGHT, (PROBE_SIZE * l.w * k * TEXT_FILL) / measure.measureText(l.text).width)
       const [cos, sin] = [Math.cos(l.angle), Math.sin(l.angle)]
       const [hw, hh] = [(l.w * k) / 2, size / 2]
       editor.createShape<TextShape>({
         id: createShapeId(), type: TEXT, parentId: frame,
         x: l.cx * k - hw * cos + hh * sin, y: l.cy * k - hw * sin - hh * cos, rotation: l.angle,
-        props: { text: l.text, size, font: FONT, color: l.color, weight: l.weight, line: 1 },
+        props: { text: l.text, size, font: l.font, color: l.color, weight: l.weight, line: 1, align: l.align, autoSize: false, w: l.w * k },
       })
     }
   }, { history: 'ignore' })

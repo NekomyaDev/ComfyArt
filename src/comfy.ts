@@ -61,6 +61,25 @@ export function refFromUrl(src: string): ImageRef {
   return { filename: q.get('filename') ?? '', subfolder: q.get('subfolder') ?? '', type: q.get('type') ?? 'input' }
 }
 
+export const AUDIO_EXTS = ['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus']
+const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'mkv']
+export type RefKind = 'image' | 'video' | 'audio'
+
+export function refKind(src: string): RefKind {
+  const ext = refFromUrl(src).filename.toLowerCase().split('.').pop() ?? ''
+  return VIDEO_EXTS.includes(ext) ? 'video' : AUDIO_EXTS.includes(ext) ? 'audio' : 'image'
+}
+
+export function mediaMeta(src: string, kind: 'video' | 'audio'): Promise<{ seconds: number; aspect: number }> {
+  return new Promise((resolve, reject) => {
+    const el = document.createElement(kind)
+    el.preload = 'metadata'
+    el.onloadedmetadata = () => resolve({ seconds: el.duration, aspect: el instanceof HTMLVideoElement ? el.videoWidth / el.videoHeight : 1 })
+    el.onerror = () => reject(new Error(`cannot read ${src}`))
+    el.src = src
+  })
+}
+
 export async function uploadImage(file: Blob, name: string): Promise<ImageRef> {
   const body = new FormData()
   body.append('image', file, name)

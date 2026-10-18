@@ -139,7 +139,7 @@ export function ReferencePanel({ editor, onError }: { editor: Editor; onError: E
                 <span className="ca-icon">{Icons.select}</span><span className="ca-menu__grow">{t('referencePanel.addSelected', selected.length)}</span>
               </button>
             )}
-            <AssetGrid images onPick={(i) => { setPick(false); add([i.src], 'assets') }} />
+            <AssetGrid only="image" onPick={(i) => { setPick(false); add([i.src], 'assets') }} />
           </div>
         </Popover>
         <button type="button" className="ca-lib__new ca-ref__add" disabled={refs.length < 2} onClick={() => void moodboard(editor, refs).catch((e) => onError(String(e)))}>

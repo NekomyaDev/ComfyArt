@@ -54,7 +54,7 @@ Qwen Image 2512 用 **ComfyArt Precise UNET Loader** 节点加载。ComfyUI 的 
 | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` |
 | `minimax_h3_video_vae_fp16.safetensors`、`minimax_h3_audio_vae_fp32.safetensors` | `vae` |
 
-**参考生视频** 用 `minimax_h3_ref2va_pruned_int8_convrot.safetensors`（`diffusion_models`），文本编码器和 VAE 与上面相同。
+**参考生视频** 用 `minimax_h3_ref2va_pruned_int8_convrot.safetensors`（`diffusion_models`），文本编码器和 VAE 与上面相同。**动作控制** 另外需要 `minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors`（`model_patches`），以及用来提取姿态的 `sdpose_wholebody_fp16.safetensors`（`checkpoints`）和 `rt_detr_v4-x-hgnet_fp16.safetensors`（`diffusion_models`）。**对口型** 用上面图生视频的那套文件。
 
 视频裁剪和视频编辑器只用核心节点。
 

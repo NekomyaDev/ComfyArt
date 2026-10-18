@@ -18,6 +18,7 @@ import { overrides } from './overrides'
 import { CommentShapeUtil, CommentTool } from './shapes/CommentShape'
 import { AudioShapeUtil, HtmlShapeUtil, LottieShapeUtil, ModelShapeUtil } from './shapes/EmbedShapes'
 import { DoodleShapeUtil, DoodleTool } from './shapes/DoodleShape'
+import { GenBlockShapeUtil, QrShapeUtil } from './shapes/ComposeShapes'
 import { TextShapeUtil, TextTool } from './shapes/TextShape'
 import { PenTool } from './shapes/PenTool'
 import { VectorShapeUtil, VectorTool } from './shapes/VectorShape'
@@ -82,7 +83,7 @@ const SAVE_DELAY = 800
 const CHANNEL = 'comfyart-projects'
 const TAB = uuid()
 const assetUrls = getAssetUrlsByImport()
-const shapeUtils = [ArtboardShapeUtil, GeneratorShapeUtil, CommentShapeUtil, DoodleShapeUtil, TextShapeUtil, VectorShapeUtil, LottieShapeUtil, ModelShapeUtil, HtmlShapeUtil, AudioShapeUtil, MockupShapeUtil]
+const shapeUtils = [ArtboardShapeUtil, GeneratorShapeUtil, CommentShapeUtil, DoodleShapeUtil, TextShapeUtil, VectorShapeUtil, LottieShapeUtil, ModelShapeUtil, HtmlShapeUtil, AudioShapeUtil, MockupShapeUtil, GenBlockShapeUtil, QrShapeUtil]
 const tools = [CommentTool, DoodleTool, TextTool, VectorTool, PenTool]
 const getShapeVisibility = (shape: TLShape) => (shape.meta.hidden ? 'hidden' as const : 'inherit' as const)
 
@@ -269,7 +270,7 @@ export function App({ id }: { id: string }) {
               <ShapeToolbar />
               <FrameToolbar onError={setError} />
               <EmbedToolbar onError={setError} />
-              <Dock />
+              <Dock onError={setError} />
               <CanvasTools zoom={<Zoom />} />
             </Tldraw>
           </div>

@@ -6,7 +6,8 @@ import { editElements } from './elements'
 import { bakeToImage, createMockup } from './mockup'
 import { api } from './comfy'
 import { placeHtml } from './embeds'
-import { createGenerator, DURATIONS, generate, genInfoOf, MAX_VIDEO_REFS, RATIOS, VIDEO_RATIOS } from './generate'
+import { capRefs, createGenerator, DURATIONS, generate, genInfoOf, RATIOS, VIDEO_RATIOS } from './generate'
+import { MAX_VIDEO_REF_KINDS } from './workflows'
 import { type ErrorSink, errorText, fileSrc, jobOf, mediaAsset, resultsAtom } from './jobs'
 import { describeItem, itemImages, libraryAtom, linkedKit } from './library'
 import { correct, forget, memoryAtom, remember } from './memory'
@@ -133,14 +134,20 @@ function startGenerator(editor: Editor, video: boolean, args: Args, onError: Err
   const props = video
     ? { prompt: String(args.prompt), workflow: model.id, ratio: args.ratio ?? ratios[0], duration: DURATIONS.includes(args.duration) ? args.duration : DURATIONS[0] }
     : { prompt: String(args.prompt), workflow: model.id, ratio: args.ratio ?? '1:1', count: Math.min(4, Math.max(1, Number(args.count) || 1)) }
-  const references = video && Array.isArray(args.reference_images) && args.reference_images.length > 0
-  const refs = !video ? refUrls(editor, args.refs) : references ? refUrls(editor, args.reference_images).slice(0, MAX_VIDEO_REFS) : refUrls(editor, args.first_frame ? [args.first_frame] : [])
+  const media = video ? [...refUrls(editor, args.reference_images), ...refUrls(editor, args.reference_videos), ...refUrls(editor, args.reference_audios)] : []
+  const motion = video && args.motion_video ? refUrls(editor, [args.motion_video])[0] : null
+  const speech = video && args.speech_audio ? refUrls(editor, [args.speech_audio])[0] : null
+  if ((motion || speech) && !args.first_frame) throw new Error(`${motion ? 'motion_video' : 'speech_audio'} needs first_frame: the image of the person`)
+  const mode = motion ? 'motion' : speech ? 'lipsync' : media.length ? 'refs' : null
+  const refs = !video ? refUrls(editor, args.refs) : mode === 'refs' ? capRefs(media) : refUrls(editor, args.first_frame ? [args.first_frame] : [])
   const meta = {
     quiet: true,
-    ...(references ? { videoMode: 'refs' } : {}),
+    ...(mode ? { videoMode: mode } : {}),
+    ...(motion ? { motion } : {}),
+    ...(speech ? { speech } : {}),
     ...(refs.length ? { refs } : {}),
     ...(!video && args.base ? { base: refUrls(editor, [args.base])[0], strength: Number(args.base_strength) || 60 } : {}),
-    ...(video && args.last_frame ? { lastFrame: refUrls(editor, [args.last_frame])[0] } : {}),
+    ...(video && !mode && args.last_frame ? { lastFrame: refUrls(editor, [args.last_frame])[0] } : {}),
   }
   const id = createGenerator(editor, video, props, false)
   editor.updateShape<GeneratorShape>({ id, type: GENERATOR, meta })
@@ -227,7 +234,7 @@ const HANDLERS: Record<string, Handler> = {
   },
   list_models: () => ({
     image: agentModels(false).map((m) => ({ id: m.id, label: m.label, desc: m.desc, accepts_refs: !!m.refs, ratios: RATIOS })),
-    video: agentModels(true).map((m) => ({ id: m.id, label: m.label, desc: m.desc, accepts_first_frame: true, max_reference_images: MAX_VIDEO_REFS, ratios: VIDEO_RATIOS, durations: DURATIONS })),
+    video: agentModels(true).map((m) => ({ id: m.id, label: m.label, desc: m.desc, accepts_first_frame: true, max_reference_images: MAX_VIDEO_REF_KINDS.image, max_reference_videos: MAX_VIDEO_REF_KINDS.video, max_reference_audios: MAX_VIDEO_REF_KINDS.audio, motion_control: true, lip_sync: true, ratios: VIDEO_RATIOS, durations: DURATIONS })),
   }),
   brand_kits: (editor) => {
     const linked = linkedKit(editor.getDocumentSettings().meta.brandKit)

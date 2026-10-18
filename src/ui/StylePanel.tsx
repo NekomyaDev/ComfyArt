@@ -61,7 +61,7 @@ export function StylePanel({ onError }: { onError: (msg: string) => void }) {
             trigger={({ toggle }) => <button type="button" className="ca-gen__refadd" onClick={toggle}><span className="ca-icon">{Icons.image}</span><span>{t('genPanel.referenceImage')}</span></button>}
           >
             {pick === 'assets' ? (
-              <div className="ca-menu ca-assets-pop"><AssetGrid images onPick={(i) => { setPick(null); setRef(i.src) }} /></div>
+              <div className="ca-menu ca-assets-pop"><AssetGrid only="image" onPick={(i) => { setPick(null); setRef(i.src) }} /></div>
             ) : (
               <div className="ca-menu">
                 <button type="button" className="ca-menu__item" onClick={() => { setPick(null); file.current?.click() }}><span className="ca-icon">{Icons.upload}</span><span className="ca-menu__grow">{t('genPanel.uploadImage')}</span></button>

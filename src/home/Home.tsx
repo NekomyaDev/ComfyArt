@@ -41,6 +41,7 @@ export function Home() {
   const [error, setError] = useState('')
   const input = useRef<HTMLTextAreaElement>(null)
   const file = useRef<HTMLInputElement>(null)
+  const breakdown = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     input.current?.focus()
@@ -69,6 +70,16 @@ export function Home() {
     } catch (e) {
       setError(errorText(e))
     } finally {
+      setUploading(false)
+    }
+  }
+  const breakDown = async (f: File | undefined) => {
+    if (!f) return
+    setUploading(true)
+    try {
+      start({ ref: viewUrl(await uploadImage(f, f.name)), tool: 'elements' })
+    } catch (e) {
+      setError(errorText(e))
       setUploading(false)
     }
   }
@@ -129,6 +140,10 @@ export function Home() {
             <span className="ca-icon">{Icons[icon]}</span>{label}
           </button>
         ))}
+        <button type="button" className="ca-landing__chip" disabled={uploading} title={t('home.breakdownHint')} onClick={() => breakdown.current?.click()}>
+          <span className="ca-icon">{Icons.layers}</span>{t('home.breakdown')}
+        </button>
+        <input ref={breakdown} type="file" accept="image/*" hidden onChange={(e) => { void breakDown(e.target.files?.[0]); e.target.value = '' }} />
       </div>
 
       <section className="ca-landing__section">
