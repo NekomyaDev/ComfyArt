@@ -25,7 +25,7 @@ import { VECTOR, type VectorShape } from './shapes/VectorShape'
 import { loadSkills, saveSkill } from './skills'
 import { vectorize } from './vectorize'
 import { VIDEO_TARGETS, type Crop } from './workflows'
-import { onComfyEvent } from './ws'
+import { CLIENT_ID, onComfyEvent, onReconnect } from './ws'
 import { t } from './i18n'
 import { uuid } from './id'
 
@@ -446,14 +446,21 @@ const HANDLERS: Record<string, Handler> = {
 }
 
 export function registerCommandBus(editor: Editor, project: string, isStale: () => boolean, onError: ErrorSink) {
-  return onComfyEvent('comfyart-mcp-command', (msg: { id: string; action: string; project: string; chat?: string; args: Args }) => {
-    if ((msg.project && msg.project !== project) || isStale()) return
-    const handler = HANDLERS[msg.action]
-    const reply = (body: object) => api('/comfyart/mcp_command_result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command_id: msg.id, ...body }) })
-    if (!handler) return void reply({ ok: false, error: `unknown command ${msg.action}` })
-    Promise.resolve()
-      .then(() => handler(editor, msg.args ?? {}, onError, msg.chat ?? ''))
-      .then((result) => reply({ ok: true, result }), (e) => reply({ ok: false, error: errorText(e) }))
-  })
+  const announce = () => api('/comfyart/mcp_page', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: CLIENT_ID, project }) }).catch((e) => onError(errorText(e)))
+  void announce()
+  const stops = [
+    onReconnect(() => void announce()),
+    onComfyEvent('comfyart-mcp-command', (msg: { id: string; action: string; project: string; chat?: string; args: Args }) => {
+      if (msg.project !== project || isStale()) return
+      const handler = HANDLERS[msg.action]
+      const reply = (body: object) => api('/comfyart/mcp_command_result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command_id: msg.id, ...body }) })
+        .catch((e) => onError(errorText(e)))
+      if (!handler) return void reply({ ok: false, error: `unknown command ${msg.action}` })
+      editor.markHistoryStoppingPoint(`agent:${msg.action}`)
+      Promise.resolve()
+        .then(() => handler(editor, msg.args ?? {}, onError, msg.chat ?? ''))
+        .then((result) => reply({ ok: true, result }), (e) => reply({ ok: false, error: errorText(e) }))
+    }),
+  ]
+  return () => stops.forEach((stop) => stop())
 }
-

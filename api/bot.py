@@ -118,14 +118,17 @@ async def bot_update_chat(request: web.Request) -> web.Response:
 async def bot_delete_chat(request: web.Request) -> web.Response:
     if not bot_enabled():
         return bot_disabled()
-    chat = _owned_chat(request)
+    await remove_chat(_owned_chat(request))
+    return web.json_response({"ok": True})
+
+
+async def remove_chat(chat: dict) -> None:
     QUEUED.pop(chat["id"], None)
     state = ACTIVE_TURNS.get(chat["id"])
     if state is not None:
         await get_provider(chat["provider"]).stop(state.handle)
     chat_store.delete_chat(chat["id"])
     broadcast("chat_deleted", {"chat_id": chat["id"]})
-    return web.json_response({"ok": True})
 
 
 @routes.post("/comfyart/bot/chats/{cid}/send")

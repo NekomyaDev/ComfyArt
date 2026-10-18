@@ -1,6 +1,6 @@
 import { AssetRecordType, atom, createShapeId, type Editor, type JsonValue, type TLAssetId, type TLImageAsset, type TLShape, type TLShapeId, type TLVideoAsset } from 'tldraw'
 
-import { queuePrompt, viewUrl, waitForImages, type ImageRef } from './comfy'
+import { cancelPrompt, queuePrompt, viewUrl, waitForImages, type ImageRef } from './comfy'
 import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import type { Built } from './workflows'
 import { t } from './i18n'
@@ -23,6 +23,7 @@ export type Placer = (editor: Editor, holder: TLShape, media: Media[], job: Job,
 
 const GAP = 40
 const active = new Set<string>()
+const settled = new Set<string>()
 const placers: Record<string, Placer> = {}
 
 export interface JobResult { srcs: string[]; error?: string }
@@ -151,6 +152,7 @@ async function finish(editor: Editor, holderId: TLShapeId, job: Job, onError: Er
   active.add(job.id)
   try {
     const refs = await waitForImages(job.id, job.node)
+    settled.add(job.id)
     const media = await Promise.all(refs.map((r) => toMedia(r, job.kind)))
     const holder = editor.getShape(holderId)
     if (!holder) return
@@ -162,9 +164,10 @@ async function finish(editor: Editor, holderId: TLShapeId, job: Job, onError: Er
     else if (holder) editor.updateShape({ id: holderId, type: holder.type, meta: { ...holder.meta, job: null, quiet: false } })
     const msg = e instanceof Error ? e.message : String(e)
     report(holderId, { srcs: [], error: msg })
-    onError(msg)
+    if (holder) onError(msg)
   } finally {
     active.delete(job.id)
+    settled.delete(job.id)
   }
 }
 
@@ -218,4 +221,8 @@ export function resumeJobs(editor: Editor, onError: ErrorSink) {
     const job = jobOf(shape)
     if (job) void finish(editor, shape.id, job, onError)
   }
+  return editor.sideEffects.registerAfterDeleteHandler('shape', (shape) => {
+    const job = jobOf(shape)
+    if (job && active.has(job.id) && !settled.has(job.id)) cancelPrompt(job.id).catch((e) => onError(errorText(e)))
+  })
 }

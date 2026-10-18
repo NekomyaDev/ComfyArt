@@ -9,6 +9,7 @@ import { exitMode, modeAtom } from './mode'
 import { Popover } from './Popover'
 import { useElementSize, useSelectedImage, useSelectionRect } from './selection'
 import { t } from '../i18n'
+import { useEscape } from './escape'
 
 const GAP = 12
 const EDGE = 8
@@ -33,12 +34,7 @@ export function StylePanel({ onError }: { onError: (msg: string) => void }) {
 
   useEffect(() => { setRef(null) }, [active])
   useEffect(() => { if (active && !shape) exitMode() }, [active, shape])
-  useEffect(() => {
-    if (!active) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); exitMode() } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [active])
+  useEscape(active, exitMode)
 
   if (!active || !shape || !rect) return null
   const host = editor.getContainer().getBoundingClientRect()

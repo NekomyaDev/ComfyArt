@@ -7,6 +7,7 @@ import './styles/shell.css'
 import './styles/overlays.css'
 
 await initLocale()
+await (await import('./theme')).initTheme()
 const params = new URL(location.href).searchParams
 const project = params.get('project')
 const root = createRoot(document.getElementById('root')!)

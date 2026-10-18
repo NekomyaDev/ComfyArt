@@ -264,7 +264,8 @@ button.ca-head__logo:hover, button.ca-head__logo[data-open] { background: var(--
 .ca-genblock__tag { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 6px; background: #7C8DB5; color: #fff; font: 600 14px/20px var(--ca-font); }
 .ca-genblock__text { width: 100%; max-height: 100%; overflow: hidden; color: #33415C; font: 400 18px/1.4 var(--ca-font); text-align: center; white-space: pre-wrap; }
 .ca-genblock__text[data-empty] { color: #7C8DB5; }
-textarea.ca-genblock__text { flex: 1; resize: none; border: none; outline: none; background: rgba(255,255,255,.7); border-radius: 6px; padding: 8px; text-align: left; box-sizing: border-box; }
+textarea.ca-genblock__text { flex: 1; resize: none; border: none; outline: none; background: var(--ca-dim); border-radius: 6px; padding: 8px; text-align: left; box-sizing: border-box; }
+:root[data-theme="dark"] .ca-genblock__text:not([data-empty]) { color: #C9D3EA; }
 .ca-qr { position: relative; pointer-events: all; }
 .ca-qr__url { position: absolute; left: 0; right: 0; bottom: -40px; height: 32px; padding: 0 8px; border: 1px solid var(--ca-border); border-radius: 8px; background: var(--ca-float); color: var(--ca-text); font: 400 14px var(--ca-font); }
 .ca-compose { width: 340px; max-height: 480px; overflow: auto; }
@@ -274,6 +275,9 @@ textarea.ca-genblock__text { flex: 1; resize: none; border: none; outline: none;
 .ca-compose__tag[data-kind="added"] { color: #15803D; }
 .ca-compose__tag[data-kind="changed"] { color: #B45309; }
 .ca-compose__tag[data-kind="removed"] { color: #B91C1C; }
+:root[data-theme="dark"] .ca-compose__tag[data-kind="added"] { color: #4ADE80; }
+:root[data-theme="dark"] .ca-compose__tag[data-kind="changed"] { color: #FBBF24; }
+:root[data-theme="dark"] .ca-compose__tag[data-kind="removed"] { color: #F87171; }
 .ca-compose__prompt { margin: 0 12px 8px; padding: 8px; max-height: 200px; overflow: auto; border-radius: 8px; background: var(--ca-field); color: var(--ca-text); font: 400 12px/1.5 var(--ca-mono, monospace); white-space: pre-wrap; }
 .ca-compose__refs { display: flex; gap: 8px; padding: 0 12px 8px; }.ca-adv { width: 360px; }
 .ca-adv__seed { width: 120px; height: 28px; padding: 0 8px; border: none; border-radius: 8px; background: var(--ca-field); color: var(--ca-text); font: 400 13px var(--ca-font); }

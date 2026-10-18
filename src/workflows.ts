@@ -259,6 +259,7 @@ export async function r2vGraph(refs: MediaRef[], prompt: string, aspect: number,
       g[`r${i}`] = { class_type: 'LoadVideo', inputs: { file } }
       g[`c${i}`] = { class_type: 'GetVideoComponents', inputs: { video: [`r${i}`, 0] } }
       g['136'].inputs[`ref_videos.ref_video_${n}`] = [`c${i}`, 0]
+      g['136'].inputs[`ref_video_audios.ref_video_audio_${n}`] = [`c${i}`, 1]
     } else {
       g[`r${i}`] = { class_type: 'LoadAudio', inputs: { audio: file } }
       g['136'].inputs[`ref_audios.ref_audio_${n}`] = [`r${i}`, 0]

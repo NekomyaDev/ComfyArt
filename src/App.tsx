@@ -152,6 +152,7 @@ export function App({ id }: { id: string }) {
   useEffect(() => {
     if (!editor) return
     let alive = true
+    let stopJobs = () => { }
     let stopScheduler = () => { }
     let stopProactive = () => { }
     let stopChatFrames = () => { }
@@ -176,7 +177,7 @@ export function App({ id }: { id: string }) {
         const content = editor.getCurrentPageBounds()
         if (content) editor.zoomToBounds(content, { targetZoom: 1 })
         editor.clearHistory()
-        resumeJobs(editor, setError)
+        stopJobs = resumeJobs(editor, setError)
         stopScheduler = startScheduler(editor, setError)
         stopProactive = startProactive(editor, setError)
         stopChatFrames = startChatFrames(editor)
@@ -200,6 +201,7 @@ export function App({ id }: { id: string }) {
     }
     return () => {
       alive = false
+      stopJobs()
       stopScheduler()
       stopProactive()
       stopChatFrames()

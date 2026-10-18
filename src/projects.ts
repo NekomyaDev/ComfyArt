@@ -1,6 +1,5 @@
 import type { TLEditorSnapshot, TLRecord } from 'tldraw'
 
-import { deleteProjectChats } from './bot'
 import { api } from './comfy'
 import { t } from './i18n'
 import { uuid } from './id'
@@ -51,7 +50,7 @@ export const renameProject = (id: string, name: string) => call(url(id), send('P
 export const setPinned = (id: string, pinned: boolean) => call(url(id), send('PATCH', { pinned }))
 
 export async function deleteProjects(ids: string[]) {
-  await Promise.all(ids.map((id) => Promise.all([call(url(id), { method: 'DELETE' }), deleteProjectChats(id)])))
+  await Promise.all(ids.map((id) => call(url(id), { method: 'DELETE' })))
 }
 
 export async function duplicateProject(id: string): Promise<string> {

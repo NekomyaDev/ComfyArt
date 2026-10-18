@@ -9,6 +9,7 @@ import { annotated, samGraph } from '../workflows'
 import { exitMode, modeAtom } from './mode'
 import { useElementSize, useSelectedImage, useSelectionRect } from './selection'
 import { t } from '../i18n'
+import { useEscape } from './escape'
 
 const GAP = 12
 const EDGE = 8
@@ -106,12 +107,7 @@ export function InpaintPanel({ onError }: { onError: (msg: string) => void }) {
     }
   }, [version, tool, offset, img])
 
-  useEffect(() => {
-    if (!active) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); exitMode() } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [active])
+  useEscape(active, exitMode)
 
   useEffect(() => {
     if (active && !shape) exitMode()

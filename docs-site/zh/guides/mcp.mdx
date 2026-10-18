@@ -13,7 +13,7 @@ ComfyArt 通过 HTTP 提供一个 [MCP](https://modelcontextprotocol.io) 服务�
 POST http://127.0.0.1:8188/comfyart/mcp?project=<项目 id>
 ```
 
-项目 id 就是 ComfyArt 网址里的 `project` 参数。画布工具由该项目打开着的 ComfyArt 标签页执行，请保持它开着。
+项目 id 就是 ComfyArt 网址里的 `project` 参数。画布工具由该项目打开着的 ComfyArt 标签页执行，请保持它开着。不带 `?project` 时，命令发给唯一打开的项目；同时开着多个项目会直接报错，要求指定项目。
 
 以 Claude Code 为例：
 

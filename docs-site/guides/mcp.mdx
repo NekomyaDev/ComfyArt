@@ -13,7 +13,7 @@ Turn on **Enable MCP** in Agent Settings. The endpoint is:
 POST http://127.0.0.1:8188/comfyart/mcp?project=<project-id>
 ```
 
-The project id is the `project` value in the ComfyArt URL. Canvas tools are executed by the open ComfyArt tab of that project, so keep it open.
+The project id is the `project` value in the ComfyArt URL. Canvas tools are executed by the open ComfyArt tab of that project, so keep it open. Without `?project`, commands go to the only open project; with several projects open the call fails and asks for one.
 
 For Claude Code:
 

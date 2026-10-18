@@ -23,8 +23,8 @@ function createFrame(editor: Editor, name: string, meta: Record<string, string |
   return editor.getShape<TLFrameShape>(id)!
 }
 
-export function ensureChatFrame(editor: Editor, chatId: string): TLFrameShape {
-  return chatFrameOf(editor, chatId) ?? createFrame(editor, chatTitle(chatId), { chatId })
+function ensureChatFrame(editor: Editor, chatId: string): TLFrameShape {
+  return chatFrameOf(editor, chatId, true) ?? createFrame(editor, chatTitle(chatId), { chatId })
 }
 
 export function placeInChatFrame(editor: Editor, id: TLShapeId, chatId: string) {

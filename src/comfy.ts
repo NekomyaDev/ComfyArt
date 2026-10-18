@@ -1,4 +1,5 @@
-import { CLIENT_ID } from './ws'
+import { t } from './i18n'
+import { CLIENT_ID, onComfyEvent } from './ws'
 
 const POLL_MS = 1500
 
@@ -112,30 +113,78 @@ function withModelPaths(prompt: PromptGraph): PromptGraph {
   }]))
 }
 
+function promptError(body: any, status: number): string {
+  const lines = Object.entries<any>(body?.node_errors ?? {}).flatMap(([id, ne]) =>
+    (ne?.errors ?? []).map((er: any) => `${ne.class_type ?? ''} #${id}: ${er.message}${er.details ? ` — ${er.details}` : ''}`))
+  if (lines.length) return lines.join('\n')
+  const top = body?.error
+  if (!top?.message) return `queue failed: ${status}`
+  return top.details ? `${top.message}: ${top.details}` : top.message
+}
+
 export async function queuePrompt(prompt: PromptGraph): Promise<string> {
   const res = await api('/prompt', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: withModelPaths(prompt), client_id: CLIENT_ID }),
   })
-  const body = await res.json()
-  if (!res.ok) throw new Error(body?.error?.message ?? `queue failed: ${res.status}`)
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(promptError(body, res.status))
   return String(body.prompt_id)
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const queued = (list: unknown[] | undefined, promptId: string) => (list ?? []).some((e) => Array.isArray(e) && String(e[1]) === promptId)
+
+async function inQueue(promptId: string): Promise<boolean> {
+  const q = await (await api('/queue')).json()
+  return queued(q.queue_running, promptId) || queued(q.queue_pending, promptId)
+}
+
+export async function cancelPrompt(promptId: string) {
+  const q = await (await api('/queue')).json()
+  const post = (path: string, body: unknown) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (queued(q.queue_pending, promptId)) await post('/queue', { delete: [promptId] })
+  else if (queued(q.queue_running, promptId)) await post('/interrupt', { prompt_id: promptId })
+}
+
+const wakers = new Map<string, Set<() => void>>()
+for (const type of ['execution_success', 'execution_error', 'execution_interrupted']) {
+  onComfyEvent(type, (d: { prompt_id?: string }) => { for (const wake of wakers.get(String(d?.prompt_id)) ?? []) wake() })
+}
+
+function nap(promptId: string) {
+  return new Promise<void>((resolve) => {
+    const set = wakers.get(promptId) ?? new Set()
+    wakers.set(promptId, set)
+    const wake = () => {
+      clearTimeout(timer)
+      set.delete(wake)
+      if (!set.size) wakers.delete(promptId)
+      resolve()
+    }
+    const timer = setTimeout(wake, POLL_MS)
+    set.add(wake)
+  })
+}
 
 async function waitForOutput<T>(promptId: string, node: string, pick: (out: Record<string, any>) => T | null): Promise<T> {
+  let misses = 0
   for (;;) {
     const hist = (await (await api(`/history/${promptId}`)).json())[promptId]
     if (hist) {
-      const err = (hist.status?.messages ?? []).find((m: any) => m[0] === 'execution_error')
+      const messages: [string, any][] = hist.status?.messages ?? []
+      const err = messages.find((m) => m[0] === 'execution_error')
       if (err) throw new Error(String(err[1]?.exception_message ?? 'execution failed'))
+      if (messages.some((m) => m[0] === 'execution_interrupted')) throw new Error(t('jobs.interrupted'))
       const value = hist.outputs?.[node] ? pick(hist.outputs[node]) : null
       if (value) return value
-      if (hist.status?.completed) throw new Error('the workflow produced no output')
+      if (hist.status?.completed || hist.status?.status_str === 'error') throw new Error(t('jobs.noOutput'))
+    } else if (await inQueue(promptId)) {
+      misses = 0
+    } else if (++misses >= 2) {
+      throw new Error(t('jobs.lost'))
     }
-    await sleep(POLL_MS)
+    await nap(promptId)
   }
 }
 

@@ -2,8 +2,9 @@ import json
 
 from aiohttp import web
 
-from . import project_store
+from . import chat_store, project_store
 from ._common import error, json_body, request_user, routes
+from .bot import remove_chat
 from .project_import import ensure_imported
 
 
@@ -62,7 +63,10 @@ async def update_project(request: web.Request) -> web.Response:
 
 @routes.delete("/comfyart/projects/{pid}")
 async def delete_project(request: web.Request) -> web.Response:
-    project_store.delete_project(_user(request), request.match_info["pid"])
+    user, pid = _user(request), request.match_info["pid"]
+    project_store.delete_project(user, pid)
+    for chat in chat_store.list_chats(user, pid, include_archived=True):
+        await remove_chat(chat)
     return web.json_response({"ok": True})
 
 

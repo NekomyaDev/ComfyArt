@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from ComfyArt.api import project_store
+from ComfyArt.api import chat_store, project_store
 
 ALICE = {"comfy-user": "alice"}
 
@@ -89,3 +89,15 @@ async def test_versions_keep_the_latest_thirty(bot_client, monkeypatch):
     assert len(versions) == project_store.KEEP_VERSIONS
     assert versions[0]["count"] == project_store.KEEP_VERSIONS + 2 and versions[-1]["count"] == 3
     assert (await bot_client.post("/comfyart/projects/nope/versions", json={"snapshot": _snapshot("x")})).status == 404
+
+
+async def test_deleting_a_project_deletes_its_chats(bot_client):
+    await bot_client.put("/comfyart/projects/p1", json={"snapshot": _snapshot("One"), "name": "One", "covers": []})
+    gone = chat_store.create_chat(user="default", project="p1", provider="codex")
+    archived = chat_store.create_chat(user="default", project="p1", provider="codex")
+    chat_store.update_chat(archived["id"], archived=True)
+    kept = chat_store.create_chat(user="default", project="p2", provider="codex")
+    other_user = chat_store.create_chat(user="alice", project="p1", provider="codex")
+    await bot_client.delete("/comfyart/projects/p1")
+    assert chat_store.get_chat(gone["id"]) is None and chat_store.get_chat(archived["id"]) is None
+    assert chat_store.get_chat(kept["id"]) and chat_store.get_chat(other_user["id"])

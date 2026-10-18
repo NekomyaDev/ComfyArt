@@ -20,7 +20,7 @@ export function startAutosave(editor: Editor, id: string, canSave: () => boolean
   const save = async () => {
     clearTimeout(timer)
     if (!canSave()) return
-    if (running) await running
+    while (running) await running
     saveStateAtom.set({ state: 'saving' })
     running = saveProject(id, getSnapshot(editor.store), editor.getDocumentSettings().name, coversOf(editor.store.allRecords()))
       .then(() => {

@@ -10,6 +10,7 @@ import { boxesAtom, brushAtom, exitMode, MAX_REGIONS, modeAtom, OWN_PANEL, padsA
 import { useElementSize, useSelectedImage, useSelectionRect } from './selection'
 import { t } from '../i18n'
 import { isEnter } from './keys'
+import { useEscape } from './escape'
 
 const GAP = 12
 const EDGE = 8
@@ -94,12 +95,7 @@ export function ModePanel({ onError }: { onError: (msg: string) => void }) {
     exitMode()
   }, [shape])
 
-  useEffect(() => {
-    if (!mode) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); exitMode() } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [mode])
+  useEscape(!!mode, exitMode)
 
   if (!mode || OWN_PANEL.includes(mode) || !shape || !rect) return null
   const asset = shape.props.assetId ? editor.getAsset(shape.props.assetId) : null

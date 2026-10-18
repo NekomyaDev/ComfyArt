@@ -3,7 +3,7 @@ import { atom, react } from 'tldraw'
 import { api } from './comfy'
 import { resultsAtom } from './jobs'
 import { notify } from './notices'
-import { onComfyEvent } from './ws'
+import { onComfyEvent, onReconnect } from './ws'
 import { t } from './i18n'
 
 export interface AskOption { id: string; label: string; description?: string }
@@ -193,13 +193,6 @@ export async function updateChat(id: string, patch: Partial<Pick<BotChat, 'title
   upsertChat((await json<{ chat: BotChat }>(`/comfyart/bot/chats/${id}`, send(patch, 'PATCH'))).chat)
 }
 
-export async function deleteProjectChats(projectId: string) {
-  const res = await api(`/comfyart/bot/chats?project=${encodeURIComponent(projectId)}&archived=1`)
-  if (!res.ok) return
-  const { chats } = await res.json() as { chats: BotChat[] }
-  await Promise.all(chats.map((c) => api(`/comfyart/bot/chats/${c.id}`, { method: 'DELETE' })))
-}
-
 export async function deleteChat(id: string) {
   await json(`/comfyart/bot/chats/${id}`, { method: 'DELETE' })
   chatsAtom.set(chatsAtom.get().filter((c) => c.id !== id))
@@ -228,10 +221,7 @@ export function outputsOf(blocks: BotBlock[]): string[] {
   const urls: string[] = []
   for (const b of blocks) {
     if (b.type === 'task') urls.push(...(b.srcs ?? []))
-    if (b.type !== 'tool_result' || toolName(b.name) !== 'wait_generation' || !b.text) continue
-    try {
-      for (const r of JSON.parse(b.text).results ?? []) urls.push(...(r.urls ?? []))
-    } catch { }
+    if (b.type === 'tool_result' && toolName(b.name) === 'wait_generation') urls.push(...(b.text?.match(/\/api\/view\?[^"\s\\]*type=\w+/g) ?? []))
   }
   return [...new Set(urls)]
 }
@@ -316,6 +306,10 @@ export function startBot(projectId: string, isStale: () => boolean) {
       if (!isStale()) reducers[e.event]?.(e)
     }),
     watchDirectTasks(),
+    onReconnect(() => {
+      if (isStale() || !botEnabledAtom.get()) return
+      void loadChats().then(() => openChat(chatIdAtom.get()))
+    }),
   ]
   return () => stops.forEach((stop) => stop())
 }

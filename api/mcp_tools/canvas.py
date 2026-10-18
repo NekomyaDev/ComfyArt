@@ -3,6 +3,7 @@ from ._context import BOT_CHAT_ID, PROJECT
 from .bot_tools import maybe_ask_run_approval
 
 WAIT_MAX_S = 170
+SLOW_S = 90.0
 
 _ID = {"type": "string", "description": "shape id exactly as get_canvas returns it, e.g. shape:abc"}
 _IDS = {"type": "array", "items": {"type": "string"}}
@@ -52,7 +53,7 @@ SPECS: dict[str, dict] = {
     "view_canvas": _tool(
         "Render real pixels of the current page (default), of some shapes or frames (ids), so you can "
         "see layout and results. max_px caps the long side (default 1024).",
-        {"ids": _IDS, "max_px": {"type": "integer"}}),
+        {"ids": _IDS, "max_px": {"type": "integer"}}, timeout=SLOW_S),
     "list_models": _tool(
         "Installed image and video models with ids, what they are good at, whether they accept "
         "reference images, and supported ratios.", {}),
@@ -142,7 +143,7 @@ SPECS: dict[str, dict] = {
     "vectorize_image": _tool(
         "Trace an image shape into an SVG vector image placed next to it (best for logos, icons, flat "
         "art). Returns the new shape id at once.",
-        {"id": _ID}, ["id"]),
+        {"id": _ID}, ["id"], timeout=SLOW_S),
     "upscale_video": _tool(
         "Upscale a video shape to target 1080p, 2K or 4K (long side).",
         {"id": _ID, "target": {"type": "string", "enum": ["1080p", "2K", "4K"]}}, ["id"], approval="视频放大"),
@@ -186,7 +187,7 @@ SPECS: dict[str, dict] = {
         "places the result as a normal image and returns its id.",
         {"id": _ID, "design": {"type": "string"}, "x": _POINT, "y": _POINT, "scale": _POINT,
          "rotation": _POINT, "warp": _POINT, "bake": {"type": "boolean"}},
-        ["id"]),
+        ["id"], timeout=SLOW_S),
     "image_to_3d": _tool(
         "Turn an image shape (best: one object on a plain background) into a textured 3D model placed next "
         "to it. Takes a few minutes. Returns ids for wait_generation.",

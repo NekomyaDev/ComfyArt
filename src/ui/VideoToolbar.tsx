@@ -10,6 +10,7 @@ import { useElementSize, useOnlySelected, useSelectionRect, type ScreenRect } fr
 import { videoEditorAtom } from './VideoEditor'
 import { t } from '../i18n'
 import { isEnter } from './keys'
+import { useEscape } from './escape'
 
 const GAP = 22
 const EDGE = 8
@@ -81,12 +82,7 @@ export function VideoToolbar({ onError }: { onError: Err }) {
 
   useEffect(() => setMode(null), [shape?.id])
 
-  useEffect(() => {
-    if (!mode) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setMode(null) } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [mode])
+  useEscape(!!mode, () => setMode(null))
 
   if (!shape || !rect) return null
   const asset = shape.props.assetId ? editor.getAsset(shape.props.assetId) : null

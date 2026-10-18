@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from ComfyArt.bot._cli_common import CORE_MCP_TOOLS
+from ComfyArt.bot.guide import CORE_MCP_TOOLS
 from ComfyArt.bot.local_llm import LocalLlmProvider, _user_content
 from ComfyArt.bot.providers import BotEvent, TurnHandle, TurnRequest
 

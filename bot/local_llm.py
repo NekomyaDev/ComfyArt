@@ -12,12 +12,11 @@ from typing import Callable, Optional
 import aiohttp
 
 from ._cli_common import (
-    AGENT_GUIDE,
-    CORE_MCP_TOOLS,
     PROBE_CACHE_S,
     TOOL_RESULT_CAP,
     merge_usage,
 )
+from .guide import AGENT_GUIDE, CORE_MCP_TOOLS
 from .providers import (
     AgentProvider,
     BotEvent,
@@ -37,7 +36,7 @@ _MAX_ITERATIONS = 80
 _MAX_WAIT_SLICES = 12
 _LLM_TIMEOUT_S = 300
 _HISTORY_CHAR_CAP = 16_000
-_THINK_RE = re.compile(r"<think>([\s\S]*?)</think>")
+_THINK_RE = re.compile(r"(?:<think>|^)([\s\S]*?)</think>|<think>([\s\S]*)$")
 
 _SYSTEM_PROMPT = AGENT_GUIDE
 
@@ -342,7 +341,7 @@ class LocalLlmProvider(AgentProvider):
                     message = (data.get("choices") or [{}])[0].get("message") or {}
                     content = self._extract_text(message.get("content") or "")
                     thought = _THINK_RE.search(content)
-                    reasoning = str(message.get("reasoning_content") or message.get("reasoning") or "") or (thought.group(1) if thought else "")
+                    reasoning = str(message.get("reasoning_content") or message.get("reasoning") or "") or (thought.group(1) or thought.group(2) or "" if thought else "")
                     content = _THINK_RE.sub("", content).strip()
                     tool_calls = message.get("tool_calls") or []
 
