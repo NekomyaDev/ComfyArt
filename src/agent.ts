@@ -2,7 +2,7 @@ import { atom, createShapeId, type Editor, type TLImageShape, type TLShape, type
 
 import { commentTarget } from './actions'
 import { botEnabledAtom, logDirect, sendMessage, settingsAtom, type BotBlock } from './bot'
-import { capRefs, createGenerator, DURATIONS, generate, MAX_SCENES, MAX_STORY_SECONDS, nearestRatio, VIDEO_RATIOS } from './generate'
+import { capRefs, createGenerator, DURATIONS, generate, nearestRatio, VIDEO_RATIOS } from './generate'
 import { uploadImage, viewUrl, type RefKind } from './comfy'
 import { fileSrc, placeMedia, toMedia, type ErrorSink } from './jobs'
 import { describeItem, itemImages, linkedKit, type LibraryItem } from './library'
@@ -165,18 +165,12 @@ export function eachLine(refs: RefShape[], targets: RefShape[]): string {
   return `[Do this separately for each of attached items ${n(targets)}: one result per item, placed next to it${shared.length ? `, reusing attached items ${n(shared)} in every result` : ''}.]`
 }
 
-const STORY_SYSTEM = `Split a video idea into a storyboard. Reply with ONE JSON object and nothing else: {"scenes": [{"prompt": "<detailed English shot description with camera motion and sound>", "duration": ${DURATIONS.join('|')}}]}. Use 2-${MAX_SCENES} scenes, keep characters and style consistent, total duration at most ${MAX_STORY_SECONDS} seconds.`
+const STORY_SYSTEM = `Split a video idea into a storyboard. Reply with ONE JSON object and nothing else: {"scenes": [{"prompt": "<detailed English shot description with camera motion and sound>", "duration": ${DURATIONS.join('|')}}]}. Use as many scenes as the idea needs and keep characters and style consistent.`
 
 export async function planStoryboard(idea: string): Promise<{ prompt: string; duration: number }[]> {
   const scenes = parseJson(await ask(idea, STORY_SYSTEM, []))?.scenes
   if (!Array.isArray(scenes)) throw new Error(t('agent.smartStoryboardFailedPleaseTry'))
-  const out: { prompt: string; duration: number }[] = []
-  for (const s of scenes.slice(0, MAX_SCENES)) {
-    const duration = DURATIONS.includes(Number(s?.duration)) ? Number(s.duration) : DURATIONS[0]
-    if (!s?.prompt || out.reduce((n, x) => n + x.duration, duration) > MAX_STORY_SECONDS) continue
-    out.push({ prompt: String(s.prompt), duration })
-  }
-  return out
+  return scenes.filter((s) => s?.prompt).map((s) => ({ prompt: String(s.prompt), duration: DURATIONS.includes(Number(s.duration)) ? Number(s.duration) : DURATIONS[0] }))
 }
 
 export async function extractText(editor: Editor, shape: TLImageShape): Promise<string> {

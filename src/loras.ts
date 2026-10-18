@@ -5,7 +5,6 @@ import { api, readUserJson, writeUserJson } from './comfy'
 export interface LoraEntry { name: string; family: string | null }
 export interface LoraPick { name: string; strength: number }
 
-export const MAX_LORAS = 3
 export const DEFAULT_LORA_STRENGTH = 100
 
 const FAVORITES = 'comfyart/lora-favorites.json'

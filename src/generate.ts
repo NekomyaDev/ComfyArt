@@ -19,8 +19,6 @@ export const SHOTS: [string, string, string][] = [
   ['follow', t('generate.follow'), 'tracking shot following the subject'], ['handheld', t('generate.handheld'), 'handheld camera with natural shake'],
   ['left', t('generate.panLeft'), 'camera pans left'], ['right', t('generate.panRight'), 'camera pans right'], ['up', t('generate.tiltUp'), 'camera tilts up'], ['down', t('generate.tiltDown'), 'camera tilts down'],
 ]
-export const MAX_SCENES = 6
-export const MAX_STORY_SECONDS = 30
 
 export function scenesOf(shape: GeneratorShape): Scene[] {
   return (shape.meta.scenes as Scene[] | undefined) ?? []
@@ -41,7 +39,7 @@ export function capRefs(srcs: string[]): string[] {
   return srcs.filter((src) => count[refKind(src)]++ < MAX_VIDEO_REF_KINDS[refKind(src)])
 }
 
-export const MAX_SPEECH_SECONDS = 15
+const H3_MAX_SECONDS = 3600 / 24
 
 export type VideoMode = 'frames' | 'refs' | 'motion' | 'lipsync'
 const VIDEO_MODES: VideoMode[] = ['refs', 'motion', 'lipsync']
@@ -102,8 +100,6 @@ export function createGenerator(editor: Editor, video = false, props: Partial<Ge
 export function refsOf(shape: GeneratorShape): string[] {
   return (shape.meta.refs as string[] | undefined) ?? []
 }
-
-export const MAX_COLORS = 6
 
 export const BASE_STRENGTH = 60
 
@@ -178,7 +174,7 @@ async function generateGraph(shape: GeneratorShape): Promise<Built> {
     const speech = speechOf(shape)
     if (mode === 'lipsync' && refs[0] && speech) {
       const { seconds } = await mediaMeta(speech, 'audio')
-      return lipSyncGraph(annotated(refs[0]), annotated(speech), prompt, ratioOf(ratio), Math.min(seconds, MAX_SPEECH_SECONDS), area)
+      return lipSyncGraph(annotated(refs[0]), annotated(speech), prompt, ratioOf(ratio), Math.min(seconds, H3_MAX_SECONDS), area)
     }
     const last = lastFrameOf(shape)
     return refs.length || last

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useValue } from 'tldraw'
 
 import { lorasOf, negativeOf, randomSeed, seedOf } from '../generate'
-import { DEFAULT_LORA_STRENGTH, loadLoras, loraFavoritesAtom, loraLabel, lorasAtom, MAX_LORAS, toggleFavorite } from '../loras'
+import { DEFAULT_LORA_STRENGTH, loadLoras, loraFavoritesAtom, loraLabel, lorasAtom, toggleFavorite } from '../loras'
 import type { ModelDef } from '../models'
 import type { GeneratorShape } from '../shapes/GeneratorShape'
 import { t } from '../i18n'
@@ -64,7 +64,7 @@ export function AdvancedPill({ shape, model, setMeta }: { shape: GeneratorShape;
                 <button type="button" className="ca-panel__icon" title={t('common.remove')} onClick={() => setMeta({ loras: loras.filter((x) => x.name !== l.name) })}>{Icons.close}</button>
               </div>
             ))}
-            {loras.length < MAX_LORAS && !adding && (
+            {!adding && (
               <button type="button" className="ca-menu__item" onClick={() => setAdding(true)}><span className="ca-icon">{Icons.plus}</span><span className="ca-menu__grow">{t('genAdvanced.addLora')}</span></button>
             )}
             {adding && (

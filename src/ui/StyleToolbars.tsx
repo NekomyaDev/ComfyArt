@@ -194,7 +194,6 @@ export function TextToolbar({ onError }: { onError: (msg: string) => void }) {
   )
 }
 
-const MAX_STOPS = 6
 
 function fillPreview(p: VectorShape['props']) {
   const stops = [...p.stops].sort((a, b) => a.offset - b.offset).map((s) => `${s.color} ${Math.round(s.offset * 100)}%`).join(', ')
@@ -224,7 +223,7 @@ function FillEditor({ editor, p, set }: { editor: ReturnType<typeof useEditor>; 
             </div>
           ))}
           <div className="ca-style__row">
-            {p.stops.length < MAX_STOPS && <button type="button" className="ca-panel__chip" onClick={() => set({ stops: [...p.stops, { offset: 0.5, color: p.stops.at(-1)?.color ?? p.fill }] })}>{t('styleToolbars.addStop')}</button>}
+            <button type="button" className="ca-panel__chip" onClick={() => set({ stops: [...p.stops, { offset: 0.5, color: p.stops.at(-1)?.color ?? p.fill }] })}>{t('styleToolbars.addStop')}</button>
             {p.fillType === 'linear' && <Num label={t('styleToolbars.angle')} value={p.angle} min={-360} onChange={(v) => set({ angle: v })} />}
           </div>
         </>

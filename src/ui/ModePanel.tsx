@@ -6,7 +6,7 @@ import { regionSplit, separateRegions } from '../layers'
 import { ocrLines, ocrStatusAtom, type OcrStatus } from '../llm'
 import { AnglePreview } from './AnglePreview'
 import { Icons } from './icons'
-import { boxesAtom, brushAtom, exitMode, MAX_REGIONS, modeAtom, OWN_PANEL, padsAtom, strokesAtom, type Mode } from './mode'
+import { boxesAtom, brushAtom, exitMode, modeAtom, OWN_PANEL, padsAtom, strokesAtom, type Mode } from './mode'
 import { useElementSize, useSelectedImage, useSelectionRect } from './selection'
 import { t } from '../i18n'
 import { isEnter } from './keys'
@@ -241,7 +241,7 @@ export function ModePanel({ onError }: { onError: (msg: string) => void }) {
           )}
           {mode === 'layers' && (
             <>
-              <div className="ca-chat__hint">{boxes.length ? t('modePanel.areasSelectedEachWillBecome', boxes.length) : t('modePanel.drawBoxesAroundAreasTo', MAX_REGIONS)}</div>
+              <div className="ca-chat__hint">{boxes.length ? t('modePanel.areasSelectedEachWillBecome', boxes.length) : t('modePanel.drawBoxesAroundAreasTo')}</div>
               {!boxes.length && <Slider label={t('modePanel.layers')} value={layers} min={2} max={8} onChange={setLayers} />}
               <textarea className="ca-panel__prompt ca-panel__prompt--boxed" value={prompt} placeholder={t('modePanel.describeTheImageOptionalTo')} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
             </>

@@ -3,7 +3,7 @@ import { useEditor, useValue } from 'tldraw'
 
 import { refKind, thumbUrl, uploadImage, viewUrl, type RefKind } from '../comfy'
 import { planStoryboard } from '../agent'
-import { baseOf, colorsOf, generate, lastFrameOf, MAX_COLORS, MAX_STORY_SECONDS, motionOf, refsOf, scenesOf, speechOf, targetSize, videoModeOf } from '../generate'
+import { baseOf, colorsOf, generate, lastFrameOf, motionOf, refsOf, scenesOf, speechOf, targetSize, videoModeOf } from '../generate'
 import { canvasPickAtom, fillTarget, isMediaRefs, maxRefsOf, type Target } from '../genInputs'
 import { itemImages, libraryAtom } from '../library'
 import { DEFAULT_STRENGTH, modeOf, modesFor, refControlsOf, refModeFor, refModesOf, refStrengthsOf, usableRefs } from '../refModes'
@@ -148,7 +148,7 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
 
   const story = video && Array.isArray(shape.meta.scenes)
   const scenes = scenesOf(shape)
-  const ready = story ? scenes.some((sc) => sc.prompt.trim()) && scenes.reduce((n, sc) => n + sc.duration, 0) <= MAX_STORY_SECONDS
+  const ready = story ? scenes.some((sc) => sc.prompt.trim())
     : vmode === 'motion' ? !!(refs[0] && motion)
       : vmode === 'lipsync' ? !!(refs[0] && speech)
         : !!p.prompt.trim()
@@ -236,11 +236,9 @@ export function GenPanel({ onError }: { onError: (msg: string) => void }) {
                 <button type="button" title={t('common.remove')} onClick={() => setColors(colors.filter((_, j) => j !== i))}>{Icons.close}</button>
               </span>
             ))}
-            {colors.length < MAX_COLORS && (
-              <button type="button" className="ca-gen__refadd" title={t('genPanel.colorReference')} onClick={() => setColors([...colors, '#1E88E5'])}>
-                <span className="ca-icon">{Icons.palette}</span><span>{t('genPanel.colorReference')}</span>
-              </button>
-            )}
+            <button type="button" className="ca-gen__refadd" title={t('genPanel.colorReference')} onClick={() => setColors([...colors, '#1E88E5'])}>
+              <span className="ca-icon">{Icons.palette}</span><span>{t('genPanel.colorReference')}</span>
+            </button>
           </div>
         )}
         {vmode === 'frames' && (last ? slot(last, t('genPanel.lastFrame'), () => setMeta({ lastFrame: null })) : imagePicker('last', t('genPanel.lastFrame')))}
