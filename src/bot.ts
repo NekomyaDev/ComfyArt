@@ -1,6 +1,6 @@
 import { atom, react } from 'tldraw'
 
-import { api, setCloud } from './comfy'
+import { api, setCloud, setTarget } from './comfy'
 import { resultsAtom } from './jobs'
 import { notify } from './notices'
 import { onComfyEvent, onReconnect } from './ws'
@@ -121,8 +121,9 @@ export async function loadProviders() {
 }
 
 function applySettings(settings: BotSettings) {
-  settingsAtom.set(settings)
   setCloud(settings['generation-backend'] === 'cloud')
+  setTarget(String(settings['generation-target'] ?? 'auto'))
+  settingsAtom.set(settings)
 }
 
 export async function loadSettings() {

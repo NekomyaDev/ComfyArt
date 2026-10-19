@@ -1,6 +1,6 @@
 import { createShapeId, type Editor, type TLShape, type TLShapeId } from 'tldraw'
 
-import { loadNamed, loadWorkflow, mediaMeta, refKind, uploadImage, viewUrl, type PromptGraph, type RefKind } from './comfy'
+import { defaultTarget, loadNamed, loadWorkflow, mediaMeta, refKind, uploadImage, validTarget, viewUrl, type PromptGraph, type RefKind } from './comfy'
 import type { LoraPick } from './loras'
 import { ask, stripThink } from './llm'
 import { freeSpot, spawnHolder, startJob, type ErrorSink, type GenInfo } from './jobs'
@@ -88,6 +88,7 @@ export function colorsOf(shape: GeneratorShape): string[] {
 
 export const negativeOf = (shape: GeneratorShape) => (shape.meta.negative as string | undefined) ?? ''
 export const seedOf = (shape: GeneratorShape) => (shape.meta.seed as number | null | undefined) ?? null
+export const runOnOf = (shape: GeneratorShape) => validTarget(shape.meta.runOn) ?? defaultTarget()
 export const lorasOf = (shape: GeneratorShape) => (shape.meta.loras as LoraPick[] | undefined) ?? []
 
 function applySeed(graph: PromptGraph, seed: number) {
@@ -196,7 +197,7 @@ export function generate(editor: Editor, shape: GeneratorShape, onError: ErrorSi
   const name = shape.props.prompt || scenesOf(shape)[0]?.prompt || ''
   const seed = seedOf(shape) ?? randomSeed()
   const built = generateGraph(shape).then((b) => { applySeed(b.graph, seed); return b })
-  return startJob(editor, shape.id, built, { name: name.slice(0, 32), kind, extra: { seed } }, onError)
+  return startJob(editor, shape.id, built, { name: name.slice(0, 32), kind, extra: { seed }, runOn: runOnOf(shape) }, onError)
 }
 
 export function genInfoOf(shape: TLShape): GenInfo | null {

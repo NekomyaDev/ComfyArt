@@ -90,7 +90,7 @@ export interface GenInfo {
   inputs?: Record<string, JsonValue>
 }
 
-const GEN_INPUTS = ['refs', 'base', 'strength', 'colors', 'refModes', 'refStrengths', 'refControls', 'lastFrame', 'scenes', 'videoMode', 'motion', 'speech', 'negative', 'seed', 'loras']
+const GEN_INPUTS = ['refs', 'base', 'strength', 'colors', 'refModes', 'refStrengths', 'refControls', 'lastFrame', 'scenes', 'videoMode', 'motion', 'speech', 'negative', 'seed', 'loras', 'runOn']
 
 function infoOf(holder: TLShape, job: Job): GenInfo {
   if (holder.type !== GENERATOR) return { tool: job.name }
@@ -158,13 +158,13 @@ export async function startJob(
   editor: Editor,
   holderId: TLShapeId,
   build: Promise<Built>,
-  opts: { name: string; kind?: MediaKind; placer?: string; extra?: Record<string, unknown> },
+  opts: { name: string; kind?: MediaKind; placer?: string; extra?: Record<string, unknown>; runOn?: string },
   onError: ErrorSink,
 ) {
   try {
     const { graph, result } = await build
     const job: Job = {
-      id: await queuePrompt(graph),
+      id: await queuePrompt(graph, opts.runOn),
       node: result,
       name: opts.name,
       kind: opts.kind ?? 'image',

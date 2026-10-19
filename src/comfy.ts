@@ -13,9 +13,18 @@ function comfyUser(): string | null {
 }
 
 let cloud = false
+let lanIds: string[] = []
+let target = 'auto'
 export const setCloud = (on: boolean) => { cloud = on }
+export const setLan = (ids: string[]) => { lanIds = ids }
+export const setTarget = (next: string) => { target = next }
 export const cloudMode = () => cloud
+export const lanMode = () => lanIds.length > 0 && !cloud
+export const validTarget = (t: unknown): string | null => (t === 'auto' || t === 'local' || lanIds.includes(t as string) ? t as string : null)
+export const defaultTarget = () => validTarget(target) ?? 'auto'
 const CLOUD_ID = 'cloud:'
+export const LAN_ID = 'srv:'
+const lanPath = (promptId: string) => promptId.slice(LAN_ID.length).replace(':', '/')
 
 export function api(path: string, init?: RequestInit) {
   const user = comfyUser()
@@ -148,11 +157,13 @@ function promptError(body: any, status: number): string {
   return top.details ? `${top.message}: ${top.details}` : top.message
 }
 
-export async function queuePrompt(prompt: PromptGraph): Promise<string> {
+export async function queuePrompt(prompt: PromptGraph, runOn = defaultTarget()): Promise<string> {
   const init = { method: 'POST', headers: { 'Content-Type': 'application/json' } }
   const res = cloud
     ? await api('/comfyart/cloud/prompt', { ...init, body: JSON.stringify({ prompt }) })
-    : await api('/prompt', { ...init, body: JSON.stringify({ prompt: withModelPaths(prompt), client_id: CLIENT_ID }) })
+    : !lanMode() || runOn === 'local'
+      ? await api('/prompt', { ...init, body: JSON.stringify({ prompt: withModelPaths(prompt), client_id: CLIENT_ID }) })
+      : await api('/comfyart/remote/prompt', { ...init, body: JSON.stringify({ prompt, client_id: CLIENT_ID, target: runOn }) })
   const body = await res.json().catch(() => null)
   if (!res.ok) throw new Error(promptError(body, res.status))
   return String(body.prompt_id)
@@ -168,6 +179,10 @@ async function inQueue(promptId: string): Promise<boolean> {
 export async function cancelPrompt(promptId: string) {
   if (promptId.startsWith(CLOUD_ID)) {
     await api(`/comfyart/cloud/cancel/${promptId.slice(CLOUD_ID.length)}`, { method: 'POST' })
+    return
+  }
+  if (promptId.startsWith(LAN_ID)) {
+    await api(`/comfyart/remote/cancel/${lanPath(promptId)}`, { method: 'POST' })
     return
   }
   const q = await (await api('/queue')).json()
@@ -197,7 +212,9 @@ function nap(promptId: string) {
 }
 
 export async function promptHistory(promptId: string): Promise<any> {
-  const res = promptId.startsWith(CLOUD_ID) ? await api(`/comfyart/cloud/history/${promptId.slice(CLOUD_ID.length)}`) : await api(`/history/${promptId}`)
+  const res = promptId.startsWith(CLOUD_ID) ? await api(`/comfyart/cloud/history/${promptId.slice(CLOUD_ID.length)}`)
+    : promptId.startsWith(LAN_ID) ? await api(`/comfyart/remote/history/${lanPath(promptId)}`)
+      : await api(`/history/${promptId}`)
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(body.error?.message ?? `history failed: ${res.status}`)
   return body[promptId]

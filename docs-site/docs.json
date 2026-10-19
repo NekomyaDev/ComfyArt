@@ -55,7 +55,8 @@
                   "index",
                   "guides/getting-started",
                   "guides/home",
-                  "guides/models"
+                  "guides/models",
+                  "guides/lan-instances"
                 ]
               },
               {
@@ -95,7 +96,8 @@
                   "zh/index",
                   "zh/guides/getting-started",
                   "zh/guides/home",
-                  "zh/guides/models"
+                  "zh/guides/models",
+                  "zh/guides/lan-instances"
                 ]
               },
               {

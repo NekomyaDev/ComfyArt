@@ -1,8 +1,9 @@
 import { atom } from 'tldraw'
 
-import { api, cloudMode, loadModelPaths, readUserJson, writeUserJson } from './comfy'
+import { api, cloudMode, defaultTarget, lanMode, loadModelPaths, readUserJson, writeUserJson } from './comfy'
 import { CUSTOM_GENERATE, workflowConfigAtom } from './customWorkflows'
 import { t } from './i18n'
+import { lanHas } from './instances'
 
 export interface ModelDef {
   id: string
@@ -88,7 +89,11 @@ export function agentModels(video: boolean): ModelDef[] {
   return picked.length ? picked : list.length ? list.slice(0, 1) : (video ? VIDEO_MODELS : IMAGE_MODELS).slice(0, 1)
 }
 
-export function isInstalled(id: string): boolean {
+export function isInstalled(id: string, runOn = defaultTarget()): boolean {
   const installed = installedAtom.get()
-  return cloudMode() || !installed || installed.includes(id)
+  if (cloudMode() || !installed) return true
+  const here = installed.includes(id)
+  if (!lanMode() || runOn === 'local') return here
+  const lan = lanHas([...IMAGE_MODELS, ...VIDEO_MODELS].find((m) => m.id === id)?.files ?? [], runOn)
+  return runOn === 'auto' ? here || lan : lan
 }

@@ -9,6 +9,7 @@ import { errorText, resumeJobs } from './jobs'
 import './layers'
 import { defaultKitId, loadLibrary } from './library'
 import { loadMemory } from './memory'
+import { loadInstances } from './instances'
 import { loadModels } from './models'
 import { loadWorkflowConfig } from './customWorkflows'
 import { loadProject, NEW_PARAM } from './projects'
@@ -141,7 +142,7 @@ export function App({ id }: { id: string }) {
   }, [editor, dark])
 
   useEffect(() => {
-    void Promise.all([loadMemory(), loadWorkflowConfig(), loadModels(), loadNotices()]).catch((e) => setError(String(e)))
+    void Promise.all([loadMemory(), loadWorkflowConfig(), loadModels(), loadNotices(), loadInstances()]).catch((e) => setError(String(e)))
   }, [])
 
   const onMount = useCallback((ed: Editor) => {
