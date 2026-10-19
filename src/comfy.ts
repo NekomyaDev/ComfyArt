@@ -4,7 +4,7 @@ import { CLIENT_ID, onComfyEvent } from './ws'
 
 const POLL_MS = 1500
 
-export type PromptGraph = Record<string, { class_type: string; inputs: Record<string, unknown> }>
+export type PromptGraph = Record<string, { class_type: string; inputs: Record<string, unknown>; _meta?: { title?: string } }>
 
 export interface ImageRef { filename: string; subfolder: string; type: string; metadata?: { width?: number; height?: number } }
 
@@ -109,6 +109,19 @@ export async function loadWorkflow(name: string): Promise<PromptGraph> {
   const res = await fetch(`/comfyart/workflows/${encodeURIComponent(name)}`)
   if (!res.ok) throw new Error(`workflow ${name} not found`)
   return res.json()
+}
+
+export const titleTags = (node: PromptGraph[string]) => (node._meta?.title ?? '').toLowerCase().split(/[\s,]+/).filter((w) => w.startsWith('@'))
+
+export async function loadNamed<T extends string>(workflow: string, ...names: T[]): Promise<{ graph: PromptGraph; id: Record<T, string> }> {
+  const graph = await loadWorkflow(workflow)
+  const ids = Object.keys(graph)
+  const id = Object.fromEntries(names.map((name) => {
+    const found = ids.find((k) => titleTags(graph[k]).includes(`@${name.toLowerCase()}`))
+    if (!found) throw new Error(`workflow ${workflow} has no node titled @${name}`)
+    return [name, found]
+  }))
+  return { graph, id: id as Record<T, string> }
 }
 
 let modelPaths: Record<string, string> = {}

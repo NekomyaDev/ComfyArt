@@ -1,6 +1,6 @@
 import { AssetRecordType, atom, createShapeId, type Editor, type JsonValue, type TLAssetId, type TLImageAsset, type TLShape, type TLShapeId, type TLVideoAsset } from 'tldraw'
 
-import { cancelPrompt, mediaMeta, queuePrompt, viewUrl, waitForImages, type ImageRef } from './comfy'
+import { cancelPrompt, mediaMeta, queuePrompt, refKind, viewUrl, waitForImages, type ImageRef } from './comfy'
 import { GENERATOR, type GeneratorShape } from './shapes/GeneratorShape'
 import type { Built } from './workflows'
 import { t } from './i18n'
@@ -136,7 +136,7 @@ async function finish(editor: Editor, holderId: TLShapeId, job: Job, onError: Er
   try {
     const refs = await waitForImages(job.id, job.node)
     settled.add(job.id)
-    const media = await Promise.all(refs.map((r) => toMedia(r, job.kind)))
+    const media = await Promise.all(refs.map((r) => toMedia(r, refKind(viewUrl(r)) === 'video' ? 'video' : job.kind)))
     const holder = editor.getShape(holderId)
     if (!holder) return
     await (placers[job.placer ?? ''] ?? defaultPlacer)(editor, holder, media, job, onError)
