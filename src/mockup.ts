@@ -1,6 +1,6 @@
 import { createShapeId, type Editor, type TLImageShape } from 'tldraw'
 
-import { api, loadWorkflow, uploadImage, viewUrl, type ImageRef } from './comfy'
+import { loadWorkflow, promptHistory, uploadImage, viewUrl, type ImageRef } from './comfy'
 import { GAP, placeMedia, registerPlacer, selectResults, spawnHolder, startJob, toMedia, type ErrorSink } from './jobs'
 import { bakeMockup } from './mockupGl'
 import { MOCKUP, placementOf, sourcesOf, type MockupShape } from './shapes/MockupShape'
@@ -24,7 +24,7 @@ export function createMockup(editor: Editor, shape: TLImageShape, onError: Error
 }
 
 registerPlacer('mockup', async (editor, holder, [depth], job) => {
-  const hist = (await (await api(`/history/${job.id}`)).json())[job.id]
+  const hist = await promptHistory(job.id)
   const mask = hist?.outputs?.[MASK]?.images?.[0] as ImageRef | undefined
   if (!mask) throw new Error('mockup surface has no mask')
   const { w, h } = holder.props as { w: number; h: number }

@@ -1,6 +1,6 @@
 import { atom } from 'tldraw'
 
-import { api, loadModelPaths, readUserJson, writeUserJson } from './comfy'
+import { api, cloudMode, loadModelPaths, readUserJson, writeUserJson } from './comfy'
 import { t } from './i18n'
 
 export interface ModelDef {
@@ -84,5 +84,5 @@ export function agentModels(video: boolean): ModelDef[] {
 
 export function isInstalled(id: string): boolean {
   const installed = installedAtom.get()
-  return !installed || installed.includes(id)
+  return cloudMode() || !installed || installed.includes(id)
 }

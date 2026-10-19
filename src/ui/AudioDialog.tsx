@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { atom, useValue, type Editor } from 'tldraw'
 
-import { generateAudio, MUSIC_SECONDS, SFX_SECONDS, VOICES, type AudioSpec } from '../assetGen'
+import { generateAudio, MUSIC_SECONDS, SFX_SECONDS, voices, type AudioSpec } from '../assetGen'
 import { AUDIO, type AudioShape } from '../shapes/EmbedShapes'
 import { Modal } from './Modal'
 import { Chips } from './Chips'
@@ -19,12 +19,14 @@ export function AudioDialog({ editor, onError }: { editor: Editor; onError: (msg
   const [prompt, setPrompt] = useState('')
   const [lyrics, setLyrics] = useState('')
   const [seconds, setSeconds] = useState(30)
-  const [voice, setVoice] = useState(VOICES[0])
+  const [picked, setVoice] = useState('')
   const reference = useValue('selected audio', () => {
     const s = editor.getOnlySelectedShape()
     return s?.type === AUDIO ? (s as AudioShape).props.src : null
   }, [editor])
   if (!open) return null
+  const list = voices()
+  const voice = picked === CLONE || list.includes(picked) ? picked : list[0]
   const close = () => audioDialogAtom.set(false)
   const durations = tab === 'music' ? MUSIC_SECONDS : SFX_SECONDS
   const pick = (next: Tab) => {
@@ -36,7 +38,7 @@ export function AudioDialog({ editor, onError }: { editor: Editor; onError: (msg
     if (!text) return null
     if (tab === 'music') return { kind: 'music', prompt: text, lyrics: lyrics.trim(), seconds }
     if (tab === 'sfx') return { kind: 'sfx', prompt: text, seconds }
-    return voice === CLONE && reference ? { kind: 'clone', text, reference } : { kind: 'speech', text, voice: voice === CLONE ? VOICES[0] : voice }
+    return voice === CLONE && reference ? { kind: 'clone', text, reference } : { kind: 'speech', text, voice: voice === CLONE ? list[0] : voice }
   }
   const run = () => {
     const s = spec()
@@ -64,7 +66,7 @@ export function AudioDialog({ editor, onError }: { editor: Editor; onError: (msg
           <div className="ca-rename__field"><span>{t('audio.voice')}</span>
             <select className="ca-panel__input" value={voice} onChange={(e) => setVoice(e.target.value)}>
               {reference && <option value={CLONE}>{t('audio.cloneSelected')}</option>}
-              {VOICES.map((v) => <option key={v} value={v}>{v}</option>)}
+              {list.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
         ) : (

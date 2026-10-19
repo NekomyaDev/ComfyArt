@@ -1,7 +1,7 @@
 import { react, type Editor, type TLImageShape, type TLShapeId, type TLVideoShape } from 'tldraw'
 
 import * as actions from './actions'
-import { generateAudio, imageTo3d, VOICES } from './assetGen'
+import { generateAudio, imageTo3d, voices } from './assetGen'
 import { editElements } from './elements'
 import { bakeToImage, createMockup } from './mockup'
 import { api } from './comfy'
@@ -187,8 +187,8 @@ const HANDLERS: Record<string, Handler> = {
       if (shape.type !== AUDIO) throw new Error(`${shape.id} is not an audio shape`)
       return toChat(editor, chat, generateAudio(editor, { kind: 'clone', text: String(args.text), reference: fileSrc(editor, shape)! }, onError, true))
     }
-    if (args.voice && !VOICES.includes(args.voice)) throw new Error(`voice must be one of ${VOICES.join(', ')}`)
-    return toChat(editor, chat, generateAudio(editor, { kind: 'speech', text: String(args.text), voice: args.voice ?? VOICES[0] }, onError, true))
+    if (args.voice && !voices().includes(args.voice)) throw new Error(`voice must be one of ${voices().join(', ')}`)
+    return toChat(editor, chat, generateAudio(editor, { kind: 'speech', text: String(args.text), voice: args.voice ?? voices()[0] }, onError, true))
   },
   edit_elements: (editor, args, onError) => started(editor, editElements(editor, imageOf(editor, args.id), onError)),
   create_mockup: (editor, args, onError) => started(editor, createMockup(editor, imageOf(editor, args.id), onError)),

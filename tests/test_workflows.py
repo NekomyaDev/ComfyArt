@@ -22,10 +22,12 @@ NODES_USED_BY_SRC = {
     "r2v-minimax-h3.api.json": ["92", "129", "132", "136", "137"],
     "sfx-stable-audio.api.json": ["3", "5", "6", "8"],
     "speech-kokoro.api.json": ["1", "2", "3"],
+    "speech-qwen3tts.api.json": ["1", "2"],
     "t2v-minimax-h3.api.json": ["92", "129", "131", "133"],
     "transcribe-gemma4.api.json": ["2", "3"],
     "upscale-ultrasharp-4x.api.json": ["1", "3", "4"],
     "voice-clone-indextts.api.json": ["1", "3", "4"],
+    "voice-clone-qwen3tts.api.json": ["1", "2", "3"],
 }
 
 

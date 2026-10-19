@@ -1,13 +1,15 @@
 import { createShapeId, type Editor, type TLImageShape, type TLShapeId } from 'tldraw'
 
-import { loadWorkflow } from './comfy'
+import { cloudMode, loadWorkflow } from './comfy'
 import { freeSpot, GAP, registerPlacer, selectResults, spawnHolder, startJob, type ErrorSink } from './jobs'
 import { AUDIO, AUDIO_SIZE, MODEL } from './shapes/EmbedShapes'
 import { GENERATOR } from './shapes/GeneratorShape'
 import { annotated, randomSeed, type Built } from './workflows'
 import { t } from './i18n'
 
-export const VOICES = ['zf_xiaoxiao', 'zf_xiaoyi', 'zf_xiaobei', 'zf_xiaoni', 'zm_yunxi', 'zm_yunjian', 'zm_yunyang', 'zm_yunxia', 'af_heart', 'af_bella', 'af_nicole', 'am_adam', 'am_michael', 'bf_emma', 'bm_george', 'jf_alpha', 'jm_kumo']
+const KOKORO_VOICES = ['zf_xiaoxiao', 'zf_xiaoyi', 'zf_xiaobei', 'zf_xiaoni', 'zm_yunxi', 'zm_yunjian', 'zm_yunyang', 'zm_yunxia', 'af_heart', 'af_bella', 'af_nicole', 'am_adam', 'am_michael', 'bf_emma', 'bm_george', 'jf_alpha', 'jm_kumo']
+const QWEN_VOICES = ['Serena', 'Vivian', 'Uncle_fu', 'Dylan', 'Eric', 'Ryan', 'Aiden', 'Ono_anna', 'Sohee']
+export const voices = () => (cloudMode() ? QWEN_VOICES : KOKORO_VOICES)
 const LANGS: Record<string, string> = { a: 'English', b: 'English (British)', j: 'Japanese', z: 'Mandarin Chinese', e: 'Spanish', f: 'French', h: 'Hindi', i: 'Italian', p: 'Brazilian Portuguese' }
 export const MUSIC_SECONDS = [15, 30, 60, 120]
 export const SFX_SECONDS = [3, 5, 8, 15]
@@ -34,10 +36,21 @@ async function audioGraph(spec: AudioSpec): Promise<Built> {
     g['6'].inputs.seed = randomSeed()
     return { graph: g, result: '8' }
   }
+  if (spec.kind === 'speech' && cloudMode()) {
+    const g = await loadWorkflow('speech-qwen3tts.api.json')
+    Object.assign(g['1'].inputs, { text: spec.text, speaker: spec.voice, seed: randomSeed() })
+    return { graph: g, result: '2' }
+  }
   if (spec.kind === 'speech') {
     const g = await loadWorkflow('speech-kokoro.api.json')
     g['1'].inputs.speaker_name = spec.voice
     Object.assign(g['2'].inputs, { text: spec.text, lang: LANGS[spec.voice[0]] ?? 'English' })
+    return { graph: g, result: '3' }
+  }
+  if (cloudMode()) {
+    const g = await loadWorkflow('voice-clone-qwen3tts.api.json')
+    g['1'].inputs.audio = annotated(spec.reference)
+    Object.assign(g['2'].inputs, { target_text: spec.text, seed: randomSeed() })
     return { graph: g, result: '3' }
   }
   const g = await loadWorkflow('voice-clone-indextts.api.json')

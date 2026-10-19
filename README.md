@@ -31,6 +31,12 @@ Put this folder in `ComfyUI/custom_nodes/`, install the Python requirements into
 
 Projects, their snapshot history and agent chats are saved in a SQLite database, `user/__comfyart/data.db`. Projects from older versions (JSON files under `comfyart/projects/`) are imported automatically the first time you open ComfyArt; the files are left in place. The interface starts in ComfyUI's language and can be switched from the settings menu.
 
+## Comfy Cloud
+
+ComfyArt can run its workflows on [Comfy Cloud](https://cloud.comfy.org) instead of the local GPU. Create an API key at [platform.comfy.org](https://platform.comfy.org/profile/api-keys) (Cloud API keys need a paid Comfy plan), set it as `COMFY_API_KEY` before starting ComfyUI, then choose Settings → Generate on → Comfy Cloud. The same workflows are sent to `https://cloud.comfy.org/api/v2/jobs`; no build or deployment is needed because Cloud has the models and nodes preinstalled. Input images and audio are uploaded as Cloud assets when a job is submitted, and results are downloaded into `output/comfyart/` with a `cloud-<job>` suffix, so the canvas, history and Agent see them like local results.
+
+On Cloud, FLUX.2 Klein 9B runs the bf16 `flux-2-klein-9b.safetensors` and Qwen Image 2512 loads with the core `UNETLoader`. Angles imports the QMA LoRA from Hugging Face into your Cloud model library the first time it runs. Voiceover and voice cloning use Qwen3-TTS on Cloud (`speech-qwen3tts`, `voice-clone-qwen3tts`) instead of Kokoro and IndexTTS2, which Cloud does not have.
+
 ## Agent
 
 The Agent panel runs a real tool-using agent on the backend, ported from [ComfyTV](https://github.com/jtydhr88/ComfyTV)'s bot. It is off by default: turn on MCP and the Agent in Agent Settings. Image and video modes work without it. Pick the agent per chat:
@@ -77,6 +83,7 @@ Every canvas action runs one of the API workflows in `workflows/` through ComfyU
 
 - `ComfyArt Precise UNET Loader` loads a diffusion model with manual cast ops. ComfyUI's `--fast fp8_matrix_mult` turns unscaled fp8 checkpoints such as Qwen Image 2512 into noise; this loader skips that path for the model it loads.
 - `/comfyart/bot/*` (chats, send, stop, branch, answers), `/comfyart/settings` and `/comfyart/mcp` serve the Agent.
+- `POST /comfyart/cloud/prompt`, `GET /comfyart/cloud/history/{job}` and `POST /comfyart/cloud/cancel/{job}` forward jobs to Comfy Cloud with `COMFY_API_KEY`.
 - `POST /comfyart/pdf` renders up to 30 pages of an uploaded PDF to PNG files in `input/comfyart/pdf/` and returns them with each page's text.
 - `POST /comfyart/ocr` reads the text lines of an image (RapidOCR, on device) and returns each line with its box.
 
