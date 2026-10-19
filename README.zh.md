@@ -45,6 +45,17 @@ Agent 面板在后端运行一个真正会调用工具的 Agent，移植自 [Com
 
 智能分镜、OCR、品牌和记忆提取、参考图说明、Ideogram 的结构化描述，都是对默认 Agent 的单次调用（`POST /comfyart/bot/complete`，不带工具）。ComfyArt 从不保存任何凭据。Agent 通过 `POST /comfyart/mcp` 上的 ComfyArt MCP 服务器干活（查看画布、生成和编辑图片、视频、音频和 3D 模型、编辑元素和样机、放置文字、形状、画板、网页和幻灯片、记忆、技能、向用户提问）。画布工具由该项目打开着的 ComfyArt 标签页执行，所以 Agent 工作时请保持页面打开。对话保存在 SQLite 数据库 `user/__comfyart/data.db` 里，关掉面板也会继续运行。
 
+### 在其他 agent 里使用 ComfyArt
+
+在「Agent 设置」里打开 MCP，把 `http://127.0.0.1:8188/comfyart/mcp?project=<项目 id>` 加到任意 MCP 客户端，例如：
+
+```bash
+claude mcp add --transport http comfyart "http://127.0.0.1:8188/comfyart/mcp?project=<项目 id>"
+codex mcp add comfyart --url "http://127.0.0.1:8188/comfyart/mcp?project=<项目 id>"
+```
+
+Claude Code、Codex、Gemini CLI、Qwen Code、Cursor、VS Code、Claude Desktop 和自写脚本的接入方法、工具超时设置以及完整工具列表见 [MCP 指南](https://comfyart.org/zh/guides/mcp)。
+
 ## 工作流和模型
 
 画布上的每个操作都通过 ComfyUI 的 `/prompt` 运行 `workflows/` 里的某个 API 工作流。除特别注明外都只用核心节点。

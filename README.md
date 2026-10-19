@@ -51,6 +51,17 @@ The Agent panel runs a real tool-using agent on the backend, ported from [ComfyT
 
 Storyboard split, OCR, brand and memory extraction, reference notes and the Ideogram caption are single calls to the default Agent (`POST /comfyart/bot/complete`, no tools). ComfyArt never stores credentials. The agent works through the ComfyArt MCP server at `POST /comfyart/mcp` (look at the canvas, generate and edit images, videos, audio and 3D models, Edit Elements and mockups, place text, shapes, frames, web pages and slides, memory, skills, ask the user). Canvas tools are executed by the open ComfyArt tab of the project, so keep it open while the agent works. Chats are saved in a SQLite database at `user/__comfyart/data.db` and keep running when the panel is closed.
 
+### Use ComfyArt from other agents
+
+Turn on MCP in Agent Settings and add `http://127.0.0.1:8188/comfyart/mcp?project=<project-id>` to any MCP client, for example:
+
+```bash
+claude mcp add --transport http comfyart "http://127.0.0.1:8188/comfyart/mcp?project=<project-id>"
+codex mcp add comfyart --url "http://127.0.0.1:8188/comfyart/mcp?project=<project-id>"
+```
+
+Setup for Claude Code, Codex, Gemini CLI, Qwen Code, Cursor, VS Code, Claude Desktop and your own scripts, tool timeouts and the full tool list are in the [MCP guide](https://comfyart.org/guides/mcp).
+
 ## Workflows and models
 
 Every canvas action runs one of the API workflows in `workflows/` through ComfyUI's `/prompt`. They use core nodes unless noted.
