@@ -91,9 +91,10 @@ export function agentModels(video: boolean): ModelDef[] {
 
 export function isInstalled(id: string, runOn = defaultTarget()): boolean {
   const installed = installedAtom.get()
-  if (cloudMode() || !installed) return true
+  const def = [...IMAGE_MODELS, ...VIDEO_MODELS].find((m) => m.id === id)
+  if (cloudMode() || !installed || !def) return true
   const here = installed.includes(id)
   if (!lanMode() || runOn === 'local') return here
-  const lan = lanHas([...IMAGE_MODELS, ...VIDEO_MODELS].find((m) => m.id === id)?.files ?? [], runOn)
+  const lan = lanHas(def.files, runOn)
   return runOn === 'auto' ? here || lan : lan
 }
