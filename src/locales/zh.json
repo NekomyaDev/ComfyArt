@@ -374,6 +374,7 @@
   "customWorkflows.outputNeedsImages": "结果节点 {0} 需要有 images 输入。",
   "customWorkflows.title": "自定义工作流",
   "customWorkflows.unknownMarker": "{0}（节点 {1}）不是 ComfyArt 的标记，会被忽略。",
+  "customWorkflows.needsUnet": "{0} 没有 @unet 节点来挂 LoRA；请把加载模型的节点标题设为 @unet，或去掉 LoRA。",
   "customWorkflows.unusedInput": "{0} 没有 {1} 节点来接收 ComfyArt 传入的图片；请加上，或把这个功能切回内置。",
   "customWorkflows.unusedMarker": "{1}用不到 {0}，会被忽略。",
   "customWorkflows.upload": "给这个功能上传工作流",

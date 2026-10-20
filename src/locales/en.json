@@ -374,6 +374,7 @@
   "customWorkflows.outputNeedsImages": "Result node {0} needs an images input.",
   "customWorkflows.title": "Custom workflows",
   "customWorkflows.unknownMarker": "{0} (node {1}) is not a ComfyArt marker and is ignored.",
+  "customWorkflows.needsUnet": "{0} has no @unet node to attach the LoRAs to; title the node that loads the model @unet, or remove the LoRAs.",
   "customWorkflows.unusedInput": "{0} has no {1} node for the image ComfyArt passes; add one or switch this feature back to Built in.",
   "customWorkflows.unusedMarker": "{0} is not used by {1} and is ignored.",
   "customWorkflows.upload": "Upload a workflow for this feature",
