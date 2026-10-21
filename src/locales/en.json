@@ -820,6 +820,8 @@
   "modelPrefs.theAgentOnlyUsesChecked": "The Agent only uses checked models",
   "modelPrefs.theAgentPicksAutomaticallyFrom": "The Agent picks automatically from all installed models",
   "models.fast4StepGenerationSupports": "Fast 4-step generation, supports reference images",
+  "models.flux3KleinFast16Step": "Fast 16-step generation, supports reference images",
+  "models.mossImageFullCaption": "Works best from a long, detailed scene description",
   "models.fast8StepGenerationGreat": "Fast 8-step generation, great for realistic portraits and photographic looks",
   "models.greatAtLayoutLogosAnd": "Great at layout, logos and text posters (the Agent writes a structured description first)",
   "models.highOverallQualityAccurateChinese": "High overall quality, accurate Chinese and English text, supports multiple reference images",
