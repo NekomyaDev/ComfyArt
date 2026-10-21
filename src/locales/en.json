@@ -596,6 +596,8 @@
   "imageToolbar.fitArtboard": "Fit Artboard",
   "imageToolbar.flipAndRotate": "Flip & Rotate",
   "imageToolbar.generationInfo": "Generation Info",
+  "imageToolbar.multiViewTo3d": "Multi-view to 3D",
+  "imageToolbar.multiViewTo3dHint": "Pixal3D multi-view: the selected images, left to right, are the front, left, back and right views",
   "imageToolbar.imageTo3d": "Image to 3D",
   "imageToolbar.more": "More",
   "imageToolbar.noTextDetected": "No text detected",

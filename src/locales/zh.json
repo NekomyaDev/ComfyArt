@@ -596,6 +596,8 @@
   "imageToolbar.fitArtboard": "适应画板",
   "imageToolbar.flipAndRotate": "翻转与旋转",
   "imageToolbar.generationInfo": "生成信息",
+  "imageToolbar.multiViewTo3d": "多视角转 3D",
+  "imageToolbar.multiViewTo3dHint": "Pixal3D 多视角：选中的图从左到右依次作为前、左、后、右视图",
   "imageToolbar.imageTo3d": "转 3D",
   "imageToolbar.more": "更多",
   "imageToolbar.noTextDetected": "未检测到文本",

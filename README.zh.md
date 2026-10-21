@@ -88,6 +88,7 @@ Claude Code、Codex、Gemini CLI、Qwen Code、Cursor、VS Code、Claude Desktop
 | 声音克隆 | `voice-clone-indextts` | [ComfyUI-Easy-IndexTTS2](https://github.com/yolain/ComfyUI-Easy-IndexTTS2) |
 | 图片转 3D | `image-to-3d-trellis2` | `trellis_2_int8_convrot.safetensors`、`trellis_2_shape_vae_bf16.safetensors`、`trellis_2_texture_vae_bf16.safetensors`、`dino_v3_L_naf_fp32.safetensors`（clip_vision）、`birefnet.safetensors` |
 | 图片转 3D（Pixal3D） | `image-to-3d-pixal3d` | `pixal3d_int8_convrot.safetensors`、`moge_2_vitl_normal_fp16.safetensors`（geometry_estimation），以及上面的 TRELLIS.2 两个 VAE、`dino_v3_L_naf_fp32.safetensors` 和 `birefnet.safetensors` |
+| 多视角转 3D（Pixal3D） | `image-to-3d-pixal3d-multiview` | `pixal3d_multiview_int8_convrot.safetensors`，以及上面的 TRELLIS.2 两个 VAE、`dino_v3_L_naf_fp32.safetensors` 和 `birefnet.safetensors` |
 
 ## 节点和路由
 
