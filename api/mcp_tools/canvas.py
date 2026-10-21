@@ -191,8 +191,9 @@ SPECS: dict[str, dict] = {
         ["id"], timeout=SLOW_S),
     "image_to_3d": _tool(
         "Turn an image shape (best: one object on a plain background) into a textured 3D model placed next "
-        "to it. Takes a few minutes. Returns ids for wait_generation.",
-        {"id": _ID}, ["id"], approval="转 3D"),
+        "to it. Takes a few minutes. Returns ids for wait_generation. model: trellis2 (default) or pixal3d, "
+        "which also conditions on the photo's camera field of view (estimated with MoGe).",
+        {"id": _ID, "model": {"type": "string", "enum": ["trellis2", "pixal3d"]}}, ["id"], approval="转 3D"),
     "place_html": _tool(
         "Place a web page on the canvas: html is one complete self-contained HTML document you wrote "
         "(inline CSS/JS, images by absolute URL). width/height in canvas units.",

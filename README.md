@@ -93,6 +93,7 @@ Every canvas action runs one of the API workflows in `workflows/` through ComfyU
 | Voiceover | `speech-kokoro` | [comfyui-kokoro](https://github.com/stavsap/comfyui-kokoro) |
 | Voice cloning | `voice-clone-indextts` | [ComfyUI-Easy-IndexTTS2](https://github.com/yolain/ComfyUI-Easy-IndexTTS2) |
 | Image to 3D | `image-to-3d-trellis2` | `trellis_2_int8_convrot.safetensors`, `trellis_2_shape_vae_bf16.safetensors`, `trellis_2_texture_vae_bf16.safetensors`, `dino_v3_L_naf_fp32.safetensors` (clip_vision), `birefnet.safetensors` |
+| Image to 3D (Pixal3D) | `image-to-3d-pixal3d` | `pixal3d_int8_convrot.safetensors`, `moge_2_vitl_normal_fp16.safetensors` (geometry_estimation), plus the TRELLIS.2 VAEs, `dino_v3_L_naf_fp32.safetensors` and `birefnet.safetensors` above |
 
 ## Nodes and routes
 

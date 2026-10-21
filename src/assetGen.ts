@@ -72,17 +72,21 @@ export function generateAudio(editor: Editor, spec: AudioSpec, onError: ErrorSin
   return id
 }
 
-async function modelGraph(image: string): Promise<Built> {
-  const { graph: g, id } = await loadNamed('image-to-3d-trellis2.api.json', 'image', 'save')
+export type Model3d = 'trellis2' | 'pixal3d'
+
+async function modelGraph(image: string, model: Model3d): Promise<Built> {
+  const { graph: g, id } = await (model === 'pixal3d'
+    ? loadNamed('image-to-3d-pixal3d.api.json', 'image', 'save')
+    : loadNamed('image-to-3d-trellis2.api.json', 'image', 'save'))
   g[id.image].inputs.image = image
   return { graph: g, result: id.save }
 }
 
-export function imageTo3d(editor: Editor, shape: TLImageShape, onError: ErrorSink) {
+export function imageTo3d(editor: Editor, shape: TLImageShape, onError: ErrorSink, model: Model3d = 'trellis2') {
   const asset = shape.props.assetId ? editor.getAsset(shape.props.assetId) : null
   if (asset?.type !== 'image' || !asset.props.src) return
   const holder = spawnHolder(editor, shape, [MODEL_SIZE, MODEL_SIZE])
-  void startJob(editor, holder, modelGraph(annotated(asset.props.src)), { name: `${asset.props.name || t('common.image')} · 3D`, kind: 'model', placer: 'model' }, onError)
+  void startJob(editor, holder, modelGraph(annotated(asset.props.src), model), { name: `${asset.props.name || t('common.image')} · 3D`, kind: 'model', placer: 'model' }, onError)
   return holder
 }
 
