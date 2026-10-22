@@ -228,8 +228,9 @@ export async function storyboardGraph(scenes: Scene[], aspect: number, firstFram
     g[`clip${i}`] = { class_type: 'CreateVideo', inputs: { ...video, images: [local(i, id.decode), 0], audio: [local(i, id.audioDecode), 0], codec: 'auto' } }
     if (i > 0) g[`cut${i}`] = { class_type: 'Video Slice', inputs: { video: [`clip${i}`, 0], start_time: 1 / Number(video.fps), duration: 0, strict_duration: false } }
     concat[`videos.video${i}`] = [i > 0 ? `cut${i}` : `clip${i}`, 0]
+    g[`keep${i}`] = { class_type: 'SaveVideo', inputs: { ...g[id.save].inputs, video: [`clip${i}`, 0], filename_prefix: 'comfyart/storyboard/scene' } }
   })
   g.concat = { class_type: 'ConcatenateVideo', inputs: concat }
   g[id.save].inputs.video = ['concat', 0]
-  return { graph: g, result: id.save }
+  return { graph: g, result: id.save, partial: scenes.map((_, i) => `keep${i}`) }
 }

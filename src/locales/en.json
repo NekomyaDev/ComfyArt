@@ -647,6 +647,7 @@
   "jobs.interrupted": "Generation was cancelled",
   "jobs.lost": "The generation disappeared from the ComfyUI queue (the server may have restarted)",
   "jobs.noOutput": "The workflow produced no output",
+  "jobs.partialKept": "Finished segments placed next to it: {0}.",
   "kitEditor.createProject": "Create a project with this kit",
   "kitEditor.description": "Description",
   "kitEditor.dropFormats": "PNG, JPG, PDF · added to references",
