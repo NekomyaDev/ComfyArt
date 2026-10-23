@@ -81,8 +81,9 @@ function EditorBody({ editor, shape, src, name, onError }: { editor: Editor; sha
   }, [src])
 
   const first = sources[src]
+  const ready = !!first && !!edit
   useEffect(() => {
-    if (!first || !canvas.current) return
+    if (!ready || !canvas.current) return
     const k = Math.min(1, MAX_SIDE / Math.max(first.width, first.height))
     canvas.current.width = Math.round(first.width * k / 2) * 2
     canvas.current.height = Math.round(first.height * k / 2) * 2
@@ -91,7 +92,7 @@ function EditorBody({ editor, shape, src, name, onError }: { editor: Editor; sha
     player.current = p
     void p.seek(0)
     return () => p.dispose()
-  }, [first])
+  }, [ready])
 
   useEffect(() => {
     if (edit && player.current && !player.current.playing) void player.current.seek(player.current.current)
