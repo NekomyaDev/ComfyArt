@@ -182,19 +182,23 @@ async function inQueue(promptId: string): Promise<boolean> {
   return queued(q.queue_running, promptId) || queued(q.queue_pending, promptId)
 }
 
-export async function cancelPrompt(promptId: string) {
+export async function cancelPrompt(promptId: string): Promise<boolean> {
   if (promptId.startsWith(CLOUD_ID)) {
     await api(`/comfyart/cloud/cancel/${promptId.slice(CLOUD_ID.length)}`, { method: 'POST' })
-    return
+    return false
   }
   if (promptId.startsWith(LAN_ID)) {
     await api(`/comfyart/remote/cancel/${lanPath(promptId)}`, { method: 'POST' })
-    return
+    return false
   }
   const q = await (await api('/queue')).json()
   const post = (path: string, body: unknown) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-  if (queued(q.queue_pending, promptId)) await post('/queue', { delete: [promptId] })
-  else if (queued(q.queue_running, promptId)) await post('/interrupt', { prompt_id: promptId })
+  if (queued(q.queue_pending, promptId)) {
+    await post('/queue', { delete: [promptId] })
+    return true
+  }
+  if (queued(q.queue_running, promptId)) await post('/interrupt', { prompt_id: promptId })
+  return false
 }
 
 const wakers = new Map<string, Set<() => void>>()
