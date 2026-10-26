@@ -201,6 +201,13 @@ export async function cancelPrompt(promptId: string): Promise<boolean> {
   return false
 }
 
+export async function freeMemory(): Promise<boolean> {
+  const res = await api('/free', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ unload_models: true, free_memory: true }) })
+  if (!res.ok) throw new Error(`free failed: ${res.status}`)
+  const q = await (await api('/queue')).json()
+  return (q.queue_running ?? []).length > 0
+}
+
 const wakers = new Map<string, Set<() => void>>()
 for (const type of ['execution_success', 'execution_error', 'execution_interrupted']) {
   onComfyEvent(type, (d: { prompt_id?: string }) => { for (const wake of wakers.get(String(d?.prompt_id)) ?? []) wake() })
