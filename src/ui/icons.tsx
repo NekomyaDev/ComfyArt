@@ -49,6 +49,7 @@ export const Icons = {
   skill: <Svg><path d="M6 3.5h9l3 3V20a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 20z" /><path d="M9 10h6M9 13.5h6M9 17h3.5" /></Svg>,
   upload: <Svg><path d="M15.5 8.5 10 14a2.1 2.1 0 0 0 3 3l6-6a3.5 3.5 0 0 0-5-5l-6.2 6.2a5 5 0 0 0 7 7L20 14" /></Svg>,
   next: <Svg><path d="m10 7 5 5-5 5" /></Svg>,
+  exit: <Svg><path d="M14 4.5H18.5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H14M9.5 8l-4 4 4 4M5.5 12H15" /></Svg>,
   expandPanel: <Svg><path d="M14 4.5h5.5V10M10 19.5H4.5V14M19.5 4.5 13 11M4.5 19.5 11 13" /></Svg>,
   search: <Svg><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></Svg>,
   assets: <Svg><path d="M4.5 7.5 12 4l7.5 3.5L12 11z" /><path d="M4.5 12 12 15.5 19.5 12M4.5 16.5 12 20l7.5-3.5" /></Svg>,
